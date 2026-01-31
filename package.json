@@ -1,0 +1,28 @@
+{
+  "name": "resource-allocation-app",
+  "version": "1.0.0",
+  "description": "Resource allocation tracking application",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "npm run test && npm run test:e2e"
+  },
+  "keywords": [
+    "resource-planning",
+    "allocation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@vitest/ui": "^1.0.0",
+    "fake-indexeddb": "^5.0.0",
+    "happy-dom": "^12.10.3",
+    "http-server": "^14.1.1",
+    "vitest": "^1.0.0"
+  }
+}

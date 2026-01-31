@@ -1,11 +1,16 @@
 import { getPeople, getProjects, getAllocations } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
+import { buildAllocationIndex, calculateProjectMonthlyTotals, calculateProjectTotal } from '../helpers/allocationHelper.js';
 
 // Project × Month Overview
 export async function renderProjectMonthlyOverview(year) {
     const projects = await getProjects();
     const people = await getPeople();
     const allocations = await getAllocations();
+    
+    // Build index once for performance
+    const allocationIndex = buildAllocationIndex(allocations);
+    
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Project × Month Overview ${year}</h3>`;
 
@@ -16,20 +21,11 @@ export async function renderProjectMonthlyOverview(year) {
     const tbody = document.createElement("tbody");
 
     projects.forEach(p => {
-        let total = 0;
-        const cells = months.map(month => {
-            let pm = 0;
-            people.forEach(person => {
-                const fte = person.fte ?? 1;
-                const alloc = allocations.filter(a => a.projectId === p.id && a.personId === person.id && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
-                pm += alloc.reduce((s, a) => s + a.pct * fte, 0);
-            });
-            total += pm;
-            return pm;
-        });
-
+        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months);
+        const total = cells.reduce((sum, val) => sum + val, 0);
         const plannedTotal = (p.plannedPM ?? 0) * 12;
         const delta = total - plannedTotal;
+        
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
             cells.map(c => `<td class="${cellClass(c, p.plannedPM ?? 0)}">${c.toFixed(2)}</td>`).join('') +
@@ -46,11 +42,7 @@ export async function renderProjectMonthlyOverview(year) {
         months.map(month => {
             let monthSum = 0;
             projects.forEach(p => {
-                people.forEach(person => {
-                    const fte = person.fte ?? 1;
-                    const alloc = allocations.filter(a => a.projectId === p.id && a.personId === person.id && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
-                    monthSum += alloc.reduce((s, a) => s + a.pct * fte, 0);
-                });
+                monthSum += calculateProjectTotal(allocationIndex, p.id, people, month);
             });
             return `<td><strong>${monthSum.toFixed(2)}</strong></td>`;
         }).join('') +

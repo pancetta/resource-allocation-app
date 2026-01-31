@@ -2,7 +2,7 @@ import { getPersonById, getProjectById, getAllocationsByProject } from '../data/
 import { cellClass } from '../helpers/classUtil.js';
 
 // Project Overview View
-export function renderProjectOverview(projectId = 1, months = 6) {
+export function renderProjectOverview(projectId = 1) {
     const project = getProjectById(projectId);
     if (!project) return '<p>Project not found</p>';
 

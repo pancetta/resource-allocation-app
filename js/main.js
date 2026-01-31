@@ -20,7 +20,7 @@ function initApp() {
     });
 
     btnProject.addEventListener('click', function() {
-        output.innerHTML = renderProjectOverview(1, 6);
+        output.innerHTML = renderProjectOverview(1);
     });
 
     // Initialize with monthly report

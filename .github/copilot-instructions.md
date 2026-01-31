@@ -128,3 +128,4 @@ This is a client-side resource allocation web application built with vanilla Jav
 7. Ensure changes work without a build step (no transpilation/bundling)
 8. Test manually in browser if needed
 9. Verify IndexedDB operations in browser console for data layer changes
+10. Check for failing tests in the linked CI pipeline after creating the PR and debug them.

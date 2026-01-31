@@ -33,4 +33,7 @@ import { initProjectOverview } from './views/projectOverview.js';
     // Populate selects
     await populatePersonSelect();
     await populateProjectSelect();
+    
+    // Signal that modules loaded successfully
+    window.modulesLoaded = true;
 })();

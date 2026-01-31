@@ -21,7 +21,7 @@
     "@playwright/test": "^1.40.0",
     "@vitest/ui": "^1.0.0",
     "fake-indexeddb": "^5.0.0",
-    "happy-dom": "^12.10.3",
+    "happy-dom": "^20.0.0",
     "http-server": "^14.1.1",
     "vitest": "^1.0.0"
   }

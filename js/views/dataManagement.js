@@ -120,9 +120,18 @@ function downloadJSON(data) {
 
 // Update auto-backup status display
 function updateAutoBackupStatus() {
-    const autoBackup = getAutoPreparedBackup();
+    if (typeof document === 'undefined') {
+        return;
+    }
+    
     const statusElement = document.getElementById("autoBackupStatus");
     const downloadBtn = document.getElementById("downloadAutoBackupBtn");
+    
+    if (!statusElement || !downloadBtn) {
+        return; // Elements don't exist in this environment
+    }
+    
+    const autoBackup = getAutoPreparedBackup();
     
     if (autoBackup) {
         const preparedDate = new Date(autoBackup.preparedAt);
@@ -154,8 +163,16 @@ function getTimeAgo(date) {
 }
 
 async function renderBackups() {
-    const backups = getAllBackups();
+    if (typeof document === 'undefined') {
+        return;
+    }
+    
     const tbody = document.querySelector("#backupsTable tbody");
+    if (!tbody) {
+        return; // Element doesn't exist in this environment
+    }
+    
+    const backups = getAllBackups();
     tbody.innerHTML = "";
 
     if (backups.length === 0) {

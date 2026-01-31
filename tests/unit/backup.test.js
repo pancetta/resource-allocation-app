@@ -4,6 +4,7 @@ import {
   addPerson,
   addProject,
   addAllocation,
+  deletePerson,
   exportAllData,
   importAllData,
   createBackup,
@@ -155,30 +156,35 @@ describe('Data Export/Import and Backup', () => {
     it('should restore from backup', async () => {
       // Create initial data and backup
       await addPerson({ id: 'p001', name: 'Original', fte: 1, active: true });
+      await addPerson({ id: 'p002', name: 'Another', fte: 1, active: true });
       const backupKey = await createBackup();
       
-      // Clear and add different data
-      await importAllData({
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        data: { people: [], projects: [], allocations: [] }
-      });
-      
-      // Wait longer for IndexedDB to process the clear operation (CI is slower)
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      // Verify we have 2 people initially
       let people = await getPeople();
-      expect(people).toHaveLength(0);
+      expect(people).toHaveLength(2);
+      
+      // Delete one person to change the data
+      await deletePerson('p002');
+      
+      // Wait for the delete to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify we now have 1 person
+      people = await getPeople();
+      expect(people).toHaveLength(1);
+      expect(people[0].id).toBe('p001');
       
       // Restore from backup
       await restoreBackup(backupKey);
       
-      // Wait longer for IndexedDB to process the restore operation (CI is slower)
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait for IndexedDB to process the restore operation
+      await new Promise(resolve => setTimeout(resolve, 300));
       
+      // Verify both people are restored
       people = await getPeople();
-      expect(people).toHaveLength(1);
-      expect(people[0].name).toBe('Original');
+      expect(people).toHaveLength(2);
+      expect(people.find(p => p.id === 'p001')).toBeTruthy();
+      expect(people.find(p => p.id === 'p002')).toBeTruthy();
     });
 
     it('should delete a backup', async () => {

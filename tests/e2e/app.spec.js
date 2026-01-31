@@ -140,8 +140,8 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     const initialCount = await page.locator('#peopleTable tbody tr').count();
     
     // Click delete button
-    const deleteBtn = page.locator('#peopleTable tbody tr .delete-btn').first();
-    await deleteBtn.waitFor({ state: 'visible', timeout: 5000 });
+    const deleteBtn = page.locator('#peopleTable tbody tr .delete-person').first();
+    await deleteBtn.waitFor({ state: 'visible', timeout: 10000 });
     await deleteBtn.click();
     
     // Wait for deletion

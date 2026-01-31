@@ -1,0 +1,28 @@
+/* Base styles - typography, layout, containers */
+body {
+    font-family: sans-serif;
+    margin: 20px;
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+h2 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+h3 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+label {
+    margin-right: 10px;
+}
+
+input[type=number],
+input[type=month] {
+    width: 80px;
+}

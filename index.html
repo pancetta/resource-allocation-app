@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Resource Allocation App</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+<h1>Resource Allocation App</h1>
+
+<div class="tabs">
+    <button class="tab-button" data-tab="people">People</button>
+    <button class="tab-button" data-tab="projects">Projects</button>
+    <button class="tab-button" data-tab="allocations">Allocations</button>
+    <button class="tab-button" data-tab="results">Results</button>
+</div>
+
+<!-- PEOPLE -->
+<div id="people" class="tab-content">
+    <h2>People</h2>
+    <table id="peopleTable">
+        <thead><tr><th>Name</th><th>FTE</th><th>Active</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button id="addPersonBtn">Add Person</button>
+</div>
+
+<!-- PROJECTS -->
+<div id="projects" class="tab-content">
+    <h2>Projects</h2>
+    <table id="projectsTable">
+        <thead><tr><th>Name</th><th>Planned PM</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button id="addProjectBtn">Add Project</button>
+</div>
+
+<!-- ALLOCATIONS -->
+<div id="allocations" class="tab-content">
+    <h2>Default / Monthly Allocations</h2>
+    <table id="allocationsTable">
+        <thead><tr><th>Person</th><th>Project</th><th>Pct</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <select id="personSelect"></select>
+    <select id="projectSelect"></select>
+    <input type="number" id="pctInput" step="0.01" min="0" max="1" value="1">
+    <input type="month" id="startMonthInput" value="2025-01">
+    <input type="month" id="endMonthInput" value="">
+    <button id="addAllocationBtn">Add Allocation</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="tab-content">
+    <h2>Results</h2>
+
+    <h3>Monthly</h3>
+    <label>Month: <input type="month" id="monthInput" value="2025-03"></label>
+    <button id="calculateBtn">Calculate Month</button>
+
+    <h3>Yearly</h3>
+    <label>Year: <input type="number" id="yearInput" value="2025" min="2000" max="2100"></label>
+    <button id="calculateYearBtn">Yearly Overview</button>
+
+    <h3>Project Monthly Overview</h3>
+    <label>Year: <input type="number" id="overviewYearInput" value="2025" min="2000" max="2100"></label>
+    <button id="projectMonthlyBtn">Project × Month</button>
+
+    <div id="resultsOutput"></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+
+</body>
+</html>

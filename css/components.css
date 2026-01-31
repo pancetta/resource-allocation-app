@@ -1,0 +1,59 @@
+/* Component styles - tables, tabs, buttons */
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 5px;
+    text-align: center;
+}
+
+th {
+    background: #eee;
+}
+
+.warning {
+    background-color: #fdd;
+}
+
+.correct {
+    background-color: #dfd;
+}
+
+/* Tabs */
+.tabs {
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    padding: 5px 10px;
+    margin-right: 5px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background: #fff;
+}
+
+.tab-button.active {
+    font-weight: bold;
+    background: #ddd;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Buttons */
+button {
+    padding: 5px 10px;
+    cursor: pointer;
+    margin: 2px;
+}

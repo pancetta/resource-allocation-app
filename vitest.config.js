@@ -8,9 +8,16 @@ export default defineConfig({
     include: ['tests/**/*.test.js'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'json-summary'],
       include: ['js/**/*.js'],
-      exclude: ['js/bundle.js']
+      exclude: ['js/bundle.js'],
+      // Coverage thresholds to prevent regression
+      thresholds: {
+        statements: 75,
+        branches: 80,
+        functions: 70,
+        lines: 75
+      }
     }
   }
 });

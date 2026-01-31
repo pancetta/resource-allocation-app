@@ -39,7 +39,36 @@ Then navigate to `http://localhost:8080` in your browser.
 
 ## Testing
 
-This application includes comprehensive test coverage:
+This application includes comprehensive test coverage with automated regression prevention.
+
+### Coverage Status
+
+Current coverage: **~78%** overall
+- Statements: 77.87%
+- Branches: 85.88%
+- Functions: 76.11%
+- Lines: 77.87%
+
+Coverage reports are automatically generated and posted to pull requests.
+
+### Coverage Requirements
+
+The test suite enforces minimum coverage thresholds to prevent regression:
+- **Statements**: 75%
+- **Branches**: 80%
+- **Functions**: 70%
+- **Lines**: 75%
+
+If coverage falls below these thresholds, the test suite will fail. This ensures that new code is properly tested and existing coverage doesn't decrease.
+
+### Viewing Coverage Reports
+
+After running tests, coverage reports are available in multiple formats:
+
+1. **Terminal**: Displayed after running `npm test`
+2. **HTML Report**: Open `coverage/index.html` in a browser for an interactive report
+3. **JSON**: `coverage/coverage-summary.json` for programmatic access
+4. **Pull Requests**: Coverage summary is automatically posted as a comment on PRs
 
 ### Prerequisites
 
@@ -111,6 +140,26 @@ E2E tests include:
 ```bash
 npm run test:all
 ```
+
+### Coverage Reports
+
+To view detailed coverage information:
+
+```bash
+# Run tests with coverage (default)
+npm test
+
+# Open HTML coverage report in browser
+open coverage/index.html  # macOS
+xdg-open coverage/index.html  # Linux
+start coverage/index.html  # Windows
+```
+
+The HTML report shows:
+- Line-by-line coverage for each file
+- Which lines are covered/uncovered
+- Coverage percentages by file and directory
+- Filtering and search capabilities
 
 ## Test Coverage
 

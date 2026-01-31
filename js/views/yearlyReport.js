@@ -42,6 +42,7 @@ export async function calculateYear(year) {
     const sumRow = document.createElement("tr");
 
     // Pre-compute monthly sums (using optimized helper functions)
+
     const monthlySums = months.map(m => {
         let sum = 0;
         people.forEach(p => {

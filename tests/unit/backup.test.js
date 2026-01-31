@@ -164,11 +164,17 @@ describe('Data Export/Import and Backup', () => {
         data: { people: [], projects: [], allocations: [] }
       });
       
+      // Wait a bit for IndexedDB to process
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       let people = await getPeople();
       expect(people).toHaveLength(0);
       
       // Restore from backup
       await restoreBackup(backupKey);
+      
+      // Wait a bit for IndexedDB to process
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       people = await getPeople();
       expect(people).toHaveLength(1);

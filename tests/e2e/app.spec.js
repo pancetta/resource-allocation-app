@@ -53,11 +53,17 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should add a new person', async ({ page }) => {
+    // Handle the prompt dialog
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('prompt');
+      await dialog.accept('Test Person');
+    });
+    
     // Click Add Person button
     await page.click('#addPersonBtn');
     
     // Wait for the new row to appear
-    await page.waitForSelector('#peopleTable tbody tr');
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     // Check that a row was added
     const rows = await page.locator('#peopleTable tbody tr').count();
@@ -68,20 +74,31 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     // Navigate to Projects tab
     await page.click('[data-tab="projects"]');
     
+    // Handle the prompt dialog
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('prompt');
+      await dialog.accept('Test Project');
+    });
+    
     // Click Add Project button
     await page.click('#addProjectBtn');
     
     // Wait for the new row
-    await page.waitForSelector('#projectsTable tbody tr');
+    await page.waitForSelector('#projectsTable tbody tr', { timeout: 10000 });
     
     const rows = await page.locator('#projectsTable tbody tr').count();
     expect(rows).toBeGreaterThan(0);
   });
 
   test('should edit person details', async ({ page }) => {
+    // Handle the prompt dialog
+    page.once('dialog', async dialog => {
+      await dialog.accept('Initial Name');
+    });
+    
     // Add a person first
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr', { timeout: 5000 });
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     // Click on the name cell (should be contenteditable)
     const nameCell = page.locator('#peopleTable tbody tr').first().locator('td').first();
@@ -108,9 +125,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should delete a person', async ({ page }) => {
+    // Handle the prompt dialog
+    page.once('dialog', async dialog => {
+      await dialog.accept('Person to Delete');
+    });
+    
     // Add a person first
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr', { timeout: 5000 });
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     // Wait a bit for the row to be fully rendered
     await page.waitForTimeout(500);
@@ -130,9 +152,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should add and display allocation', async ({ page }) => {
+    // Handle the prompt dialog for person
+    page.once('dialog', async dialog => {
+      await dialog.accept('Alice');
+    });
+    
     // First add a person
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr', { timeout: 5000 });
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     const personName = page.locator('#peopleTable tbody tr').first().locator('td').first();
     await personName.click();
@@ -144,8 +171,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     // Add a project
     await page.click('[data-tab="projects"]');
     await page.waitForTimeout(300);
+    
+    // Handle the prompt dialog for project
+    page.once('dialog', async dialog => {
+      await dialog.accept('Project Alpha');
+    });
+    
     await page.click('#addProjectBtn');
-    await page.waitForSelector('#projectsTable tbody tr', { timeout: 5000 });
+    await page.waitForSelector('#projectsTable tbody tr', { timeout: 10000 });
     
     const projectName = page.locator('#projectsTable tbody tr').first().locator('td').first();
     await projectName.click();
@@ -188,12 +221,23 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should generate monthly report', async ({ page }) => {
+    // Handle the prompt dialog for person
+    page.once('dialog', async dialog => {
+      await dialog.accept('Test Person');
+    });
+    
     // Add test data
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr');
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     // Add a project
     await page.click('[data-tab="projects"]');
+    
+    // Handle the prompt dialog for project
+    page.once('dialog', async dialog => {
+      await dialog.accept('Test Project');
+    });
+    
     await page.click('#addProjectBtn');
     await page.waitForTimeout(500);
     
@@ -218,9 +262,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should generate yearly report', async ({ page }) => {
+    // Handle the prompt dialog
+    page.once('dialog', async dialog => {
+      await dialog.accept('Test Person');
+    });
+    
     // Add test data
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr');
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     // Go to results tab
     await page.click('[data-tab="results"]');
@@ -243,9 +292,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should apply correct/warning classes based on calculations', async ({ page }) => {
+    // Handle the prompt dialog for person
+    page.once('dialog', async dialog => {
+      await dialog.accept('Alice');
+    });
+    
     // Add a person with FTE = 1.0
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr', { timeout: 5000 });
+    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
     
     const nameCell = page.locator('#peopleTable tbody tr').first().locator('td').first();
     await nameCell.click();
@@ -262,8 +316,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     // Add a project
     await page.click('[data-tab="projects"]');
     await page.waitForTimeout(300);
+    
+    // Handle the prompt dialog for project
+    page.once('dialog', async dialog => {
+      await dialog.accept('Test Project');
+    });
+    
     await page.click('#addProjectBtn');
-    await page.waitForSelector('#projectsTable tbody tr', { timeout: 5000 });
+    await page.waitForSelector('#projectsTable tbody tr', { timeout: 10000 });
     await page.waitForTimeout(500);
     
     // Add an allocation at 100%

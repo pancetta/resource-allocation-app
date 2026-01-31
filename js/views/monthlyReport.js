@@ -51,7 +51,7 @@ export async function calculateMonth(month) {
         }).join('') +
         `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
-    
+
     personTable.appendChild(pTbody);
     personTable.appendChild(tfoot);
     resultsOutput.appendChild(personTable);

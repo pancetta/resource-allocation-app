@@ -14,72 +14,90 @@ import {
 } from '../data/database.js';
 
 export async function init() {
+    // Guard against running in non-DOM environments (like tests)
+    if (typeof document === 'undefined') {
+        return;
+    }
+    
     // Export button
-    document.getElementById("exportDataBtn").addEventListener("click", async () => {
-        try {
-            const data = await exportAllData();
-            downloadJSON(data);
-            alert("Data exported successfully!");
-        } catch (e) {
-            alert("Export failed: " + e.message);
-        }
-    });
+    const exportBtn = document.getElementById("exportDataBtn");
+    if (exportBtn) {
+        exportBtn.addEventListener("click", async () => {
+            try {
+                const data = await exportAllData();
+                downloadJSON(data);
+                alert("Data exported successfully!");
+            } catch (e) {
+                alert("Export failed: " + e.message);
+            }
+        });
+    }
 
     // Download auto-prepared JSON backup
-    document.getElementById("downloadAutoBackupBtn").addEventListener("click", () => {
-        const autoBackup = getAutoPreparedBackup();
-        if (!autoBackup) {
-            alert("No automatic backup available yet. Please wait a moment and try again.");
-            return;
-        }
-        
-        try {
-            downloadJSON(autoBackup.data);
-            alert("Automatic backup downloaded successfully!");
-        } catch (e) {
-            alert("Download failed: " + e.message);
-        }
-    });
-
-    // Import button
-    document.getElementById("importDataBtn").addEventListener("click", () => {
-        document.getElementById("importFileInput").click();
-    });
-
-    // File input handler
-    document.getElementById("importFileInput").addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-            
-            if (!confirm("This will replace all existing data. Are you sure?")) {
-                e.target.value = "";
+    const downloadAutoBtn = document.getElementById("downloadAutoBackupBtn");
+    if (downloadAutoBtn) {
+        downloadAutoBtn.addEventListener("click", () => {
+            const autoBackup = getAutoPreparedBackup();
+            if (!autoBackup) {
+                alert("No automatic backup available yet. Please wait a moment and try again.");
                 return;
             }
+            
+            try {
+                downloadJSON(autoBackup.data);
+                alert("Automatic backup downloaded successfully!");
+            } catch (e) {
+                alert("Download failed: " + e.message);
+            }
+        });
+    }
 
-            await importAllData(data);
-            alert("Data imported successfully! Refreshing...");
-            location.reload();
-        } catch (e) {
-            alert("Import failed: " + e.message);
-        } finally {
-            e.target.value = "";
-        }
-    });
+    // Import button
+    const importBtn = document.getElementById("importDataBtn");
+    const importFileInput = document.getElementById("importFileInput");
+    if (importBtn && importFileInput) {
+        importBtn.addEventListener("click", () => {
+            importFileInput.click();
+        });
+
+        // File input handler
+        importFileInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                if (!confirm("This will replace all existing data. Are you sure?")) {
+                    e.target.value = "";
+                    return;
+                }
+
+                await importAllData(data);
+                alert("Data imported successfully! Refreshing...");
+                location.reload();
+            } catch (e) {
+                alert("Import failed: " + e.message);
+            } finally {
+                e.target.value = "";
+            }
+        });
+    }
 
     // Create manual backup button
-    document.getElementById("createBackupBtn").addEventListener("click", async () => {
-        try {
-            await createBackup();
-            alert("Backup created successfully!");
-            await renderBackups();
-        } catch (e) {
-            alert("Backup failed: " + e.message);
-        }
-    });
+    const createBackupBtn = document.getElementById("createBackupBtn");
+    if (createBackupBtn) {
+        createBackupBtn.addEventListener("click", async () => {
+            try {
+                await createBackup();
+                alert("Backup created successfully!");
+                await renderBackups();
+            } catch (e) {
+                alert("Backup failed: " + e.message);
+            }
+        });
+    }
 
     // Initial backup list render
     await renderBackups();

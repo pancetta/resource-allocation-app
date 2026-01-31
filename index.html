@@ -73,6 +73,22 @@
 </div>
 
 <script type="module" src="js/main.js"></script>
+<script>
+// Fallback loader for when ES6 modules fail (e.g., file:// protocol)
+// Modules set this flag when successfully initialized
+window.modulesLoaded = false;
+
+setTimeout(function() {
+    // Check if modules loaded by verifying initialization completed
+    const activeTab = document.querySelector('.tab-content.active');
+    if (!activeTab && !window.modulesLoaded) {
+        console.warn('ES6 modules failed to load, loading fallback bundle');
+        const script = document.createElement('script');
+        script.src = 'js/bundle.js';
+        document.body.appendChild(script);
+    }
+}, 1000);
+</script>
 
 </body>
 </html>

@@ -40,21 +40,28 @@ export async function calculateYear(year) {
     // --- Totals Row ---
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
-    const totalLabel = `<td><strong>Total</strong></td>`;
 
-    // Month sums
-    const monthSums = months.map(m => {
+    // Pre-compute monthly sums (using optimized helper functions)
+    const monthlySums = months.map(m => {
         let sum = 0;
         people.forEach(p => {
             const fte = p.fte ?? 1;
             sum += calculatePersonTotal(allocationIndex, p.id, projects, m, fte);
         });
-        return `<td><strong>${sum.toFixed(2)}</strong></td>`;
-    }).join('');
+        return sum;
+    });
 
-    const totalCells = `<td colspan="3"></td>`;
+    // Calculate total sum
+    const totalSum = sumArray(monthlySums);
+    const fteSum = people.reduce((sum, p) => sum + (p.fte ?? 1) * 12, 0);
+    const deltaSum = totalSum - fteSum;
 
-    sumRow.innerHTML = totalLabel + monthSums + totalCells;
+    // Build the total row HTML in one statement
+    sumRow.innerHTML = `<td><strong>Total</strong></td>` +
+        monthlySums.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
+        `<td><strong>${totalSum.toFixed(2)}</strong></td>` +
+        `<td><strong>${fteSum.toFixed(2)}</strong></td>` +
+        `<td class="${cellClass(deltaSum, 0)}"><strong>${deltaSum.toFixed(2)}</strong></td>`;
     tfoot.appendChild(sumRow);
     
     personTable.appendChild(pTbody);
@@ -85,19 +92,27 @@ export async function calculateYear(year) {
     // Totals row for projects
     const tfootProj = document.createElement("tfoot");
     const sumRowProj = document.createElement("tr");
-    const totalLabelProj = `<td><strong>Total</strong></td>`;
 
-    const monthSumsProj = months.map(m => {
+    // Pre-compute monthly sums for projects (using optimized helper functions)
+    const monthlySumsProj = months.map(m => {
         let sum = 0;
         projects.forEach(p => {
             sum += calculateProjectTotal(allocationIndex, p.id, people, m);
         });
-        return `<td><strong>${sum.toFixed(2)}</strong></td>`;
-    }).join('');
+        return sum;
+    });
 
-    const totalCellsProj = `<td colspan="3"></td>`;
+    // Calculate total sum
+    const totalSumProj = sumArray(monthlySumsProj);
+    const plannedSumProj = projects.reduce((sum, p) => (sum + (p.plannedPM ?? 0) * 12), 0);
+    const deltaSumProj = totalSumProj - plannedSumProj;
 
-    sumRowProj.innerHTML = totalLabelProj + monthSumsProj + totalCellsProj;
+    // Build the total row HTML in one statement
+    sumRowProj.innerHTML = `<td><strong>Total</strong></td>` +
+        monthlySumsProj.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
+        `<td><strong>${totalSumProj.toFixed(2)}</strong></td>` +
+        `<td><strong>${plannedSumProj.toFixed(2)}</strong></td>` +
+        `<td class="${cellClass(deltaSumProj, 0)}"><strong>${deltaSumProj.toFixed(2)}</strong></td>`;
     tfootProj.appendChild(sumRowProj);
     
     projTable.appendChild(projTbody);

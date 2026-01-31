@@ -39,6 +39,14 @@ function invalidateCache(storeName) {
 }
 
 /**
+ * Clear all caches - useful for testing
+ * @public
+ */
+export function clearCache() {
+    invalidateCache();
+}
+
+/**
  * Open and initialize the IndexedDB database
  * @returns {Promise<IDBDatabase>} The database instance
  */

@@ -90,6 +90,16 @@
     <button id="importDataBtn">📤 Import Data</button>
     <input type="file" id="importFileInput" accept=".json" style="display: none;">
     
+    <h3>🔄 Automatic JSON Backup</h3>
+    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+        <p><strong>How it works:</strong> Every time your data changes, a JSON backup is automatically prepared in your browser's memory (localStorage). You can download it instantly with one click - no waiting!</p>
+        <p><strong>Status:</strong> <span id="autoBackupStatus" class="auto-backup-status">Checking...</span></p>
+        <button id="downloadAutoBackupBtn" style="background-color: #28a745; color: white; font-weight: bold; padding: 10px 20px;">⚡ Download Latest Auto-Backup</button>
+        <p style="margin-top: 10px; font-size: 0.9em; color: #555;">
+            <strong>💡 Tip:</strong> Click this button regularly (e.g., at the end of each work session) to save your latest changes as a JSON file. This is your safety net against data loss!
+        </p>
+    </div>
+    
     <h3>Automatic Backups (Browser Storage Only)</h3>
     <p><strong>What are these?</strong> Automatic backups are saved in your browser's localStorage (same as browser cache). They provide quick recovery from accidental changes but are NOT safe from cache cleanup.</p>
     <p><strong>Limitations:</strong></p>

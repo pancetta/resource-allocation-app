@@ -9,7 +9,8 @@ import {
     createBackup,
     getAllBackups,
     restoreBackup,
-    deleteBackup
+    deleteBackup,
+    getAutoPreparedBackup
 } from '../data/database.js';
 
 export async function init() {
@@ -17,18 +18,26 @@ export async function init() {
     document.getElementById("exportDataBtn").addEventListener("click", async () => {
         try {
             const data = await exportAllData();
-            const jsonStr = JSON.stringify(data, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `resource-allocation-backup-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
+            downloadJSON(data);
             alert("Data exported successfully!");
         } catch (e) {
             alert("Export failed: " + e.message);
+        }
+    });
+
+    // Download auto-prepared JSON backup
+    document.getElementById("downloadAutoBackupBtn").addEventListener("click", () => {
+        const autoBackup = getAutoPreparedBackup();
+        if (!autoBackup) {
+            alert("No automatic backup available yet. Please wait a moment and try again.");
+            return;
+        }
+        
+        try {
+            downloadJSON(autoBackup.data);
+            alert("Automatic backup downloaded successfully!");
+        } catch (e) {
+            alert("Download failed: " + e.message);
         }
     });
 
@@ -74,6 +83,56 @@ export async function init() {
 
     // Initial backup list render
     await renderBackups();
+    
+    // Update auto-backup status
+    updateAutoBackupStatus();
+}
+
+// Helper function to download JSON
+function downloadJSON(data) {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `resource-allocation-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Update auto-backup status display
+function updateAutoBackupStatus() {
+    const autoBackup = getAutoPreparedBackup();
+    const statusElement = document.getElementById("autoBackupStatus");
+    const downloadBtn = document.getElementById("downloadAutoBackupBtn");
+    
+    if (autoBackup) {
+        const preparedDate = new Date(autoBackup.preparedAt);
+        const timeAgo = getTimeAgo(preparedDate);
+        statusElement.textContent = `Last prepared: ${timeAgo} (${preparedDate.toLocaleString()})`;
+        statusElement.className = "auto-backup-status ready";
+        downloadBtn.disabled = false;
+    } else {
+        statusElement.textContent = "No automatic backup prepared yet";
+        statusElement.className = "auto-backup-status not-ready";
+        downloadBtn.disabled = true;
+    }
+}
+
+// Get human-readable time ago
+function getTimeAgo(date) {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return `${seconds} seconds ago`;
+    
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    
+    const days = Math.floor(hours / 24);
+    return `${days} day${days !== 1 ? 's' : ''} ago`;
 }
 
 async function renderBackups() {
@@ -129,6 +188,9 @@ async function renderBackups() {
         row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
+    
+    // Update auto-backup status whenever we render backups
+    updateAutoBackupStatus();
 }
 
 // Auto-backup on data changes
@@ -145,6 +207,12 @@ export function scheduleAutoBackup() {
         try {
             await createBackup();
             console.log("Auto-backup created at", new Date().toLocaleString());
+            
+            // Update the auto-backup status display if on Data tab
+            if (document.getElementById("autoBackupStatus")) {
+                updateAutoBackupStatus();
+                await renderBackups();
+            }
         } catch (e) {
             console.error("Auto-backup failed:", e);
         }

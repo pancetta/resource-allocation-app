@@ -251,4 +251,49 @@ describe('Data Export/Import and Backup', () => {
       expect(allocations[0].endMonth).toBe('2025-09');
     });
   });
+
+  describe('Auto-Prepared JSON Backup', () => {
+    it('should create auto-prepared JSON backup when creating backup', async () => {
+      const { getAutoPreparedBackup } = await import('../../js/data/database.js');
+      
+      await addPerson({ id: 'p001', name: 'Test Person', fte: 1, active: true });
+      await createBackup();
+      
+      const autoBackup = getAutoPreparedBackup();
+      expect(autoBackup).toBeTruthy();
+      expect(autoBackup).toHaveProperty('data');
+      expect(autoBackup).toHaveProperty('preparedAt');
+      expect(autoBackup).toHaveProperty('preparedDate');
+      expect(autoBackup.data.data.people).toHaveLength(1);
+    });
+
+    it('should update auto-prepared backup on subsequent backups', async () => {
+      const { getAutoPreparedBackup } = await import('../../js/data/database.js');
+      
+      await addPerson({ id: 'p001', name: 'Person 1', fte: 1, active: true });
+      await createBackup();
+      
+      const firstBackup = getAutoPreparedBackup();
+      const firstTimestamp = firstBackup.preparedAt;
+      
+      // Wait a bit and create another backup
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await addPerson({ id: 'p002', name: 'Person 2', fte: 1, active: true });
+      await createBackup();
+      
+      const secondBackup = getAutoPreparedBackup();
+      expect(secondBackup.preparedAt).toBeGreaterThan(firstTimestamp);
+      expect(secondBackup.data.data.people).toHaveLength(2);
+    });
+
+    it('should return null when no auto-prepared backup exists', () => {
+      const { getAutoPreparedBackup } = require('../../js/data/database.js');
+      
+      // Clear localStorage first
+      localStorage.clear();
+      
+      const autoBackup = getAutoPreparedBackup();
+      expect(autoBackup).toBeNull();
+    });
+  });
 });

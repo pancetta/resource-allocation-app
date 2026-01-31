@@ -146,3 +146,21 @@ button:active {
 #addAllocationBtn:hover {
     background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
 }
+
+/* Auto-backup status indicator */
+.auto-backup-status {
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.auto-backup-status.ready {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.auto-backup-status.not-ready {
+    background-color: #f8d7da;
+    color: #721c24;
+}

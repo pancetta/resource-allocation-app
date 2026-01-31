@@ -14,6 +14,7 @@ A client-side resource allocation web application built with vanilla JavaScript 
 - **Data Management & Backup**:
   - Export data to JSON files for permanent storage
   - Import data from JSON files
+  - **Automatic JSON backup preparation** - one-click download of latest data
   - Automatic backups to browser localStorage (up to 10 recent versions)
   - Manual backup creation and restoration
 
@@ -30,30 +31,37 @@ This application uses two types of data storage:
 
 2. **localStorage** (Automatic Backups)
    - Stores up to 10 recent automatic backups
+   - Also stores an auto-prepared JSON backup for instant download
    - **Can be lost** when you clear browser cache/browsing data
    - Only accessible in the same browser where created
    - Good for quick recovery from accidental changes
 
 ### Protecting Your Data
 
-**⚠️ IMPORTANT: To prevent data loss, you MUST export your data regularly!**
+**⚠️ IMPORTANT: To prevent data loss, you MUST save your data regularly!**
 
 #### Recommended Data Safety Practices:
 
-1. **Regular Exports** (Most Important!)
-   - Export your data to a JSON file at least weekly
+1. **Use the Automatic JSON Backup** (Easiest!)
+   - Click the "⚡ Download Latest Auto-Backup" button regularly
+   - This downloads a JSON file instantly (no preparation needed)
+   - The backup is automatically kept up-to-date as you work
+   - **Best practice**: Download at the end of each work session
+   
+2. **Regular Exports** (Also Important!)
+   - Manually export your data to a JSON file at least weekly
    - Store exported files in a safe location:
      - Cloud storage (Google Drive, Dropbox, OneDrive, etc.)
      - External hard drive
      - Network backup system
      - Version control (if appropriate)
 
-2. **Before Major Changes**
+3. **Before Major Changes**
    - Export data before making significant updates
-   - Create a manual backup in localStorage
+   - Download the auto-prepared backup
    - Keep the exported file until you're satisfied with changes
 
-3. **After Important Updates**
+4. **After Important Updates**
    - Export data after adding critical information
    - Store in multiple locations if data is mission-critical
 

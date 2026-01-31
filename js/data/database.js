@@ -180,6 +180,7 @@ export async function importAllData(importedData) {
 // Automatic backup to localStorage
 const BACKUP_KEY_PREFIX = "resource-planning-backup-";
 const MAX_BACKUPS = 10;
+const AUTO_JSON_BACKUP_KEY = "resource-planning-auto-json-backup";
 
 export async function createBackup() {
     const data = await exportAllData();
@@ -188,6 +189,13 @@ export async function createBackup() {
     
     try {
         localStorage.setItem(backupKey, JSON.stringify(data));
+        
+        // Also create/update the auto-prepared JSON backup for instant download
+        localStorage.setItem(AUTO_JSON_BACKUP_KEY, JSON.stringify({
+            data,
+            preparedAt: timestamp,
+            preparedDate: new Date(timestamp).toISOString()
+        }));
         
         // Clean up old backups, keeping only MAX_BACKUPS most recent
         const allBackups = getAllBackups();
@@ -241,4 +249,17 @@ export async function restoreBackup(backupKey) {
 
 export function deleteBackup(backupKey) {
     localStorage.removeItem(backupKey);
+}
+
+// Get auto-prepared JSON backup
+export function getAutoPreparedBackup() {
+    const backupData = localStorage.getItem(AUTO_JSON_BACKUP_KEY);
+    if (!backupData) return null;
+    
+    try {
+        return JSON.parse(backupData);
+    } catch (e) {
+        console.error("Error reading auto-prepared backup:", e);
+        return null;
+    }
 }

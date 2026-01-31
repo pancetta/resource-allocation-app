@@ -13,7 +13,7 @@ This is a client-side resource allocation web application built with vanilla Jav
 ```
 /
 ├── index.html          # Main application entry point
-├── master.html         # Alternative layout/master template
+├── master.html         # Previous layout/master template file, not to be used for production (only to verify that original functionality is preserved)
 ├── css/
 │   ├── base.css        # Base styles
 │   └── components.css  # Component-specific styles

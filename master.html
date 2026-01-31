@@ -1,0 +1,355 @@
+/**********************
+* Fixed Calculation & Reporting Functions
+**********************/
+
+// Helper to apply correct/warning classes
+function cellClass(actual, expected) {
+  if (actual === expected) return 'correct';
+  return 'warning';
+}
+
+/**********************
+* Monthly Report
+**********************/
+async function calculateMonth(month) {
+  const people = await getPeople();
+  const projects = await getProjects();
+  const allocations = await getAllocations();
+  const resultsOutput = document.getElementById("resultsOutput");
+  resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
+
+  // --- Person table ---
+  const personTable = document.createElement("table");
+  const pHeader = ["Person", ...projects.map(p=>p.name), "Total", "FTE", "Delta"];
+  personTable.innerHTML = `<thead><tr>${pHeader.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+  const pTbody = document.createElement("tbody");
+
+  people.forEach(p => {
+    const fte = p.fte ?? 1;
+    let total = 0;
+    const cells = projects.map(proj => {
+      const alloc = allocations.filter(a => a.personId === p.id && a.projectId === proj.id
+        && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
+      const pm = alloc.reduce((s,a)=>s + a.pct*fte, 0);
+      total += pm;
+      return pm;
+    });
+    const delta = total - fte;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.name}</td>` +
+      cells.map(c => `<td class="${cellClass(c, fte/projects.length)}">${c.toFixed(2)}</td>`).join('') +
+      `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` +
+      `<td>${fte.toFixed(2)}</td>` +
+      `<td class="${cellClass(delta,0)}">${delta.toFixed(2)}</td>`;
+    pTbody.appendChild(tr);
+  });
+
+  // Column totals
+  const tfoot = document.createElement("tfoot");
+  const sumRow = document.createElement("tr");
+  sumRow.innerHTML = `<td><strong>Total</strong></td>` +
+    projects.map(proj => {
+      let sum = 0;
+      people.forEach(p => {
+        const fte = p.fte ?? 1;
+        const alloc = allocations.filter(a => a.personId === p.id && a.projectId === proj.id
+          && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
+        sum += alloc.reduce((s,a)=>s + a.pct*fte,0);
+      });
+      return `<td class="${cellClass(sum, sum)}"><strong>${sum.toFixed(2)}</strong></td>`; // totals assumed correct
+    }).join('') +
+    `<td></td><td></td><td></td>`; // Total, FTE, Delta columns
+  tfoot.appendChild(sumRow);
+  pTbody.appendChild(tfoot);
+
+  personTable.appendChild(pTbody);
+  resultsOutput.appendChild(personTable);
+
+  // --- Project table ---
+  const projTable = document.createElement("table");
+  const projHeader = ["Project", "Allocated PM", "Planned PM", "Delta"];
+  projTable.innerHTML = `<thead><tr>${projHeader.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+  const projTbody = document.createElement("tbody");
+
+  projects.forEach(proj => {
+    let total = 0;
+    people.forEach(p => {
+      const fte = p.fte ?? 1;
+      const alloc = allocations.filter(a => a.personId===p.id && a.projectId===proj.id
+        && a.startMonth<=month && (!a.endMonth || a.endMonth>=month));
+      total += alloc.reduce((s,a)=>s + a.pct*fte,0);
+    });
+    const planned = proj.plannedPM ?? 0;
+    const delta = total - planned;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${proj.name}</td>` +
+      `<td class="${cellClass(total, planned)}">${total.toFixed(2)}</td>` +
+      `<td>${planned.toFixed(2)}</td>` +
+      `<td class="${cellClass(delta,0)}">${delta.toFixed(2)}</td>`;
+    projTbody.appendChild(tr);
+  });
+
+  projTable.appendChild(projTbody);
+  resultsOutput.appendChild(projTable);
+}
+
+async function calculateYear(year){
+  const people = await getPeople();
+  const projects = await getProjects();
+  const allocations = await getAllocations();
+  const resultsOutput = document.getElementById("resultsOutput");
+  resultsOutput.innerHTML = `<h3>Yearly Overview ${year}</h3>`;
+
+  const months = Array.from({length:12},(_,i)=>`${year}-${String(i+1).padStart(2,'0')}`);
+
+  // --- People × Months Table ---
+  const personTable = document.createElement("table");
+  const pHeader = ["Person", ...months, "Total", "FTE", "Delta"];
+  personTable.innerHTML = `<thead><tr>${pHeader.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+  const pTbody = document.createElement("tbody");
+
+  people.forEach(p=>{
+    const fte = p.fte ?? 1;
+    let total = 0;
+    const cells = months.map(m=>{
+      const alloc = allocations.filter(a=>a.personId===p.id && a.startMonth<=m && (!a.endMonth || a.endMonth>=m));
+      const pm = alloc.reduce((s,a)=>s + a.pct*fte,0);
+      total += pm;
+      return pm;
+    });
+    const delta = total - (fte*12);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.name}</td>` +
+      cells.map(c=>`<td class="${cellClass(c,fte)}">${c.toFixed(2)}</td>`).join('') +
+      `<td class="${cellClass(total,fte*12)}">${total.toFixed(2)}</td>` +
+      `<td>${(fte*12).toFixed(2)}</td>` +
+      `<td class="${cellClass(delta,0)}">${delta.toFixed(2)}</td>`;
+    pTbody.appendChild(tr);
+  });
+
+  // --- Totals Row ---
+  const tfoot = document.createElement("tfoot");
+  const sumRow = document.createElement("tr");
+
+  // Person column label
+  const totalLabel = `<td><strong>Total</strong></td>`;
+
+  // Month sums
+  const monthSums = months.map(m=>{
+    let sum = 0;
+    people.forEach(p=>{
+      const fte = p.fte ?? 1;
+      const alloc = allocations.filter(a=>a.personId===p.id && a.startMonth<=m && (!a.endMonth || a.endMonth>=m));
+      sum += alloc.reduce((s,a)=>s + a.pct*fte,0);
+    });
+    return `<td class="${cellClass(sum,sum)}"><strong>${sum.toFixed(2)}</strong></td>`;
+  }).join('');
+
+  // Total sum
+  const totalSum = people.reduce((sum,p)=>{
+    const fte = p.fte ??1;
+    let s=0;
+    months.forEach(m=>{
+      const alloc = allocations.filter(a=>a.personId===p.id && a.startMonth<=m && (!a.endMonth || a.endMonth>=m));
+      s += alloc.reduce((s,a)=>s + a.pct*fte,0);
+    });
+    return sum + s;
+  },0);
+
+  // FTE sum
+  const fteSum = people.reduce((sum,p)=>sum + (p.fte??1)*12,0);
+  const deltaSum = totalSum - fteSum;
+
+  const totalCells = `<td class="${cellClass(totalSum,totalSum)}"><strong>${totalSum.toFixed(2)}</strong></td>` +
+                     `<td>${fteSum.toFixed(2)}</td>` +
+                     `<td class="${cellClass(deltaSum,0)}">${deltaSum.toFixed(2)}</td>`;
+
+  sumRow.innerHTML = totalLabel + monthSums + totalCells;
+  tfoot.appendChild(sumRow);
+  pTbody.appendChild(tfoot);
+
+  personTable.appendChild(pTbody);
+  resultsOutput.appendChild(personTable);
+
+  // --- Project × Months Table ---
+  const projTable = document.createElement("table");
+  const projHeader = ["Project", ...months, "Total", "Planned", "Delta"];
+  projTable.innerHTML = `<thead><tr>${projHeader.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+  const projTbody = document.createElement("tbody");
+
+  projects.forEach(p=>{
+    let total = 0;
+    const cells = months.map(m=>{
+      let pm = 0;
+      people.forEach(person=>{
+        const fte = person.fte??1;
+        const alloc = allocations.filter(a=>a.projectId===p.id && a.personId===person.id && a.startMonth<=m && (!a.endMonth || a.endMonth>=m));
+        pm += alloc.reduce((s,a)=>s+a.pct*fte,0);
+      });
+      total += pm;
+      return pm;
+    });
+
+    const plannedTotal = (p.plannedPM??0)*12;
+    const delta = total - plannedTotal;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.name}</td>` +
+      cells.map(c=>`<td class="${cellClass(c,p.plannedPM??0)}">${c.toFixed(2)}</td>`).join('') +
+      `<td class="${cellClass(total,plannedTotal)}">${total.toFixed(2)}</td>` +
+      `<td>${plannedTotal.toFixed(2)}</td>` +
+      `<td class="${cellClass(delta,0)}">${delta.toFixed(2)}</td>`;
+    projTbody.appendChild(tr);
+  });
+
+  // Totals row for projects
+  const tfootProj = document.createElement("tfoot");
+  const sumRowProj = document.createElement("tr");
+
+  const totalLabelProj = `<td><strong>Total</strong></td>`;
+
+  const monthSumsProj = months.map(m=>{
+    let sum = 0;
+    projects.forEach(p=>{
+      people.forEach(person=>{
+        const fte = person.fte??1;
+        const alloc = allocations.filter(a=>a.projectId===p.id && a.personId===person.id && a.startMonth<=m && (!a.endMonth || a.endMonth>=m));
+        sum += alloc.reduce((s,a)=>s + a.pct*fte,0);
+      });
+    });
+    return `<td class="${cellClass(sum,sum)}"><strong>${sum.toFixed(2)}</strong></td>`;
+  }).join('');
+
+  const totalSumProj = projects.reduce((sum,p)=>{
+    let s = 0;
+    people.forEach(person=>{
+      const fte = person.fte??1;
+      months.forEach(m=>{
+        const alloc = allocations.filter(a=>a.projectId===p.id && a.personId===person.id && a.startMonth<=m && (!a.endMonth || a.endMonth>=m));
+        s += alloc.reduce((s,a)=>s+a.pct*fte,0);
+      });
+    });
+    return sum+s;
+  },0);
+
+  const plannedSumProj = projects.reduce((sum,p)=>(sum + (p.plannedPM??0)*12),0);
+  const deltaSumProj = totalSumProj - plannedSumProj;
+
+  const totalCellsProj = `<td class="${cellClass(totalSumProj,plannedSumProj)}">${totalSumProj.toFixed(2)}</td>` +
+                         `<td>${plannedSumProj.toFixed(2)}</td>` +
+                         `<td class="${cellClass(deltaSumProj,0)}">${deltaSumProj.toFixed(2)}</td>`;
+
+  sumRowProj.innerHTML = totalLabelProj + monthSumsProj + totalCellsProj;
+  tfootProj.appendChild(sumRowProj);
+  projTable.appendChild(projTbody);
+  projTable.appendChild(tfootProj);
+
+  resultsOutput.appendChild(projTable);
+}
+
+
+/**********************
+* Project × Month Overview
+**********************/
+async function renderProjectMonthlyOverview(year){
+  const projects=await getProjects();
+  const people=await getPeople();
+  const allocations=await getAllocations();
+  const resultsOutput=document.getElementById("resultsOutput");
+  resultsOutput.innerHTML=`<h3>Project × Month Overview ${year}</h3>`;
+
+  const months=Array.from({length:12},(_,i)=>`${year}-${String(i+1).padStart(2,'0')}`);
+  const table=document.createElement("table");
+  const header=["Project",...months,"Total","Planned","Delta"];
+  table.innerHTML=`<thead><tr>${header.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+  const tbody=document.createElement("tbody");
+
+  projects.forEach(p=>{
+    let total=0;
+    const cells=months.map(month=>{
+      let pm=0;
+      people.forEach(person=>{
+        const fte=person.fte??1;
+        const alloc=allocations.filter(a=>a.projectId===p.id && a.personId===person.id && a.startMonth<=month && (!a.endMonth || a.endMonth>=month));
+        pm+=alloc.reduce((s,a)=>s+a.pct*fte,0);
+      });
+      total+=pm;
+      return pm;
+    });
+
+    const plannedTotal=(p.plannedPM??0)*12;
+    const delta=total-plannedTotal;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${p.name}</td>`+
+      cells.map(c=>`<td class="${cellClass(c,p.plannedPM??0)}">${c.toFixed(2)}</td>`).join('')+
+      `<td class="${cellClass(total,plannedTotal)}">${total.toFixed(2)}</td>`+
+      `<td>${plannedTotal.toFixed(2)}</td>`+
+      `<td class="${cellClass(delta,0)}">${delta.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Column totals
+  const tfoot=document.createElement("tfoot");
+  const sumRow=document.createElement("tr");
+  sumRow.innerHTML=`<td><strong>Total</strong></td>`+
+    months.map(month=>{
+      let monthSum=0;
+      projects.forEach(p=>{
+        people.forEach(person=>{
+          const fte=person.fte??1;
+          const alloc=allocations.filter(a=>a.projectId===p.id && a.personId===person.id && a.startMonth<=month && (!a.endMonth || a.endMonth>=month));
+          monthSum+=alloc.reduce((s,a)=>s+a.pct*fte,0);
+        });
+      });
+      return `<td class="${cellClass(monthSum,monthSum)}"><strong>${monthSum.toFixed(2)}</strong></td>`;
+    }).join('')+
+    `<td></td><td></td><td></td>`; // Total, Planned, Delta
+  tfoot.appendChild(sumRow);
+  table.appendChild(tbody);
+  table.appendChild(tfoot);
+  resultsOutput.appendChild(table);
+}
+
+
+/**********************
+* Buttons bindings
+**********************/
+document.getElementById("calculateBtn").addEventListener("click",async()=>{
+  const month=document.getElementById("monthInput").value;
+  await calculateMonth(month);
+});
+document.getElementById("calculateYearBtn").addEventListener("click",async()=>{
+  const year=document.getElementById("yearInput").value;
+  await calculateYear(year);
+});
+document.getElementById("projectMonthlyBtn").addEventListener("click",async()=>{
+  const year=document.getElementById("overviewYearInput").value;
+  await renderProjectMonthlyOverview(year);
+});
+
+/**********************
+* Init
+**********************/
+(async()=>{
+  await openDatabase();
+  renderPeople();
+  renderProjects();
+  renderAllocations();
+  
+  // Restore last active tab
+  const lastTab = localStorage.getItem("lastActiveTab") || "people";
+  document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+  const btn = document.querySelector(`.tab-button[data-tab="${lastTab}"]`);
+  const tabDiv = document.getElementById(lastTab);
+  if(btn && tabDiv){
+    btn.classList.add("active");
+    tabDiv.classList.add("active");
+  } else {
+    document.querySelector(".tab-button").classList.add("active");
+    document.querySelector(".tab-content").classList.add("active");
+  }
+})();
+</script>
+
+</body>
+</html>

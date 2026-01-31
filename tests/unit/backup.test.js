@@ -286,8 +286,8 @@ describe('Data Export/Import and Backup', () => {
       expect(secondBackup.data.data.people).toHaveLength(2);
     });
 
-    it('should return null when no auto-prepared backup exists', () => {
-      const { getAutoPreparedBackup } = require('../../js/data/database.js');
+    it('should return null when no auto-prepared backup exists', async () => {
+      const { getAutoPreparedBackup } = await import('../../js/data/database.js');
       
       // Clear localStorage first
       localStorage.clear();

@@ -3,7 +3,11 @@ import { scheduleAutoBackup } from '../main.js';
 
 // Render people table
 export async function renderPeople() {
+    if (typeof document === 'undefined') return;
+    
     const tbody = document.querySelector("#peopleTable tbody");
+    if (!tbody) return;
+    
     tbody.innerHTML = "";
     const people = await getPeople();
     
@@ -24,6 +28,8 @@ export async function renderPeople() {
 }
 
 function attachPeopleEventListeners() {
+    if (typeof document === 'undefined') return;
+    
     // Content editable blur handlers
     document.querySelectorAll("#peopleTable td[contenteditable]").forEach(td => {
         td.addEventListener("blur", async function() {
@@ -75,7 +81,11 @@ function attachPeopleEventListeners() {
 
 // Populate person select dropdown
 export async function populatePersonSelect() {
+    if (typeof document === 'undefined') return;
+    
     const select = document.getElementById("personSelect");
+    if (!select) return;
+    
     select.innerHTML = "";
     const people = await getPeople();
     

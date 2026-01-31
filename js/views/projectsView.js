@@ -3,7 +3,11 @@ import { scheduleAutoBackup } from '../main.js';
 
 // Render projects table
 export async function renderProjects() {
+    if (typeof document === 'undefined') return;
+    
     const tbody = document.querySelector("#projectsTable tbody");
+    if (!tbody) return;
+    
     tbody.innerHTML = "";
     const projects = await getProjects();
     
@@ -58,7 +62,11 @@ function attachProjectsEventListeners() {
 
 // Populate project select dropdown
 export async function populateProjectSelect() {
+    if (typeof document === 'undefined') return;
+    
     const select = document.getElementById("projectSelect");
+    if (!select) return;
+    
     select.innerHTML = "";
     const projects = await getProjects();
     

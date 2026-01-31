@@ -3,7 +3,11 @@ import { scheduleAutoBackup } from '../main.js';
 
 // Render allocations table
 export async function renderAllocations() {
+    if (typeof document === 'undefined') return;
+    
     const tbody = document.querySelector("#allocationsTable tbody");
+    if (!tbody) return;
+    
     tbody.innerHTML = "";
     const allocs = await getAllocations();
     const people = await getPeople();

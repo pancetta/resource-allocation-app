@@ -14,13 +14,16 @@ import {
   updateAllocation,
   deleteAllocation,
   generatePersonId,
-  generateProjectId
+  generateProjectId,
+  clearCache
 } from '../../js/data/database.js';
 
 describe('Database Module', () => {
   beforeEach(async () => {
     // Open database before each test
     await openDatabase();
+    // Clear cache to ensure tests are isolated
+    clearCache();
   });
 
   describe('People CRUD', () => {

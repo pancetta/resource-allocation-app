@@ -1,11 +1,16 @@
 import { getPeople, getProjects, getAllocations } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
+import { buildAllocationIndex, calculatePM, calculatePersonTotal, calculateProjectTotal } from '../helpers/allocationHelper.js';
 
 // Monthly Report
 export async function calculateMonth(month) {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
+    
+    // Build index once for performance
+    const allocationIndex = buildAllocationIndex(allocations);
+    
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
 
@@ -17,15 +22,10 @@ export async function calculateMonth(month) {
 
     people.forEach(p => {
         const fte = p.fte ?? 1;
-        let total = 0;
-        const cells = projects.map(proj => {
-            const alloc = allocations.filter(a => a.personId === p.id && a.projectId === proj.id
-                && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
-            const pm = alloc.reduce((s, a) => s + a.pct * fte, 0);
-            total += pm;
-            return pm;
-        });
+        const cells = projects.map(proj => calculatePM(allocationIndex, p.id, proj.id, month, fte));
+        const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte);
         const delta = total - fte;
+        
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
             cells.map(c => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join('') +
@@ -40,13 +40,7 @@ export async function calculateMonth(month) {
     const sumRow = document.createElement("tr");
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
         projects.map(proj => {
-            let sum = 0;
-            people.forEach(p => {
-                const fte = p.fte ?? 1;
-                const alloc = allocations.filter(a => a.personId === p.id && a.projectId === proj.id
-                    && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
-                sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
-            });
+            const sum = calculateProjectTotal(allocationIndex, proj.id, people, month);
             return `<td><strong>${sum.toFixed(2)}</strong></td>`;
         }).join('') +
         `<td colspan="3"></td>`;
@@ -63,15 +57,10 @@ export async function calculateMonth(month) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(proj => {
-        let total = 0;
-        people.forEach(p => {
-            const fte = p.fte ?? 1;
-            const alloc = allocations.filter(a => a.personId === p.id && a.projectId === proj.id
-                && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
-            total += alloc.reduce((s, a) => s + a.pct * fte, 0);
-        });
+        const total = calculateProjectTotal(allocationIndex, proj.id, people, month);
         const planned = proj.plannedPM ?? 0;
         const delta = total - planned;
+        
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${proj.name}</td>` +
             `<td class="${cellClass(total, planned)}">${total.toFixed(2)}</td>` +

@@ -320,9 +320,9 @@ async function calculateYear(year){
 
   sumRow.innerHTML = totalLabel + monthSums + totalCells;
   tfoot.appendChild(sumRow);
-  pTbody.appendChild(tfoot);
-
+  
   personTable.appendChild(pTbody);
+  personTable.appendChild(tfoot);
   resultsOutput.appendChild(personTable);
 
   // --- Project × Months Table ---

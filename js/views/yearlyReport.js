@@ -40,31 +40,25 @@ export async function calculateYear(year) {
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
 
-    // Calculate total sum for all people across all months
-    const totalSum = people.reduce((sum, p) => {
-        const fte = p.fte ?? 1;
-        let s = 0;
-        months.forEach(m => {
+    // Pre-compute monthly sums
+    const monthlySums = months.map(m => {
+        let sum = 0;
+        people.forEach(p => {
+            const fte = p.fte ?? 1;
             const alloc = allocations.filter(a => a.personId === p.id && a.startMonth <= m && (!a.endMonth || a.endMonth >= m));
-            s += alloc.reduce((s, a) => s + a.pct * fte, 0);
+            sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
         });
-        return sum + s;
-    }, 0);
+        return sum;
+    });
 
+    // Calculate total sum
+    const totalSum = monthlySums.reduce((sum, val) => sum + val, 0);
     const fteSum = people.reduce((sum, p) => sum + (p.fte ?? 1) * 12, 0);
     const deltaSum = totalSum - fteSum;
 
     // Build the total row HTML in one statement
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
-        months.map(m => {
-            let sum = 0;
-            people.forEach(p => {
-                const fte = p.fte ?? 1;
-                const alloc = allocations.filter(a => a.personId === p.id && a.startMonth <= m && (!a.endMonth || a.endMonth >= m));
-                sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
-            });
-            return `<td><strong>${sum.toFixed(2)}</strong></td>`;
-        }).join('') +
+        monthlySums.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
         `<td><strong>${totalSum.toFixed(2)}</strong></td>` +
         `<td><strong>${fteSum.toFixed(2)}</strong></td>` +
         `<td class="${cellClass(deltaSum, 0)}"><strong>${deltaSum.toFixed(2)}</strong></td>`;
@@ -108,35 +102,27 @@ export async function calculateYear(year) {
     const tfootProj = document.createElement("tfoot");
     const sumRowProj = document.createElement("tr");
 
-    // Calculate total sum for all projects across all months
-    const totalSumProj = projects.reduce((sum, p) => {
-        let s = 0;
-        people.forEach(person => {
-            const fte = person.fte ?? 1;
-            months.forEach(m => {
+    // Pre-compute monthly sums for projects
+    const monthlySumsProj = months.map(m => {
+        let sum = 0;
+        projects.forEach(p => {
+            people.forEach(person => {
+                const fte = person.fte ?? 1;
                 const alloc = allocations.filter(a => a.projectId === p.id && a.personId === person.id && a.startMonth <= m && (!a.endMonth || a.endMonth >= m));
-                s += alloc.reduce((s, a) => s + a.pct * fte, 0);
+                sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
             });
         });
-        return sum + s;
-    }, 0);
+        return sum;
+    });
 
+    // Calculate total sum
+    const totalSumProj = monthlySumsProj.reduce((sum, val) => sum + val, 0);
     const plannedSumProj = projects.reduce((sum, p) => (sum + (p.plannedPM ?? 0) * 12), 0);
     const deltaSumProj = totalSumProj - plannedSumProj;
 
     // Build the total row HTML in one statement
     sumRowProj.innerHTML = `<td><strong>Total</strong></td>` +
-        months.map(m => {
-            let sum = 0;
-            projects.forEach(p => {
-                people.forEach(person => {
-                    const fte = person.fte ?? 1;
-                    const alloc = allocations.filter(a => a.projectId === p.id && a.personId === person.id && a.startMonth <= m && (!a.endMonth || a.endMonth >= m));
-                    sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
-                });
-            });
-            return `<td><strong>${sum.toFixed(2)}</strong></td>`;
-        }).join('') +
+        monthlySumsProj.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
         `<td><strong>${totalSumProj.toFixed(2)}</strong></td>` +
         `<td><strong>${plannedSumProj.toFixed(2)}</strong></td>` +
         `<td class="${cellClass(deltaSumProj, 0)}"><strong>${deltaSumProj.toFixed(2)}</strong></td>`;

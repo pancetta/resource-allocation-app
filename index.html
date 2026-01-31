@@ -15,6 +15,7 @@
     <button class="tab-button" data-tab="projects">Projects</button>
     <button class="tab-button" data-tab="allocations">Allocations</button>
     <button class="tab-button" data-tab="results">Results</button>
+    <button class="tab-button" data-tab="data">Data</button>
 </div>
 
 <!-- PEOPLE -->
@@ -70,6 +71,32 @@
     <button id="projectMonthlyBtn">Project × Month</button>
 
     <div id="resultsOutput"></div>
+</div>
+
+<!-- DATA MANAGEMENT -->
+<div id="data" class="tab-content">
+    <h2>Data Management</h2>
+    
+    <h3>Export / Import</h3>
+    <p>Export your data to a JSON file for safekeeping, or import data from a previous export.</p>
+    <button id="exportDataBtn">Export All Data</button>
+    <button id="importDataBtn">Import Data</button>
+    <input type="file" id="importFileInput" accept=".json" style="display: none;">
+    
+    <h3>Automatic Backups</h3>
+    <p>Backups are automatically created and stored in your browser's local storage. Up to 10 recent backups are kept.</p>
+    <button id="createBackupBtn">Create Manual Backup</button>
+    
+    <table id="backupsTable">
+        <thead>
+            <tr>
+                <th>Backup Date</th>
+                <th>Data Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 </div>
 
 <script type="module" src="js/main.js"></script>

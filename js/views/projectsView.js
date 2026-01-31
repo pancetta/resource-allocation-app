@@ -1,4 +1,5 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId } from '../data/database.js';
+import { scheduleAutoBackup } from '../main.js';
 
 // Render projects table
 export async function renderProjects() {
@@ -40,6 +41,7 @@ function attachProjectsEventListeners() {
             }
             
             await updateProject(project);
+            scheduleAutoBackup();
         });
     });
     
@@ -48,6 +50,7 @@ function attachProjectsEventListeners() {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
             await deleteProject(id);
+            scheduleAutoBackup();
             renderProjects();
         });
     });
@@ -71,6 +74,7 @@ export async function populateProjectSelect() {
 export async function addProjectAuto(name) {
     const id = await generateProjectId();
     await addProject({ id, name, plannedPM: 0 });
+    scheduleAutoBackup();
     renderProjects();
 }
 

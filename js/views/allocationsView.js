@@ -1,4 +1,5 @@
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects } from '../data/database.js';
+import { scheduleAutoBackup } from '../main.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -41,6 +42,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.personId = this.value;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -52,6 +54,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.projectId = this.value;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -63,6 +66,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.pct = parseFloat(this.value);
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -74,6 +78,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.startMonth = this.value;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -85,6 +90,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.endMonth = this.value || null;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -93,6 +99,7 @@ function attachAllocationsEventListeners() {
         btn.addEventListener("click", async function() {
             const id = parseInt(this.dataset.id);
             await deleteAllocation(id);
+            scheduleAutoBackup();
             renderAllocations();
         });
     });
@@ -108,6 +115,7 @@ export function initAllocationsView() {
             startMonth: document.getElementById("startMonthInput").value,
             endMonth: document.getElementById("endMonthInput").value || null
         });
+        scheduleAutoBackup();
         renderAllocations();
     });
 }

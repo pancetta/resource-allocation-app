@@ -1,4 +1,5 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId } from '../data/database.js';
+import { scheduleAutoBackup } from '../main.js';
 
 // Render people table
 export async function renderPeople() {
@@ -41,6 +42,7 @@ function attachPeopleEventListeners() {
             }
             
             await updatePerson(person);
+            scheduleAutoBackup();
         });
     });
     
@@ -55,6 +57,7 @@ function attachPeopleEventListeners() {
             person.active = checked;
             
             await updatePerson(person);
+            scheduleAutoBackup();
             populatePersonSelect();
         });
     });
@@ -64,6 +67,7 @@ function attachPeopleEventListeners() {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
             await deletePerson(id);
+            scheduleAutoBackup();
             renderPeople();
         });
     });
@@ -87,6 +91,7 @@ export async function populatePersonSelect() {
 export async function addPersonAuto(name) {
     const id = await generatePersonId();
     await addPerson({ id, name, active: true, fte: 1 });
+    scheduleAutoBackup();
     renderPeople();
 }
 

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Allocation App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h2 {
+            color: #555;
+            margin: 30px 0 15px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .underallocated {
+            background-color: #fff3cd !important;
+            color: #856404;
+        }
+        
+        .fullyallocated {
+            background-color: #d4edda !important;
+            color: #155724;
+        }
+        
+        .overallocated {
+            background-color: #f8d7da !important;
+            color: #721c24;
+        }
+        
+        .report-section {
+            margin-bottom: 40px;
+        }
+        
+        #output {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resource Allocation Management</h1>
+        
+        <div class="controls">
+            <button id="btnMonthly">Monthly Report</button>
+            <button id="btnYearly">Yearly Overview</button>
+            <button id="btnProject">Project Overview</button>
+        </div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // Data storage
+        const people = [
+            { id: 1, name: "Alice Johnson", role: "Developer" },
+            { id: 2, name: "Bob Smith", role: "Designer" },
+            { id: 3, name: "Carol White", role: "Developer" },
+            { id: 4, name: "David Brown", role: "Manager" },
+            { id: 5, name: "Eve Davis", role: "Developer" }
+        ];
+
+        const projects = [
+            { id: 1, name: "Website Redesign", startDate: "2024-01", endDate: "2024-06" },
+            { id: 2, name: "Mobile App", startDate: "2024-03", endDate: "2024-12" },
+            { id: 3, name: "API Development", startDate: "2024-02", endDate: "2024-08" },
+            { id: 4, name: "Database Migration", startDate: "2024-05", endDate: "2024-09" }
+        ];
+
+        const allocations = [
+            { personId: 1, projectId: 1, month: "2024-01", percentage: 50 },
+            { personId: 1, projectId: 3, month: "2024-01", percentage: 30 },
+            { personId: 2, projectId: 1, month: "2024-01", percentage: 100 },
+            { personId: 3, projectId: 3, month: "2024-02", percentage: 80 },
+            { personId: 1, projectId: 1, month: "2024-02", percentage: 60 },
+            { personId: 2, projectId: 1, month: "2024-02", percentage: 100 },
+            { personId: 4, projectId: 2, month: "2024-03", percentage: 40 },
+            { personId: 5, projectId: 2, month: "2024-03", percentage: 100 },
+            { personId: 1, projectId: 2, month: "2024-03", percentage: 70 },
+            { personId: 3, projectId: 4, month: "2024-05", percentage: 100 },
+            { personId: 5, projectId: 4, month: "2024-05", percentage: 50 }
+        ];
+
+        // Data access functions
+        function getPeople() {
+            return people;
+        }
+
+        function getProjects() {
+            return projects;
+        }
+
+        function getAllocations() {
+            return allocations;
+        }
+
+        function getPersonById(id) {
+            return people.find(p => p.id === id);
+        }
+
+        function getProjectById(id) {
+            return projects.find(p => p.id === id);
+        }
+
+        function getAllocationsByMonth(month) {
+            return allocations.filter(a => a.month === month);
+        }
+
+        function getAllocationsByPerson(personId) {
+            return allocations.filter(a => a.personId === personId);
+        }
+
+        function getAllocationsByProject(projectId) {
+            return allocations.filter(a => a.projectId === projectId);
+        }
+
+        // Utility function
+        function cellClass(percentage) {
+            if (percentage < 80) return 'underallocated';
+            if (percentage === 100) return 'fullyallocated';
+            return 'overallocated';
+        }
+
+        // Monthly Report View
+        function renderMonthlyReport(month = "2024-01") {
+            const monthAllocations = getAllocationsByMonth(month);
+            const personTotals = {};
+
+            monthAllocations.forEach(alloc => {
+                if (!personTotals[alloc.personId]) {
+                    personTotals[alloc.personId] = 0;
+                }
+                personTotals[alloc.personId] += alloc.percentage;
+            });
+
+            let html = `<div class="report-section">`;
+            html += `<h2>Monthly Report - ${month}</h2>`;
+            html += `<table>`;
+            html += `<thead><tr><th>Person</th><th>Role</th><th>Total Allocation %</th></tr></thead>`;
+            html += `<tbody>`;
+
+            getPeople().forEach(person => {
+                const total = personTotals[person.id] || 0;
+                const cssClass = cellClass(total);
+                html += `<tr><td>${person.name}</td><td>${person.role}</td><td class="${cssClass}">${total}%</td></tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            return html;
+        }
+
+        // Yearly Overview View
+        function renderYearlyReport(year = "2024") {
+            const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+            
+            let html = `<div class="report-section">`;
+            html += `<h2>Yearly Overview - ${year}</h2>`;
+            html += `<table>`;
+            html += `<thead><tr><th>Person</th>`;
+            
+            months.forEach(month => {
+                html += `<th>${year}-${month}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            getPeople().forEach(person => {
+                html += `<tr><td>${person.name}</td>`;
+                months.forEach(month => {
+                    const monthStr = `${year}-${month}`;
+                    const monthAllocations = getAllocationsByMonth(monthStr)
+                        .filter(a => a.personId === person.id);
+                    const total = monthAllocations.reduce((sum, a) => sum + a.percentage, 0);
+                    const cssClass = total > 0 ? cellClass(total) : '';
+                    html += `<td class="${cssClass}">${total > 0 ? total + '%' : '-'}</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            return html;
+        }
+
+        // Project Overview View
+        function renderProjectOverview(projectId = 1, months = 6) {
+            const project = getProjectById(projectId);
+            if (!project) return '<p>Project not found</p>';
+
+            const projectAllocations = getAllocationsByProject(projectId);
+            
+            // Get unique months for this project
+            const projectMonths = [...new Set(projectAllocations.map(a => a.month))].sort();
+            
+            let html = `<div class="report-section">`;
+            html += `<h2>Project Overview - ${project.name}</h2>`;
+            html += `<table>`;
+            html += `<thead><tr><th>Person</th><th>Role</th>`;
+            
+            projectMonths.forEach(month => {
+                html += `<th>${month}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            const peopleOnProject = new Set(projectAllocations.map(a => a.personId));
+            
+            peopleOnProject.forEach(personId => {
+                const person = getPersonById(personId);
+                html += `<tr><td>${person.name}</td><td>${person.role}</td>`;
+                
+                projectMonths.forEach(month => {
+                    const alloc = projectAllocations.find(a => a.personId === personId && a.month === month);
+                    const percentage = alloc ? alloc.percentage : 0;
+                    const cssClass = percentage > 0 ? cellClass(percentage) : '';
+                    html += `<td class="${cssClass}">${percentage > 0 ? percentage + '%' : '-'}</td>`;
+                });
+                
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            return html;
+        }
+
+        // Event handlers
+        document.getElementById('btnMonthly').addEventListener('click', function() {
+            document.getElementById('output').innerHTML = renderMonthlyReport("2024-01");
+        });
+
+        document.getElementById('btnYearly').addEventListener('click', function() {
+            document.getElementById('output').innerHTML = renderYearlyReport("2024");
+        });
+
+        document.getElementById('btnProject').addEventListener('click', function() {
+            document.getElementById('output').innerHTML = renderProjectOverview(1, 6);
+        });
+
+        // Initialize with monthly report
+        document.getElementById('output').innerHTML = renderMonthlyReport("2024-01");
+    </script>
+</body>
+</html>

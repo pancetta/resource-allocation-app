@@ -1,8 +1,13 @@
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects } from '../data/database.js';
+import { scheduleAutoBackup } from '../main.js';
 
 // Render allocations table
 export async function renderAllocations() {
+    if (typeof document === 'undefined') return;
+    
     const tbody = document.querySelector("#allocationsTable tbody");
+    if (!tbody) return;
+    
     tbody.innerHTML = "";
     const allocs = await getAllocations();
     const people = await getPeople();
@@ -41,6 +46,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.personId = this.value;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -52,6 +58,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.projectId = this.value;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -63,6 +70,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.pct = parseFloat(this.value);
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -74,6 +82,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.startMonth = this.value;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -85,6 +94,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             alloc.endMonth = this.value || null;
             await updateAllocation(alloc);
+            scheduleAutoBackup();
         });
     });
     
@@ -93,6 +103,7 @@ function attachAllocationsEventListeners() {
         btn.addEventListener("click", async function() {
             const id = parseInt(this.dataset.id);
             await deleteAllocation(id);
+            scheduleAutoBackup();
             renderAllocations();
         });
     });
@@ -100,7 +111,12 @@ function attachAllocationsEventListeners() {
 
 // Initialize allocations view
 export function initAllocationsView() {
-    document.getElementById("addAllocationBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const addAllocationBtn = document.getElementById("addAllocationBtn");
+    if (!addAllocationBtn) return;
+    
+    addAllocationBtn.addEventListener("click", async () => {
         await addAllocation({
             personId: document.getElementById("personSelect").value,
             projectId: document.getElementById("projectSelect").value,
@@ -108,6 +124,7 @@ export function initAllocationsView() {
             startMonth: document.getElementById("startMonthInput").value,
             endMonth: document.getElementById("endMonthInput").value || null
         });
+        scheduleAutoBackup();
         renderAllocations();
     });
 }

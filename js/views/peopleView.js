@@ -1,8 +1,13 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId } from '../data/database.js';
+import { scheduleAutoBackup } from '../main.js';
 
 // Render people table
 export async function renderPeople() {
+    if (typeof document === 'undefined') return;
+    
     const tbody = document.querySelector("#peopleTable tbody");
+    if (!tbody) return;
+    
     tbody.innerHTML = "";
     const people = await getPeople();
     
@@ -23,6 +28,8 @@ export async function renderPeople() {
 }
 
 function attachPeopleEventListeners() {
+    if (typeof document === 'undefined') return;
+    
     // Content editable blur handlers
     document.querySelectorAll("#peopleTable td[contenteditable]").forEach(td => {
         td.addEventListener("blur", async function() {
@@ -41,6 +48,7 @@ function attachPeopleEventListeners() {
             }
             
             await updatePerson(person);
+            scheduleAutoBackup();
         });
     });
     
@@ -55,6 +63,7 @@ function attachPeopleEventListeners() {
             person.active = checked;
             
             await updatePerson(person);
+            scheduleAutoBackup();
             populatePersonSelect();
         });
     });
@@ -64,6 +73,7 @@ function attachPeopleEventListeners() {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
             await deletePerson(id);
+            scheduleAutoBackup();
             renderPeople();
         });
     });
@@ -71,7 +81,11 @@ function attachPeopleEventListeners() {
 
 // Populate person select dropdown
 export async function populatePersonSelect() {
+    if (typeof document === 'undefined') return;
+    
     const select = document.getElementById("personSelect");
+    if (!select) return;
+    
     select.innerHTML = "";
     const people = await getPeople();
     
@@ -87,12 +101,18 @@ export async function populatePersonSelect() {
 export async function addPersonAuto(name) {
     const id = await generatePersonId();
     await addPerson({ id, name, active: true, fte: 1 });
+    scheduleAutoBackup();
     renderPeople();
 }
 
 // Initialize people view
 export function initPeopleView() {
-    document.getElementById("addPersonBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const addPersonBtn = document.getElementById("addPersonBtn");
+    if (!addPersonBtn) return;
+    
+    addPersonBtn.addEventListener("click", async () => {
         const name = prompt("Person name");
         if (name) await addPersonAuto(name);
     });

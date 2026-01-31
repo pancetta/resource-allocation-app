@@ -75,7 +75,12 @@ export async function calculateMonth(month) {
 
 // Initialize monthly report
 export function initMonthlyReport() {
-    document.getElementById("calculateBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const calculateBtn = document.getElementById("calculateBtn");
+    if (!calculateBtn) return;
+    
+    calculateBtn.addEventListener("click", async () => {
         const month = document.getElementById("monthInput").value;
         await calculateMonth(month);
     });

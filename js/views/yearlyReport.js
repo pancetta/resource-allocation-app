@@ -123,7 +123,12 @@ export async function calculateYear(year) {
 
 // Initialize yearly report
 export function initYearlyReport() {
-    document.getElementById("calculateYearBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const calculateYearBtn = document.getElementById("calculateYearBtn");
+    if (!calculateYearBtn) return;
+    
+    calculateYearBtn.addEventListener("click", async () => {
         const year = document.getElementById("yearInput").value;
         await calculateYear(year);
     });

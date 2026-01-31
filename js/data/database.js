@@ -358,3 +358,143 @@ export async function generateProjectId() {
     }, 0);
     return `proj${String(maxNum + 1).padStart(3, '0')}`;
 }
+
+// Export all data
+export async function exportAllData() {
+    const people = await getPeople();
+    const projects = await getProjects();
+    const allocations = await getAllocations();
+    
+    return {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        data: {
+            people,
+            projects,
+            allocations
+        }
+    };
+}
+
+// Import all data (clears existing data first)
+export async function importAllData(importedData) {
+    if (!importedData || !importedData.data) {
+        throw new Error("Invalid data format");
+    }
+    
+    const { people, projects, allocations } = importedData.data;
+    
+    // Clear existing data
+    const tx = db.transaction(["people", "projects", "defaultAllocations"], "readwrite");
+    await tx.objectStore("people").clear();
+    await tx.objectStore("projects").clear();
+    await tx.objectStore("defaultAllocations").clear();
+    
+    // Import people
+    if (people && Array.isArray(people)) {
+        for (const person of people) {
+            await addPerson(person);
+        }
+    }
+    
+    // Import projects
+    if (projects && Array.isArray(projects)) {
+        for (const project of projects) {
+            await addProject(project);
+        }
+    }
+    
+    // Import allocations
+    if (allocations && Array.isArray(allocations)) {
+        for (const allocation of allocations) {
+            await addAllocation(allocation);
+        }
+    }
+}
+
+// Automatic backup to localStorage
+const BACKUP_KEY_PREFIX = "resource-planning-backup-";
+const MAX_BACKUPS = 10;
+const AUTO_JSON_BACKUP_KEY = "resource-planning-auto-json-backup";
+
+export async function createBackup() {
+    const data = await exportAllData();
+    const timestamp = Date.now();
+    const backupKey = `${BACKUP_KEY_PREFIX}${timestamp}`;
+    
+    try {
+        localStorage.setItem(backupKey, JSON.stringify(data));
+        
+        // Also create/update the auto-prepared JSON backup for instant download
+        localStorage.setItem(AUTO_JSON_BACKUP_KEY, JSON.stringify({
+            data,
+            preparedAt: timestamp,
+            preparedDate: new Date(timestamp).toISOString()
+        }));
+        
+        // Clean up old backups, keeping only MAX_BACKUPS most recent
+        const allBackups = getAllBackups();
+        if (allBackups.length > MAX_BACKUPS) {
+            const toDelete = allBackups.slice(MAX_BACKUPS);
+            toDelete.forEach(backup => {
+                localStorage.removeItem(backup.key);
+            });
+        }
+        
+        return backupKey;
+    } catch (e) {
+        console.error("Failed to create backup:", e);
+        throw e;
+    }
+}
+
+export function getAllBackups() {
+    const backups = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(BACKUP_KEY_PREFIX)) {
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                const timestamp = parseInt(key.replace(BACKUP_KEY_PREFIX, ""));
+                backups.push({
+                    key,
+                    timestamp,
+                    date: new Date(timestamp),
+                    exportDate: data.exportDate
+                });
+            } catch (e) {
+                console.error("Error reading backup:", key, e);
+            }
+        }
+    }
+    
+    // Sort by timestamp descending (newest first)
+    return backups.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export async function restoreBackup(backupKey) {
+    const backupData = localStorage.getItem(backupKey);
+    if (!backupData) {
+        throw new Error("Backup not found");
+    }
+    
+    const data = JSON.parse(backupData);
+    await importAllData(data);
+}
+
+export function deleteBackup(backupKey) {
+    localStorage.removeItem(backupKey);
+}
+
+// Get auto-prepared JSON backup
+export function getAutoPreparedBackup() {
+    const backupData = localStorage.getItem(AUTO_JSON_BACKUP_KEY);
+    if (!backupData) return null;
+    
+    try {
+        return JSON.parse(backupData);
+    } catch (e) {
+        console.error("Error reading auto-prepared backup:", e);
+        return null;
+    }
+}

@@ -1,8 +1,13 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId } from '../data/database.js';
+import { scheduleAutoBackup } from '../main.js';
 
 // Render projects table
 export async function renderProjects() {
+    if (typeof document === 'undefined') return;
+    
     const tbody = document.querySelector("#projectsTable tbody");
+    if (!tbody) return;
+    
     tbody.innerHTML = "";
     const projects = await getProjects();
     
@@ -40,6 +45,7 @@ function attachProjectsEventListeners() {
             }
             
             await updateProject(project);
+            scheduleAutoBackup();
         });
     });
     
@@ -48,6 +54,7 @@ function attachProjectsEventListeners() {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
             await deleteProject(id);
+            scheduleAutoBackup();
             renderProjects();
         });
     });
@@ -55,7 +62,11 @@ function attachProjectsEventListeners() {
 
 // Populate project select dropdown
 export async function populateProjectSelect() {
+    if (typeof document === 'undefined') return;
+    
     const select = document.getElementById("projectSelect");
+    if (!select) return;
+    
     select.innerHTML = "";
     const projects = await getProjects();
     
@@ -71,12 +82,18 @@ export async function populateProjectSelect() {
 export async function addProjectAuto(name) {
     const id = await generateProjectId();
     await addProject({ id, name, plannedPM: 0 });
+    scheduleAutoBackup();
     renderProjects();
 }
 
 // Initialize projects view
 export function initProjectsView() {
-    document.getElementById("addProjectBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const addProjectBtn = document.getElementById("addProjectBtn");
+    if (!addProjectBtn) return;
+    
+    addProjectBtn.addEventListener("click", async () => {
         const name = prompt("Project name");
         if (name) await addProjectAuto(name);
     });

@@ -80,7 +80,12 @@ export async function addProjectAuto(name) {
 
 // Initialize projects view
 export function initProjectsView() {
-    document.getElementById("addProjectBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const addProjectBtn = document.getElementById("addProjectBtn");
+    if (!addProjectBtn) return;
+    
+    addProjectBtn.addEventListener("click", async () => {
         const name = prompt("Project name");
         if (name) await addProjectAuto(name);
     });

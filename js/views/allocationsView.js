@@ -107,7 +107,12 @@ function attachAllocationsEventListeners() {
 
 // Initialize allocations view
 export function initAllocationsView() {
-    document.getElementById("addAllocationBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const addAllocationBtn = document.getElementById("addAllocationBtn");
+    if (!addAllocationBtn) return;
+    
+    addAllocationBtn.addEventListener("click", async () => {
         await addAllocation({
             personId: document.getElementById("personSelect").value,
             projectId: document.getElementById("projectSelect").value,

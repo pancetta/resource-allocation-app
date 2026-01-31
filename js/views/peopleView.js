@@ -97,7 +97,12 @@ export async function addPersonAuto(name) {
 
 // Initialize people view
 export function initPeopleView() {
-    document.getElementById("addPersonBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const addPersonBtn = document.getElementById("addPersonBtn");
+    if (!addPersonBtn) return;
+    
+    addPersonBtn.addEventListener("click", async () => {
         const name = prompt("Person name");
         if (name) await addPersonAuto(name);
     });

@@ -63,7 +63,12 @@ export async function renderProjectMonthlyOverview(year) {
 
 // Initialize project monthly overview
 export function initProjectOverview() {
-    document.getElementById("projectMonthlyBtn").addEventListener("click", async () => {
+    if (typeof document === 'undefined') return;
+    
+    const projectMonthlyBtn = document.getElementById("projectMonthlyBtn");
+    if (!projectMonthlyBtn) return;
+    
+    projectMonthlyBtn.addEventListener("click", async () => {
         const year = document.getElementById("overviewYearInput").value;
         await renderProjectMonthlyOverview(year);
     });

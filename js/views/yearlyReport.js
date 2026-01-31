@@ -49,7 +49,7 @@ export async function calculateYear(year) {
             const alloc = allocations.filter(a => a.personId === p.id && a.startMonth <= m && (!a.endMonth || a.endMonth >= m));
             sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
         });
-        return `<td class="${cellClass(sum, sum)}"><strong>${sum.toFixed(2)}</strong></td>`;
+        return `<td><strong>${sum.toFixed(2)}</strong></td>`;
     }).join('');
 
     // Total sum
@@ -66,13 +66,11 @@ export async function calculateYear(year) {
     const fteSum = people.reduce((sum, p) => sum + (p.fte ?? 1) * 12, 0);
     const deltaSum = totalSum - fteSum;
 
-    const totalCells = `<td class="${cellClass(totalSum, totalSum)}"><strong>${totalSum.toFixed(2)}</strong></td>` +
-        `<td>${fteSum.toFixed(2)}</td>` +
-        `<td class="${cellClass(deltaSum, 0)}">${deltaSum.toFixed(2)}</td>`;
+    const totalCells = `<td colspan="3"></td>`;
 
     sumRow.innerHTML = totalLabel + monthSums + totalCells;
     tfoot.appendChild(sumRow);
-    pTbody.appendChild(tfoot);
+    personTable.appendChild(tfoot);
 
     personTable.appendChild(pTbody);
     resultsOutput.appendChild(personTable);
@@ -121,7 +119,7 @@ export async function calculateYear(year) {
                 sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
             });
         });
-        return `<td class="${cellClass(sum, sum)}"><strong>${sum.toFixed(2)}</strong></td>`;
+        return `<td><strong>${sum.toFixed(2)}</strong></td>`;
     }).join('');
 
     const totalSumProj = projects.reduce((sum, p) => {
@@ -139,13 +137,10 @@ export async function calculateYear(year) {
     const plannedSumProj = projects.reduce((sum, p) => (sum + (p.plannedPM ?? 0) * 12), 0);
     const deltaSumProj = totalSumProj - plannedSumProj;
 
-    const totalCellsProj = `<td class="${cellClass(totalSumProj, plannedSumProj)}">${totalSumProj.toFixed(2)}</td>` +
-        `<td>${plannedSumProj.toFixed(2)}</td>` +
-        `<td class="${cellClass(deltaSumProj, 0)}">${deltaSumProj.toFixed(2)}</td>`;
+    const totalCellsProj = `<td colspan="3"></td>`;
 
     sumRowProj.innerHTML = totalLabelProj + monthSumsProj + totalCellsProj;
     tfootProj.appendChild(sumRowProj);
-    projTable.appendChild(projTbody);
     projTable.appendChild(tfootProj);
 
     resultsOutput.appendChild(projTable);

@@ -47,13 +47,13 @@ export async function calculateMonth(month) {
                     && a.startMonth <= month && (!a.endMonth || a.endMonth >= month));
                 sum += alloc.reduce((s, a) => s + a.pct * fte, 0);
             });
-            return `<td class="${cellClass(sum, sum)}"><strong>${sum.toFixed(2)}</strong></td>`;
+            return `<td><strong>${sum.toFixed(2)}</strong></td>`;
         }).join('') +
-        `<td></td><td></td><td></td>`;
+        `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
-    pTbody.appendChild(tfoot);
-
+    
     personTable.appendChild(pTbody);
+    personTable.appendChild(tfoot);
     resultsOutput.appendChild(personTable);
 
     // --- Project table ---

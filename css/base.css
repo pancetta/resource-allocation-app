@@ -1,28 +1,79 @@
 /* Base styles - typography, layout, containers */
 body {
-    font-family: sans-serif;
-    margin: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
 }
 
 h1 {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    color: #2c3e50;
+    font-weight: 700;
+    font-size: 32px;
 }
 
 h2 {
-    margin-top: 20px;
-    margin-bottom: 10px;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    color: #34495e;
+    font-weight: 600;
+    font-size: 24px;
 }
 
 h3 {
-    margin-top: 15px;
-    margin-bottom: 10px;
+    margin-top: 20px;
+    margin-bottom: 15px;
+    color: #546e7a;
+    font-weight: 600;
+    font-size: 18px;
 }
 
 label {
     margin-right: 10px;
+    font-weight: 500;
+    color: #546e7a;
 }
 
 input[type=number],
 input[type=month] {
-    width: 80px;
+    padding: 8px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+input[type=number]:focus,
+input[type=month]:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+select {
+    padding: 8px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+}
+
+select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#results {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+#resultsOutput {
+    margin-top: 20px;
 }

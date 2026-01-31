@@ -52,9 +52,9 @@ export async function renderProjectMonthlyOverview(year) {
                     monthSum += alloc.reduce((s, a) => s + a.pct * fte, 0);
                 });
             });
-            return `<td class="${cellClass(monthSum, monthSum)}"><strong>${monthSum.toFixed(2)}</strong></td>`;
+            return `<td><strong>${monthSum.toFixed(2)}</strong></td>`;
         }).join('') +
-        `<td></td><td></td><td></td>`;
+        `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
     table.appendChild(tbody);
     table.appendChild(tfoot);

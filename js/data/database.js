@@ -330,7 +330,7 @@ export async function generatePersonId() {
     }
     const maxNum = people.reduce((max, p) => {
         const m = p.id.match(/^p(\d+)$/);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
+        return Math.max(max, m ? parseInt(m[1], 10) : 0);
     }, 0);
     return `p${String(maxNum + 1).padStart(3, '0')}`;
 }
@@ -346,7 +346,7 @@ export async function generateProjectId() {
     }
     const maxNum = projects.reduce((max, p) => {
         const m = p.id.match(/^proj(\d+)$/);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
+        return Math.max(max, m ? parseInt(m[1], 10) : 0);
     }, 0);
     return `proj${String(maxNum + 1).padStart(3, '0')}`;
 }

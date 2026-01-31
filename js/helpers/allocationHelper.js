@@ -112,3 +112,12 @@ export function calculatePersonMonthlyTotals(allocationIndex, personId, projects
 export function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months) {
     return months.map(month => calculateProjectTotal(allocationIndex, projectId, people, month));
 }
+
+/**
+ * Sum an array of numbers
+ * @param {Array<number>} arr - Array of numbers to sum
+ * @returns {number} Sum of all numbers in the array
+ */
+export function sumArray(arr) {
+    return arr.reduce((sum, val) => sum + val, 0);
+}

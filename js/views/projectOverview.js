@@ -1,6 +1,6 @@
 import { getPeople, getProjects, getAllocations } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, calculateProjectMonthlyTotals, calculateProjectTotal } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, calculateProjectMonthlyTotals, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
 
 // Project × Month Overview
 export async function renderProjectMonthlyOverview(year) {
@@ -22,7 +22,7 @@ export async function renderProjectMonthlyOverview(year) {
 
     projects.forEach(p => {
         const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months);
-        const total = cells.reduce((sum, val) => sum + val, 0);
+        const total = sumArray(cells);
         const plannedTotal = (p.plannedPM ?? 0) * 12;
         const delta = total - plannedTotal;
         

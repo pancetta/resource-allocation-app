@@ -88,10 +88,23 @@ This is a client-side resource allocation web application built with vanilla Jav
 4. Initialize in `main.js`
 
 ### Testing
-- This is a client-side app with no automated test suite
-- Manual testing is done via browser (open `index.html` in browser)
-- Test in Chrome/Edge (primary), Firefox, and Safari for compatibility
-- Verify IndexedDB operations in browser DevTools
+- **Automated Test Suite**: Comprehensive tests using Vitest (unit/integration) and Playwright (E2E)
+- **Run Tests Before Changes**: Always run `npm test` and `npm run test:e2e` before making changes to establish baseline
+- **Run Tests After Changes**: Always test your changes with `npm test` for unit/integration tests
+- **E2E Testing**: Run `npm run test:e2e` to verify UI workflows (requires Playwright browsers installed)
+- **Test Commands**:
+  - `npm test` - Run unit and integration tests
+  - `npm run test:watch` - Run tests in watch mode during development
+  - `npm run test:e2e` - Run end-to-end tests
+  - `npm run test:all` - Run all tests (unit, integration, and E2E)
+- **Manual Testing**: Can also test manually by opening `index.html` in browser
+- **Browser Compatibility**: Test in Chrome/Edge (primary), Firefox, and Safari
+- **IndexedDB Testing**: Unit tests use fake-indexeddb; verify IndexedDB operations in browser DevTools for manual testing
+- **Test Coverage**: Maintain or improve test coverage when adding features
+- **Test Location**: 
+  - Unit tests: `tests/unit/`
+  - Integration tests: `tests/integration/`
+  - E2E tests: `tests/e2e/`
 
 ### Common Patterns
 - **Rendering**: Async functions that query database and populate DOM
@@ -108,6 +121,10 @@ This is a client-side resource allocation web application built with vanilla Jav
 ## When Making Changes
 1. Keep the modular structure intact
 2. Maintain consistency with existing code style
-3. Test manually in browser after changes
-4. Ensure changes work without a build step
-5. Verify IndexedDB operations in browser console
+3. **Run existing tests before making changes** to establish baseline: `npm test` and `npm run test:e2e`
+4. Make your code changes
+5. **Run tests after changes** to verify no regressions: `npm test` and `npm run test:e2e`
+6. Add or update tests for new functionality or bug fixes
+7. Ensure changes work without a build step (no transpilation/bundling)
+8. Test manually in browser if needed
+9. Verify IndexedDB operations in browser console for data layer changes

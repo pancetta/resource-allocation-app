@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     
     steps:
     - uses: actions/checkout@v4
@@ -33,6 +34,13 @@ jobs:
       with:
         name: coverage-report
         path: coverage/
+    
+    - name: Report coverage summary
+      if: github.event_name == 'pull_request'
+      uses: davelosert/vitest-coverage-report-action@v2
+      with:
+        json-summary-path: './coverage/coverage-summary.json'
+        json-final-path: './coverage/coverage-final.json'
 
   e2e-tests:
     runs-on: ubuntu-latest

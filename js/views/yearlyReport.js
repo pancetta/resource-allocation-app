@@ -66,7 +66,7 @@ export async function calculateYear(year) {
     const fteSum = people.reduce((sum, p) => sum + (p.fte ?? 1) * 12, 0);
     const deltaSum = totalSum - fteSum;
 
-    const totalCells = `<td colspan="3"></td>`;
+    const totalCells = `<td><strong>${totalSum.toFixed(2)}</strong></td><td><strong>${fteSum.toFixed(2)}</strong></td><td class="${cellClass(deltaSum, 0)}"><strong>${deltaSum.toFixed(2)}</strong></td>`;
 
     sumRow.innerHTML = totalLabel + monthSums + totalCells;
     tfoot.appendChild(sumRow);
@@ -137,7 +137,7 @@ export async function calculateYear(year) {
     const plannedSumProj = projects.reduce((sum, p) => (sum + (p.plannedPM ?? 0) * 12), 0);
     const deltaSumProj = totalSumProj - plannedSumProj;
 
-    const totalCellsProj = `<td colspan="3"></td>`;
+    const totalCellsProj = `<td><strong>${totalSumProj.toFixed(2)}</strong></td><td><strong>${plannedSumProj.toFixed(2)}</strong></td><td class="${cellClass(deltaSumProj, 0)}"><strong>${deltaSumProj.toFixed(2)}</strong></td>`;
 
     sumRowProj.innerHTML = totalLabelProj + monthSumsProj + totalCellsProj;
     tfootProj.appendChild(sumRowProj);

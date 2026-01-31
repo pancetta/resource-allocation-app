@@ -1,3 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Resource Allocation App</title>
+<style>
+body { font-family: sans-serif; margin: 20px; }
+table { border-collapse: collapse; margin-bottom: 20px; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+th { background: #eee; }
+.warning { background-color: #fdd; }
+.tabs { margin-bottom: 20px; }
+.tab-button { padding: 5px 10px; margin-right: 5px; cursor: pointer; }
+.tab-button.active { font-weight: bold; background: #ddd; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+input[type=number], input[type=month] { width: 80px; }
+</style>
+</head>
+<body>
+
+<h1>Resource Allocation App</h1>
+
+<div class="tabs">
+  <button class="tab-button" data-tab="people">People</button>
+  <button class="tab-button" data-tab="projects">Projects</button>
+  <button class="tab-button" data-tab="allocations">Allocations</button>
+  <button class="tab-button" data-tab="results">Results</button>
+</div>
+
+<!-- PEOPLE -->
+<div id="people" class="tab-content">
+<h2>People</h2>
+<table id="peopleTable">
+<thead><tr><th>Name</th><th>FTE</th><th>Active</th><th>Actions</th></tr></thead>
+<tbody></tbody>
+</table>
+<button id="addPersonBtn">Add Person</button>
+</div>
+
+<!-- PROJECTS -->
+<div id="projects" class="tab-content">
+<h2>Projects</h2>
+<table id="projectsTable">
+<thead><tr><th>Name</th><th>Planned PM</th><th>Actions</th></tr></thead>
+<tbody></tbody>
+</table>
+<button id="addProjectBtn">Add Project</button>
+</div>
+
+<!-- ALLOCATIONS -->
+<div id="allocations" class="tab-content">
+<h2>Default / Monthly Allocations</h2>
+<table id="allocationsTable">
+<thead><tr><th>Person</th><th>Project</th><th>Pct</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
+<tbody></tbody>
+</table>
+
+<select id="personSelect"></select>
+<select id="projectSelect"></select>
+<input type="number" id="pctInput" step="0.01" min="0" max="1" value="1">
+<input type="month" id="startMonthInput" value="2025-01">
+<input type="month" id="endMonthInput" value="">
+<button id="addAllocationBtn">Add Allocation</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="tab-content">
+<h2>Results</h2>
+
+<h3>Monthly</h3>
+<label>Month: <input type="month" id="monthInput" value="2025-03"></label>
+<button id="calculateBtn">Calculate Month</button>
+
+<h3>Yearly</h3>
+<label>Year: <input type="number" id="yearInput" value="2025" min="2000" max="2100"></label>
+<button id="calculateYearBtn">Yearly Overview</button>
+
+<h3>Project Monthly Overview</h3>
+<label>Year: <input type="number" id="overviewYearInput" value="2025" min="2000" max="2100"></label>
+<button id="projectMonthlyBtn">Project × Month</button>
+
+<div id="resultsOutput"></div>
+</div>
+
+<script>
+/**********************
+* IndexedDB
+**********************/
+const DB_NAME="resource-planning";
+const DB_VERSION=2;
+let db;
+async function openDatabase(){return new Promise((resolve,reject)=>{const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=(e)=>{const db=e.target.result;if(!db.objectStoreNames.contains("people"))db.createObjectStore("people",{keyPath:"id"});if(!db.objectStoreNames.contains("projects"))db.createObjectStore("projects",{keyPath:"id"});if(!db.objectStoreNames.contains("defaultAllocations"))db.createObjectStore("defaultAllocations",{keyPath:"id",autoIncrement:true});};request.onsuccess=(e)=>{db=e.target.result;resolve(db)};request.onerror=(e)=>reject(e.target.error);});}
+function getAll(storeName){return new Promise((resolve,reject)=>{const tx=db.transaction(storeName,"readonly");const store=tx.objectStore(storeName);const req=store.getAll();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+
+/**********************
+* DAL
+**********************/
+async function getPeople(){return getAll("people");}
+async function addPerson(p){const tx=db.transaction("people","readwrite");tx.objectStore("people").add(p);return tx.complete;}
+async function updatePerson(p){const tx=db.transaction("people","readwrite");tx.objectStore("people").put(p);return tx.complete;}
+async function deletePersonRow(id){await db.transaction("people","readwrite").objectStore("people").delete(id);renderPeople();}
+async function getProjects(){return getAll("projects");}
+async function addProject(p){const tx=db.transaction("projects","readwrite");tx.objectStore("projects").add(p);return tx.complete;}
+async function updateProject(p){const tx=db.transaction("projects","readwrite").objectStore("projects").put(p);return tx.complete;}
+async function deleteProjectRow(id){await db.transaction("projects","readwrite").objectStore("projects").delete(id);renderProjects();}
+async function getAllocations(){return getAll("defaultAllocations");}
+async function addAllocation(a){const tx=db.transaction("defaultAllocations","readwrite").objectStore("defaultAllocations").add(a);return tx.complete;}
+async function updateAllocation(a){const tx=db.transaction("defaultAllocations","readwrite").objectStore("defaultAllocations").put(a);return tx.complete;}
+async function deleteAllocationRow(id){await db.transaction("defaultAllocations","readwrite").objectStore("defaultAllocations").delete(id);renderAllocations();}
+
+/**********************
+* Tabs with last active
+**********************/
+document.querySelectorAll(".tab-button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+    localStorage.setItem("lastActiveTab", btn.dataset.tab);
+  });
+});
+
+/**********************
+* Auto-generate IDs
+**********************/
+async function addPersonAuto(name){
+  const people=await getPeople();
+  const maxNum=people.reduce((max,p)=>{const m=p.id.match(/^p(\d+)$/);return m?Math.max(max,parseInt(m[1])):max;},0);
+  const id=`p${String(maxNum+1).padStart(3,'0')}`;
+  await addPerson({id,name,active:true,fte:1});
+  renderPeople();
+}
+async function addProjectAuto(name){
+  const projects=await getProjects();
+  const maxNum=projects.reduce((max,p)=>{const m=p.id.match(/^proj(\d+)$/);return m?Math.max(max,parseInt(m[1])):max;},0);
+  const id=`proj${String(maxNum+1).padStart(3,'0')}`;
+  await addProject({id,name,plannedPM:0});
+  renderProjects();
+}
+
+/**********************
+* Render
+**********************/
+async function renderPeople(){
+  const tbody=document.querySelector("#peopleTable tbody");
+  tbody.innerHTML="";
+  const people=await getPeople();
+  people.forEach(p=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td contenteditable="true" onblur="updatePersonName('${p.id}',this.textContent)">${p.name}</td>
+<td contenteditable="true" onblur="updatePersonFTE('${p.id}',this.textContent)">${p.fte ?? 1}</td>
+<td><input type="checkbox" ${p.active?"checked":""} onchange="togglePersonActive('${p.id}',this.checked)"></td>
+<td><button onclick="deletePersonRow('${p.id}')">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  populatePersonSelect();
+}
+
+async function renderProjects(){
+  const tbody=document.querySelector("#projectsTable tbody");
+  tbody.innerHTML="";
+  const projects=await getProjects();
+  projects.forEach(p=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td contenteditable="true" onblur="updateProjectName('${p.id}',this.textContent)">${p.name}</td>
+<td contenteditable="true" onblur="updateProjectPM('${p.id}',this.textContent)">${p.plannedPM ?? 0}</td>
+<td><button onclick="deleteProjectRow('${p.id}')">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  populateProjectSelect();
+}
+
+async function renderAllocations(){
+  const tbody=document.querySelector("#allocationsTable tbody");
+  tbody.innerHTML="";
+  const allocs=await getAllocations();
+  const people=await getPeople();
+  const projects=await getProjects();
+  allocs.forEach(a=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><select onchange="editAllocationPerson(this,${a.id})">${people.filter(p=>p.active).map(p=>`<option value="${p.id}" ${p.id===a.personId?'selected':''}>${p.name}</option>`).join('')}</select></td>
+<td><select onchange="editAllocationProject(this,${a.id})">${projects.map(p=>`<option value="${p.id}" ${p.id===a.projectId?'selected':''}>${p.name}</option>`).join('')}</select></td>
+<td><input type="number" step="0.01" min="0" max="1" value="${a.pct}" onblur="editAllocationPct(this,${a.id})"></td>
+<td><input type="month" value="${a.startMonth}" onblur="editAllocationStart(this,${a.id})"></td>
+<td><input type="month" value="${a.endMonth??''}" onblur="editAllocationEnd(this,${a.id})"></td>
+<td><button onclick="deleteAllocationRow(${a.id})">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/**********************
+* Populate selects
+**********************/
+async function populatePersonSelect(){const s=document.getElementById("personSelect");s.innerHTML="";(await getPeople()).filter(p=>p.active).forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;s.appendChild(o);});}
+async function populateProjectSelect(){const s=document.getElementById("projectSelect");s.innerHTML="";(await getProjects()).forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;s.appendChild(o);});}
+
+/**********************
+* Edit handlers
+**********************/
+async function updatePersonName(id,val){const p=(await getPeople()).find(x=>x.id===id);p.name=val;await updatePerson(p);populatePersonSelect();}
+async function updatePersonFTE(id,val){const p=(await getPeople()).find(x=>x.id===id);p.fte=parseFloat(val);await updatePerson(p);}
+async function togglePersonActive(id,checked){const p=(await getPeople()).find(x=>x.id===id);p.active=checked;await updatePerson(p);populatePersonSelect();}
+async function updateProjectName(id,val){const p=(await getProjects()).find(x=>x.id===id);p.name=val;await updateProject(p);populateProjectSelect();}
+async function updateProjectPM(id,val){const p=(await getProjects()).find(x=>x.id===id);p.plannedPM=parseFloat(val);await updateProject(p);}
+async function editAllocationPerson(sel,id){const a=(await getAllocations()).find(x=>x.id===id);a.personId=sel.value;await updateAllocation(a);}
+async function editAllocationProject(sel,id){const a=(await getAllocations()).find(x=>x.id===id);a.projectId=sel.value;await updateAllocation(a);}
+async function editAllocationPct(inp,id){const a=(await getAllocations()).find(x=>x.id===id);a.pct=parseFloat(inp.value);await updateAllocation(a);}
+async function editAllocationStart(inp,id){const a=(await getAllocations()).find(x=>x.id===id);a.startMonth=inp.value;await updateAllocation(a);}
+async function editAllocationEnd(inp,id){const a=(await getAllocations()).find(x=>x.id===id);a.endMonth=inp.value;await updateAllocation(a);}
+
+/**********************
+* Add buttons
+**********************/
+document.getElementById("addPersonBtn").addEventListener("click",async()=>{
+  const name=prompt("Person name");
+  if(name) await addPersonAuto(name);
+});
+document.getElementById("addProjectBtn").addEventListener("click",async()=>{
+  const name=prompt("Project name");
+  if(name) await addProjectAuto(name);
+});
+document.getElementById("addAllocationBtn").addEventListener("click",async()=>{
+  await addAllocation({
+    personId:document.getElementById("personSelect").value,
+    projectId:document.getElementById("projectSelect").value,
+    pct:parseFloat(document.getElementById("pctInput").value),
+    startMonth:document.getElementById("startMonthInput").value,
+    endMonth:document.getElementById("endMonthInput").value || null
+  });
+  renderAllocations();
+});
+
+/**********************
+* Calculation and results
+**********************/
+// [Monthly, Yearly, Project×Month calculation code goes here]
+// With column totals and cell-only highlighting as discussed
+
 /**********************
 * Fixed Calculation & Reporting Functions
 **********************/

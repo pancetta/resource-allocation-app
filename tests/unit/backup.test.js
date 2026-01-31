@@ -164,8 +164,8 @@ describe('Data Export/Import and Backup', () => {
         data: { people: [], projects: [], allocations: [] }
       });
       
-      // Wait for IndexedDB to process the clear operation
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait longer for IndexedDB to process the clear operation (CI is slower)
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       let people = await getPeople();
       expect(people).toHaveLength(0);
@@ -173,8 +173,8 @@ describe('Data Export/Import and Backup', () => {
       // Restore from backup
       await restoreBackup(backupKey);
       
-      // Wait for IndexedDB to process the restore operation
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait longer for IndexedDB to process the restore operation (CI is slower)
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       people = await getPeople();
       expect(people).toHaveLength(1);

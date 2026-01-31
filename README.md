@@ -43,11 +43,11 @@ This application includes comprehensive test coverage with automated regression 
 
 ### Coverage Status
 
-Current coverage: **~78%** overall
-- Statements: 77.87%
-- Branches: 85.88%
-- Functions: 76.11%
-- Lines: 77.87%
+Current coverage: **~94%** overall
+- Statements: 94.02%
+- Branches: 89.67%
+- Functions: 82.85%
+- Lines: 94.02%
 
 Coverage reports are automatically generated and posted to pull requests.
 

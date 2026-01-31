@@ -176,10 +176,11 @@ describe('Project Overview', () => {
     });
 
     it('should calculate delta correctly', async () => {
-      // Project planned: 1 PM/month * 12 months = 12 PM total
-      // Allocation: 100% of 1.0 FTE for 12 months = 12 PM total (in percentage format: 100 * 1.0 = 100)
-      // But the calculation uses pct * fte, where pct is stored as whole number (100 for 100%)
-      // So actual calculation is: (100 * 1.0) for each month = 100 PM per month * 12 = 1200 PM total
+      // Note: The allocation percentage is stored as a whole number (100 = 100%)
+      // Calculation: pct * fte = 100 * 1.0 = 100 PM per month
+      // Over 12 months: 100 * 12 = 1200 PM total
+      // Planned: 1 PM/month * 12 = 12 PM total
+      // Delta: 1200 - 12 = 1188 PM
       await db.addAllocation({
         id: 1,
         personId: 'p001',

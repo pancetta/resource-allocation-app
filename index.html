@@ -77,14 +77,30 @@
 <div id="data" class="tab-content">
     <h2>Data Management</h2>
     
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+        <h3 style="margin-top: 0; color: #856404;">⚠️ Important: Data Safety</h3>
+        <p><strong>Browser Cache Cleanup:</strong> The automatic backups stored in your browser's localStorage <strong>CAN be deleted</strong> when you clear browsing data/cache. They are NOT permanent storage.</p>
+        <p><strong>Recommendation:</strong> Regularly export your data to a JSON file (stored on your computer/cloud) for true data safety. This is the ONLY way to protect against data loss from browser cache cleanup, browser crashes, or computer failures.</p>
+    </div>
+    
     <h3>Export / Import</h3>
-    <p>Export your data to a JSON file for safekeeping, or import data from a previous export.</p>
-    <button id="exportDataBtn">Export All Data</button>
-    <button id="importDataBtn">Import Data</button>
+    <p><strong>Export:</strong> Download all your data as a JSON file. Save this file to your computer, cloud storage (Dropbox, Google Drive, etc.), or backup system.</p>
+    <p><strong>Import:</strong> Restore data from a previously exported JSON file. This will replace ALL current data.</p>
+    <button id="exportDataBtn">📥 Export All Data</button>
+    <button id="importDataBtn">📤 Import Data</button>
     <input type="file" id="importFileInput" accept=".json" style="display: none;">
     
-    <h3>Automatic Backups</h3>
-    <p>Backups are automatically created and stored in your browser's local storage. Up to 10 recent backups are kept.</p>
+    <h3>Automatic Backups (Browser Storage Only)</h3>
+    <p><strong>What are these?</strong> Automatic backups are saved in your browser's localStorage (same as browser cache). They provide quick recovery from accidental changes but are NOT safe from cache cleanup.</p>
+    <p><strong>Limitations:</strong></p>
+    <ul>
+        <li>❌ Cleared when you clear browser cache/data</li>
+        <li>❌ Only accessible in this specific browser</li>
+        <li>❌ Not accessible if browser crashes or is reinstalled</li>
+        <li>❌ Cannot be accessed outside the browser</li>
+        <li>✅ Good for: Quick undo of recent changes</li>
+        <li>✅ Kept: Up to 10 most recent backups</li>
+    </ul>
     <button id="createBackupBtn">Create Manual Backup</button>
     
     <table id="backupsTable">
@@ -97,6 +113,17 @@
         </thead>
         <tbody></tbody>
     </table>
+    
+    <h3>How to Access localStorage (for debugging)</h3>
+    <p>To view or extract your localStorage data outside the normal UI:</p>
+    <ol>
+        <li>Open your browser's Developer Tools (F12 or right-click → Inspect)</li>
+        <li>Go to the "Application" tab (Chrome/Edge) or "Storage" tab (Firefox)</li>
+        <li>Expand "Local Storage" in the sidebar</li>
+        <li>Click on your site's URL</li>
+        <li>Look for keys starting with "resource-planning-backup-"</li>
+        <li>Copy the value and save it to a file if needed</li>
+    </ol>
 </div>
 
 <script type="module" src="js/main.js"></script>

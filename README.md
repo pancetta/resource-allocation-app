@@ -11,6 +11,102 @@ A client-side resource allocation web application built with vanilla JavaScript 
   - Monthly reports showing person and project allocations
   - Yearly overview with month-by-month breakdown
   - Project overview across months
+- **Data Management & Backup**:
+  - Export data to JSON files for permanent storage
+  - Import data from JSON files
+  - Automatic backups to browser localStorage (up to 10 recent versions)
+  - Manual backup creation and restoration
+
+## Data Safety & Backup
+
+### Understanding Data Storage
+
+This application uses two types of data storage:
+
+1. **IndexedDB** (Primary Storage)
+   - Stores all your current data (people, projects, allocations)
+   - Persists in your browser
+   - **Can be lost** if you clear browser data or reinstall the browser
+
+2. **localStorage** (Automatic Backups)
+   - Stores up to 10 recent automatic backups
+   - **Can be lost** when you clear browser cache/browsing data
+   - Only accessible in the same browser where created
+   - Good for quick recovery from accidental changes
+
+### Protecting Your Data
+
+**⚠️ IMPORTANT: To prevent data loss, you MUST export your data regularly!**
+
+#### Recommended Data Safety Practices:
+
+1. **Regular Exports** (Most Important!)
+   - Export your data to a JSON file at least weekly
+   - Store exported files in a safe location:
+     - Cloud storage (Google Drive, Dropbox, OneDrive, etc.)
+     - External hard drive
+     - Network backup system
+     - Version control (if appropriate)
+
+2. **Before Major Changes**
+   - Export data before making significant updates
+   - Create a manual backup in localStorage
+   - Keep the exported file until you're satisfied with changes
+
+3. **After Important Updates**
+   - Export data after adding critical information
+   - Store in multiple locations if data is mission-critical
+
+#### What Affects localStorage?
+
+localStorage (where automatic backups are stored) is cleared when:
+- ✗ You clear browser cache/browsing data
+- ✗ You use browser's "Clear all data" option
+- ✗ You clear site data in browser settings
+- ✗ You uninstall/reinstall the browser
+- ✗ You use browser in incognito/private mode (data not saved at all)
+- ✓ Normal browsing does NOT clear it
+- ✓ Closing the browser does NOT clear it
+
+#### Accessing localStorage Outside the Browser
+
+You cannot directly access localStorage files from your file system, but you can:
+
+1. **Via Browser Developer Tools:**
+   - Press F12 to open Developer Tools
+   - Go to Application tab (Chrome/Edge) or Storage tab (Firefox)
+   - Navigate to Local Storage → Your site URL
+   - Find keys starting with "resource-planning-backup-"
+   - Copy values manually and save to a file
+
+2. **Via Export Feature (Recommended):**
+   - Use the "Export All Data" button in the Data tab
+   - This creates a downloadable JSON file
+   - Save this file anywhere you want (computer, cloud, etc.)
+   - This is the PROPER way to backup data outside the browser
+
+#### Recovery Scenarios:
+
+- **Accidental deletion**: Restore from localStorage backup (Data tab)
+- **Browser cache cleared**: Import from exported JSON file
+- **Browser crash/reinstall**: Import from exported JSON file
+- **Moving to different browser**: Import from exported JSON file
+- **Moving to different computer**: Import from exported JSON file
+
+### How to Export Data
+
+1. Click the "Data" tab
+2. Click "📥 Export All Data"
+3. Save the JSON file to a safe location
+4. Recommended filename format: `resource-allocation-YYYY-MM-DD.json`
+
+### How to Import Data
+
+1. Click the "Data" tab
+2. Click "📤 Import Data"
+3. Select a previously exported JSON file
+4. Confirm (this will replace ALL current data)
+5. Page will refresh with imported data
 
 ## Technology Stack
 

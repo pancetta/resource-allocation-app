@@ -10,14 +10,14 @@ let db;
 const cache = {
     people: null,
     projects: null,
-    allocations: null
+    defaultAllocations: null
 };
 
 // Cache invalidation flags
 let cacheValid = {
     people: false,
     projects: false,
-    allocations: false
+    defaultAllocations: false
 };
 
 /**
@@ -31,10 +31,10 @@ function invalidateCache(storeName) {
     } else {
         cacheValid.people = false;
         cacheValid.projects = false;
-        cacheValid.allocations = false;
+        cacheValid.defaultAllocations = false;
         cache.people = null;
         cache.projects = null;
-        cache.allocations = null;
+        cache.defaultAllocations = null;
     }
 }
 
@@ -266,7 +266,7 @@ export async function addAllocation(a) {
             const tx = db.transaction("defaultAllocations", "readwrite");
             tx.objectStore("defaultAllocations").add(a);
             tx.oncomplete = () => {
-                invalidateCache("allocations");
+                invalidateCache("defaultAllocations");
                 resolve();
             };
             tx.onerror = () => reject(tx.error);
@@ -287,7 +287,7 @@ export async function updateAllocation(a) {
             const tx = db.transaction("defaultAllocations", "readwrite");
             tx.objectStore("defaultAllocations").put(a);
             tx.oncomplete = () => {
-                invalidateCache("allocations");
+                invalidateCache("defaultAllocations");
                 resolve();
             };
             tx.onerror = () => reject(tx.error);
@@ -308,7 +308,7 @@ export async function deleteAllocation(id) {
             const tx = db.transaction("defaultAllocations", "readwrite");
             tx.objectStore("defaultAllocations").delete(id);
             tx.oncomplete = () => {
-                invalidateCache("allocations");
+                invalidateCache("defaultAllocations");
                 resolve();
             };
             tx.onerror = () => reject(tx.error);

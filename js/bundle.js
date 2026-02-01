@@ -1371,13 +1371,14 @@ var App = (() => {
         try {
           const id = parseInt(this.dataset.id);
           if (isNaN(id)) return;
-          if (!this.value) {
-            alert("Please select a person");
-            return;
-          }
           const allocs = await getAllocations();
           const alloc = allocs.find((a) => a.id === id);
           if (!alloc) return;
+          if (!this.value) {
+            alert("Please select a person");
+            this.value = alloc.personId;
+            return;
+          }
           alloc.personId = this.value;
           await updateAllocation(alloc);
           scheduleAutoBackup();
@@ -1393,13 +1394,14 @@ var App = (() => {
         try {
           const id = parseInt(this.dataset.id);
           if (isNaN(id)) return;
-          if (!this.value) {
-            alert("Please select a project");
-            return;
-          }
           const allocs = await getAllocations();
           const alloc = allocs.find((a) => a.id === id);
           if (!alloc) return;
+          if (!this.value) {
+            alert("Please select a project");
+            this.value = alloc.projectId;
+            return;
+          }
           alloc.projectId = this.value;
           await updateAllocation(alloc);
           scheduleAutoBackup();
@@ -1444,14 +1446,15 @@ var App = (() => {
         try {
           const id = parseInt(this.dataset.id);
           if (isNaN(id)) return;
-          const datePattern = /^\d{4}-\d{2}$/;
-          if (!datePattern.test(this.value)) {
-            alert("Invalid date format. Please use YYYY-MM format");
-            return;
-          }
           const allocs = await getAllocations();
           const alloc = allocs.find((a) => a.id === id);
           if (!alloc) return;
+          const datePattern = /^\d{4}-\d{2}$/;
+          if (!datePattern.test(this.value)) {
+            alert("Invalid date format. Please use YYYY-MM format");
+            this.value = alloc.startMonth;
+            return;
+          }
           alloc.startMonth = this.value;
           await updateAllocation(alloc);
           scheduleAutoBackup();
@@ -1466,14 +1469,15 @@ var App = (() => {
         try {
           const id = parseInt(this.dataset.id);
           if (isNaN(id)) return;
-          const datePattern = /^\d{4}-\d{2}$/;
-          if (this.value && !datePattern.test(this.value)) {
-            alert("Invalid date format. Please use YYYY-MM format or leave empty");
-            return;
-          }
           const allocs = await getAllocations();
           const alloc = allocs.find((a) => a.id === id);
           if (!alloc) return;
+          const datePattern = /^\d{4}-\d{2}$/;
+          if (this.value && !datePattern.test(this.value)) {
+            alert("Invalid date format. Please use YYYY-MM format or leave empty");
+            this.value = alloc.endMonth || "";
+            return;
+          }
           alloc.endMonth = this.value || null;
           await updateAllocation(alloc);
           scheduleAutoBackup();

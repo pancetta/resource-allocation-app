@@ -308,6 +308,60 @@ var App = (() => {
               }
             });
           };
+          const allocationsStore = transaction.objectStore("defaultAllocations");
+          const fteValuesStore = transaction.objectStore("fteValues");
+          const allocationsRequest = allocationsStore.getAll();
+          const fteValuesRequest = fteValuesStore.getAll();
+          allocationsRequest.onsuccess = () => {
+            fteValuesRequest.onsuccess = () => {
+              const allocations = allocationsRequest.result;
+              const fteValues = fteValuesRequest.result;
+              allocations.forEach((allocation) => {
+                if (allocation.pct !== void 0 && allocation.pct !== null) {
+                  let fte = 1;
+                  const applicableFteValues = fteValues.filter(
+                    (fv) => fv.personId === allocation.personId && fv.startMonth <= allocation.startMonth && (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
+                  );
+                  if (applicableFteValues.length > 0) {
+                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                    fte = applicableFteValues[0].fte;
+                  }
+                  allocation.pm = allocation.pct * fte;
+                  delete allocation.pct;
+                  allocationsStore.put(allocation);
+                }
+              });
+              if (db2.objectStoreNames.contains("allocationOverrides")) {
+                const overridesStore = transaction.objectStore("allocationOverrides");
+                const overridesRequest = overridesStore.getAll();
+                overridesRequest.onsuccess = () => {
+                  const overrides = overridesRequest.result;
+                  overrides.forEach((override) => {
+                    if (override.pct !== void 0 && override.pct !== null) {
+                      const allocationId = override.allocationId;
+                      const allocRequest = allocationsStore.get(allocationId);
+                      allocRequest.onsuccess = () => {
+                        const allocation = allocRequest.result;
+                        if (allocation) {
+                          let fte = 1;
+                          const applicableFteValues = fteValues.filter(
+                            (fv) => fv.personId === allocation.personId && fv.startMonth <= override.month && (fv.endMonth === null || fv.endMonth >= override.month)
+                          );
+                          if (applicableFteValues.length > 0) {
+                            applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                            fte = applicableFteValues[0].fte;
+                          }
+                          override.pm = override.pct * fte;
+                          delete override.pct;
+                          overridesStore.put(override);
+                        }
+                      };
+                    }
+                  });
+                };
+              }
+            };
+          };
         }
       };
       request.onsuccess = (e) => {
@@ -642,19 +696,6 @@ var App = (() => {
     }
     return { valid: true, message: "" };
   }
-  function validateAllocationPercentage(pct) {
-    const value = parseFloat(pct);
-    if (isNaN(value)) {
-      return { valid: false, message: "Allocation percentage must be a valid number" };
-    }
-    if (value < 0) {
-      return { valid: false, message: "Allocation percentage cannot be negative" };
-    }
-    if (value > 100) {
-      return { valid: false, message: "Allocation percentage cannot exceed 100" };
-    }
-    return { valid: true, message: "" };
-  }
   async function validateFteValueDeletion(fteValueId) {
     const fteValues = await getFteValues();
     const value = fteValues.find((v) => v.id === fteValueId);
@@ -684,6 +725,49 @@ var App = (() => {
       };
     }
     return { valid: true, message: "" };
+  }
+  function dateRangesOverlap(start1, end1, start2, end2) {
+    if (!end1 || !end2) {
+      if (!end1 && !end2) {
+        return true;
+      }
+      if (!end1) {
+        return end2 >= start1;
+      }
+      if (!end2) {
+        return end1 >= start2;
+      }
+    }
+    return start1 <= end2 && start2 <= end1;
+  }
+  function getMonthBefore(month) {
+    const date = /* @__PURE__ */ new Date(month + "-01");
+    date.setMonth(date.getMonth() - 1);
+    return date.toISOString().slice(0, 7);
+  }
+  async function findOverlappingAllocations(personId, projectId, startMonth, endMonth, excludeId = null) {
+    const allocations = await getAllocations();
+    return allocations.filter((alloc) => {
+      if (excludeId !== null && alloc.id === excludeId) {
+        return false;
+      }
+      if (alloc.personId !== personId || alloc.projectId !== projectId) {
+        return false;
+      }
+      return dateRangesOverlap(startMonth, endMonth, alloc.startMonth, alloc.endMonth);
+    });
+  }
+  async function findOpenEndedAllocationsToClose(personId, projectId, startMonth) {
+    const allocations = await getAllocations();
+    return allocations.filter((alloc) => {
+      if (alloc.personId !== personId || alloc.projectId !== projectId) {
+        return false;
+      }
+      if (alloc.endMonth !== null) {
+        return false;
+      }
+      return alloc.startMonth < startMonth;
+    });
   }
 
   // js/views/peopleView.js
@@ -1242,15 +1326,15 @@ var App = (() => {
     }
     return allocations.reduce((sum, alloc) => {
       if (isMonthInRange(month, alloc.startMonth, alloc.endMonth)) {
-        let pct = alloc.pct;
+        let pm = alloc.pm;
         if (allocationOverrideIndex) {
           const overrideKey = `${alloc.id}:${month}`;
           const override = allocationOverrideIndex.get(overrideKey);
           if (override) {
-            pct = override.pct;
+            pm = override.pm;
           }
         }
-        return sum + pct * fte;
+        return sum + pm;
       }
       return sum;
     }, 0);
@@ -1293,18 +1377,8 @@ var App = (() => {
   function sumArray(arr) {
     return arr.reduce((sum, val) => sum + val, 0);
   }
-  function pctToPMPerMonth(fte, pct) {
-    return fte * pct;
-  }
-  function pctToPMPerYear(fte, pct) {
-    return fte * pct * 12;
-  }
-  function formatPMWithPct(pm, fte) {
-    if (fte === 0) {
-      return `${pm.toFixed(2)} (N/A)`;
-    }
-    const pct = pm / fte * 100;
-    return `${pm.toFixed(2)} (${pct.toFixed(0)}%)`;
+  function pmPerMonthToYear(pmPerMonth) {
+    return pmPerMonth * 12;
   }
 
   // js/views/allocationsView.js
@@ -1324,14 +1398,12 @@ var App = (() => {
       const projectOptions = projects.map(
         (p) => `<option value="${p.id}" ${p.id === a.projectId ? "selected" : ""}>${p.name}</option>`
       ).join("");
-      const person = people.find((p) => p.id === a.personId);
-      const fte = person ? person.fte ?? 1 : 1;
-      const pmPerMonth = pctToPMPerMonth(fte, a.pct);
-      const pmPerYear = pctToPMPerYear(fte, a.pct);
+      const pmPerMonth = a.pm;
+      const pmPerYear = pmPerMonthToYear(a.pm);
       tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
-            <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
+            <td><input type="number" class="alloc-pm" step="0.01" min="0" value="${a.pm}" data-id="${a.id}"></td>
             <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
             <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
@@ -1343,11 +1415,8 @@ var App = (() => {
     attachAllocationsEventListeners();
   }
   async function updateRowPMValues(row, alloc) {
-    const people = await getPeople();
-    const person = people.find((p) => p.id === alloc.personId);
-    const fte = person ? person.fte ?? 1 : 1;
-    const pmPerMonth = pctToPMPerMonth(fte, alloc.pct);
-    const pmPerYear = pctToPMPerYear(fte, alloc.pct);
+    const pmPerMonth = alloc.pm;
+    const pmPerYear = pmPerMonthToYear(alloc.pm);
     const cells = row.querySelectorAll(".pm-display");
     if (cells.length >= 2) {
       cells[0].textContent = pmPerMonth.toFixed(2);
@@ -1376,18 +1445,18 @@ var App = (() => {
         scheduleAutoBackup();
       });
     });
-    document.querySelectorAll(".alloc-pct").forEach((input) => {
+    document.querySelectorAll(".alloc-pm").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
-        const validation = validateAllocationPercentage(this.value);
-        if (!validation.valid) {
-          alert(validation.message);
-          this.value = alloc.pct;
+        const pm = parseFloat(this.value);
+        if (isNaN(pm) || pm < 0) {
+          alert("PM must be a positive number");
+          this.value = alloc.pm;
           return;
         }
-        alloc.pct = parseFloat(this.value);
+        alloc.pm = pm;
         await updateAllocation(alloc);
         scheduleAutoBackup();
         await updateRowPMValues(this.closest("tr"), alloc);
@@ -1398,7 +1467,37 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
-        alloc.startMonth = this.value;
+        const newStartMonth = this.value;
+        const overlapping = await findOverlappingAllocations(
+          alloc.personId,
+          alloc.projectId,
+          newStartMonth,
+          alloc.endMonth,
+          id
+          // Exclude current allocation
+        );
+        if (overlapping.length > 0) {
+          const people = await getPeople();
+          const projects = await getProjects();
+          const person = people.find((p) => p.id === alloc.personId);
+          const project = projects.find((p) => p.id === alloc.projectId);
+          const label = `${person ? person.name : alloc.personId} \u2192 ${project ? project.name : alloc.projectId}`;
+          const overlapMsg = overlapping.map(
+            (a) => `  - ${a.pm.toFixed(2)} PM from ${a.startMonth} to ${a.endMonth || "ongoing"}`
+          ).join("\n");
+          const confirmOverlap = confirm(
+            `Warning: This change creates overlapping allocations for ${label}:
+${overlapMsg}
+
+The system will use the most recent allocation when multiple values apply.
+Are you sure you want to continue?`
+          );
+          if (!confirmOverlap) {
+            this.value = alloc.startMonth;
+            return;
+          }
+        }
+        alloc.startMonth = newStartMonth;
         await updateAllocation(alloc);
         scheduleAutoBackup();
       });
@@ -1408,7 +1507,37 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
-        alloc.endMonth = this.value || null;
+        const newEndMonth = this.value || null;
+        const overlapping = await findOverlappingAllocations(
+          alloc.personId,
+          alloc.projectId,
+          alloc.startMonth,
+          newEndMonth,
+          id
+          // Exclude current allocation
+        );
+        if (overlapping.length > 0) {
+          const people = await getPeople();
+          const projects = await getProjects();
+          const person = people.find((p) => p.id === alloc.personId);
+          const project = projects.find((p) => p.id === alloc.projectId);
+          const label = `${person ? person.name : alloc.personId} \u2192 ${project ? project.name : alloc.projectId}`;
+          const overlapMsg = overlapping.map(
+            (a) => `  - ${a.pm.toFixed(2)} PM from ${a.startMonth} to ${a.endMonth || "ongoing"}`
+          ).join("\n");
+          const confirmOverlap = confirm(
+            `Warning: This change creates overlapping allocations for ${label}:
+${overlapMsg}
+
+The system will use the most recent allocation when multiple values apply.
+Are you sure you want to continue?`
+          );
+          if (!confirmOverlap) {
+            this.value = alloc.endMonth || "";
+            return;
+          }
+        }
+        alloc.endMonth = newEndMonth;
         await updateAllocation(alloc);
         scheduleAutoBackup();
       });
@@ -1449,7 +1578,7 @@ var App = (() => {
       tr.innerHTML = `
             <td>${allocationLabel}</td>
             <td><input type="month" class="override-month" value="${override.month}" data-id="${override.id}"></td>
-            <td contenteditable="true" data-id="${override.id}" data-field="pct">${override.pct}</td>
+            <td contenteditable="true" data-id="${override.id}" data-field="pm">${override.pm}</td>
             <td><button class="delete-allocation-override" data-id="${override.id}">Delete</button></td>
         `;
       tbody.appendChild(tr);
@@ -1466,14 +1595,14 @@ var App = (() => {
         const value = this.textContent;
         const overrides = await getAllocationOverrides();
         const override = overrides.find((o) => o.id === id);
-        if (field === "pct") {
-          const validation = validateAllocationPercentage(value);
-          if (!validation.valid) {
-            alert(validation.message);
-            this.textContent = override.pct;
+        if (field === "pm") {
+          const pm = parseFloat(value);
+          if (isNaN(pm) || pm < 0) {
+            alert("PM must be a positive number");
+            this.textContent = override.pm;
             return;
           }
-          override.pct = parseFloat(value);
+          override.pm = pm;
         }
         await updateAllocationOverride(override);
         scheduleAutoBackup();
@@ -1521,12 +1650,103 @@ var App = (() => {
     const addAllocationBtn = document.getElementById("addAllocationBtn");
     if (!addAllocationBtn) return;
     addAllocationBtn.addEventListener("click", async () => {
+      const personId = document.getElementById("personSelect").value;
+      const projectId = document.getElementById("projectSelect").value;
+      const pm = parseFloat(document.getElementById("pmInput").value);
+      const startMonth = document.getElementById("startMonthInput").value;
+      const endMonth = document.getElementById("endMonthInput").value || null;
+      if (!personId || !projectId || !startMonth) {
+        alert("Please select a person, project, and start month");
+        return;
+      }
+      if (isNaN(pm) || pm < 0) {
+        alert("PM must be a positive number");
+        return;
+      }
+      const overlapping = await findOverlappingAllocations(personId, projectId, startMonth, endMonth);
+      if (overlapping.length > 0) {
+        const toClose = await findOpenEndedAllocationsToClose(personId, projectId, startMonth);
+        if (toClose.length > 0) {
+          const people = await getPeople();
+          const projects = await getProjects();
+          const person = people.find((p) => p.id === personId);
+          const project = projects.find((p) => p.id === projectId);
+          const label = `${person ? person.name : personId} \u2192 ${project ? project.name : projectId}`;
+          const closeMsg = toClose.map((a) => {
+            const suggestedEnd = getMonthBefore(startMonth);
+            return `  - ${a.pm.toFixed(2)} PM allocation starting ${a.startMonth} (will set end to ${suggestedEnd})`;
+          }).join("\n");
+          const shouldClose = confirm(
+            `This allocation for ${label} overlaps with existing open-ended entries:
+${closeMsg}
+
+Click OK to AUTO-CLOSE (set end date), or Cancel for more options.`
+          );
+          if (shouldClose) {
+            const suggestedEnd = getMonthBefore(startMonth);
+            for (const alloc of toClose) {
+              alloc.endMonth = suggestedEnd;
+              await updateAllocation(alloc);
+            }
+          } else {
+            const shouldOverwrite = confirm(
+              `Do you want to OVERWRITE (delete) the conflicting allocations instead?
+Click OK to delete conflicting allocations, or Cancel to keep overlapping allocations.`
+            );
+            if (shouldOverwrite) {
+              for (const alloc of overlapping) {
+                await deleteAllocation(alloc.id);
+              }
+            } else {
+              const warnConfirm = confirm(
+                `Warning: Creating overlapping allocations may lead to unexpected behavior.
+The system will use the most recent allocation when multiple values apply.
+
+Are you sure you want to continue?`
+              );
+              if (!warnConfirm) {
+                return;
+              }
+            }
+          }
+        } else {
+          const people = await getPeople();
+          const projects = await getProjects();
+          const person = people.find((p) => p.id === personId);
+          const project = projects.find((p) => p.id === projectId);
+          const label = `${person ? person.name : personId} \u2192 ${project ? project.name : projectId}`;
+          const overlapMsg = overlapping.map(
+            (a) => `  - ${a.pm.toFixed(2)} PM from ${a.startMonth} to ${a.endMonth || "ongoing"}`
+          ).join("\n");
+          const shouldOverwrite = confirm(
+            `Warning: This allocation for ${label} overlaps with existing entries:
+${overlapMsg}
+
+Click OK to OVERWRITE (delete conflicting allocations), or Cancel for more options.`
+          );
+          if (shouldOverwrite) {
+            for (const alloc of overlapping) {
+              await deleteAllocation(alloc.id);
+            }
+          } else {
+            const confirmOverlap = confirm(
+              `Do you want to keep the overlapping allocations?
+The system will use the most recent allocation when multiple values apply.
+
+Click OK to proceed with overlap, or Cancel to abort.`
+            );
+            if (!confirmOverlap) {
+              return;
+            }
+          }
+        }
+      }
       await addAllocation({
-        personId: document.getElementById("personSelect").value,
-        projectId: document.getElementById("projectSelect").value,
-        pct: parseFloat(document.getElementById("pctInput").value),
-        startMonth: document.getElementById("startMonthInput").value,
-        endMonth: document.getElementById("endMonthInput").value || null
+        personId,
+        projectId,
+        pm,
+        startMonth,
+        endMonth
       });
       scheduleAutoBackup();
       renderAllocations();
@@ -1537,15 +1757,19 @@ var App = (() => {
       addOverrideBtn.addEventListener("click", async () => {
         const allocationId = parseInt(document.getElementById("allocationSelect").value);
         const month = document.getElementById("overrideMonthInput").value;
-        const pct = parseFloat(document.getElementById("overridePctInput").value);
+        const pm = parseFloat(document.getElementById("overridePmInput").value);
         if (!allocationId || !month) {
           alert("Please select an allocation and month");
+          return;
+        }
+        if (isNaN(pm) || pm < 0) {
+          alert("PM must be a positive number");
           return;
         }
         await addAllocationOverride({
           allocationId,
           month,
-          pct
+          pm
         });
         scheduleAutoBackup();
         renderAllocationOverrides();
@@ -1581,7 +1805,7 @@ var App = (() => {
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
@@ -1645,7 +1869,7 @@ var App = (() => {
       tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
         const month = months[idx];
         const monthFte = getEffectiveFte(p.id, month, fteValues);
-        return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
+        return `<td class="${cellClass(c, monthFte)}">${c.toFixed(2)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td><td>${expectedFteYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });

@@ -116,7 +116,7 @@ describe('Database Module', () => {
       const allocation = {
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2025-01',
         endMonth: '2025-12'
       };
@@ -125,32 +125,32 @@ describe('Database Module', () => {
       const allocations = await getAllocations();
       expect(allocations).toHaveLength(1);
       expect(allocations[0].personId).toBe('p001');
-      expect(allocations[0].pct).toBe(0.5);
+      expect(allocations[0].pm).toBe(0.5);
     });
 
     it('should get all allocations', async () => {
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await addAllocation({ personId: 'p002', projectId: 'proj002', pct: 1, startMonth: '2025-02', endMonth: '2025-06' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p002', projectId: 'proj002', pm: 1, startMonth: '2025-02', endMonth: '2025-06' });
       
       const allocations = await getAllocations();
       expect(allocations).toHaveLength(2);
     });
 
     it('should update an allocation', async () => {
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       const allocations = await getAllocations();
       const alloc = allocations[0];
       
-      await updateAllocation({ ...alloc, pct: 0.8 });
+      await updateAllocation({ ...alloc, pm: 0.8 });
       
       const updated = await getAllocations();
-      expect(updated[0].pct).toBe(0.8);
+      expect(updated[0].pm).toBe(0.8);
     });
 
     it('should delete an allocation', async () => {
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await addAllocation({ personId: 'p002', projectId: 'proj002', pct: 1, startMonth: '2025-02', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p002', projectId: 'proj002', pm: 1, startMonth: '2025-02', endMonth: '' });
       
       const allocations = await getAllocations();
       await deleteAllocation(allocations[0].id);

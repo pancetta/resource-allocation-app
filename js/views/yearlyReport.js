@@ -1,6 +1,6 @@
 import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPMWithPct } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPM } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getTotalEffectiveFte, getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 import { getMonthsInYear } from '../helpers/dateHelper.js';
 
@@ -42,7 +42,7 @@ export async function calculateYear(year) {
             cells.map((c, idx) => {
                 const month = months[idx];
                 const monthFte = getEffectiveFte(p.id, month, fteValues);
-                return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
+                return `<td class="${cellClass(c, monthFte)}">${c.toFixed(2)}</td>`;
             }).join('') +
             `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td>` +
             `<td>${expectedFteYearly.toFixed(2)}</td>` +

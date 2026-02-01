@@ -42,7 +42,7 @@ describe('Data Export/Import and Backup', () => {
       await addAllocation({
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2025-01',
         endMonth: '2025-12'
       });
@@ -54,7 +54,7 @@ describe('Data Export/Import and Backup', () => {
       expect(exported.data.projects).toHaveLength(1);
       expect(exported.data.projects[0].name).toBe('Project A');
       expect(exported.data.allocations).toHaveLength(1);
-      expect(exported.data.allocations[0].pct).toBe(0.5);
+      expect(exported.data.allocations[0].pm).toBe(0.5);
     });
 
     it('should import data correctly', async () => {
@@ -68,7 +68,7 @@ describe('Data Export/Import and Backup', () => {
           allocations: [{
             personId: 'p001',
             projectId: 'proj001',
-            pct: 1,
+            pm: 1,
             startMonth: '2025-02',
             endMonth: ''
           }]
@@ -86,7 +86,7 @@ describe('Data Export/Import and Backup', () => {
       expect(projects).toHaveLength(1);
       expect(projects[0].name).toBe('Project B');
       expect(allocations).toHaveLength(1);
-      expect(allocations[0].pct).toBe(1);
+      expect(allocations[0].pm).toBe(1);
     });
 
     it('should replace existing data on import', async () => {
@@ -228,7 +228,7 @@ describe('Data Export/Import and Backup', () => {
       await addAllocation({
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.6,
+        pm: 0.6,
         startMonth: '2025-03',
         endMonth: '2025-09'
       });
@@ -253,7 +253,7 @@ describe('Data Export/Import and Backup', () => {
       expect(people.find(p => p.id === 'p001').fte).toBe(0.75);
       expect(people.find(p => p.id === 'p002').active).toBe(false);
       expect(projects[0].plannedPM).toBe(5.5);
-      expect(allocations[0].pct).toBe(0.6);
+      expect(allocations[0].pm).toBe(0.6);
       expect(allocations[0].endMonth).toBe('2025-09');
     });
   });

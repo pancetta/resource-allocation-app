@@ -28,11 +28,11 @@ describe('Calculation Integration Tests', () => {
   describe('Monthly Calculations', () => {
     it('should calculate monthly allocations correctly', async () => {
       // Alice: 50% on Alpha, 50% on Beta
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await addAllocation({ personId: 'p001', projectId: 'proj002', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj002', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       // Bob: 100% on Alpha
-      await addAllocation({ personId: 'p002', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p002', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-03');
       
@@ -56,10 +56,10 @@ describe('Calculation Integration Tests', () => {
 
     it('should respect allocation date ranges', async () => {
       // Alice on Alpha only in Jan-Feb
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '2025-02' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '2025-02' });
       
       // Alice on Beta starting in March
-      await addAllocation({ personId: 'p001', projectId: 'proj002', pct: 1, startMonth: '2025-03', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj002', pm: 1, startMonth: '2025-03', endMonth: '' });
       
       await calculateMonth('2025-01');
       let output = document.getElementById('resultsOutput');
@@ -72,8 +72,8 @@ describe('Calculation Integration Tests', () => {
 
     it('should calculate person totals correctly', async () => {
       // Alice: 60% on Alpha, 40% on Beta = 1.0 FTE total
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.6, startMonth: '2025-01', endMonth: '' });
-      await addAllocation({ personId: 'p001', projectId: 'proj002', pct: 0.4, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.6, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj002', pm: 0.4, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-03');
       
@@ -92,13 +92,13 @@ describe('Calculation Integration Tests', () => {
     });
 
     it('should calculate project totals correctly', async () => {
-      // Alice (1.0 FTE) at 50% = 0.5 PM
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      // Alice allocation: 0.5 PM
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
-      // Bob (0.8 FTE) at 100% = 0.8 PM
-      await addAllocation({ personId: 'p002', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '' });
+      // Bob allocation: 0.8 PM
+      await addAllocation({ personId: 'p002', projectId: 'proj001', pm: 0.8, startMonth: '2025-01', endMonth: '' });
       
-      // Total on Alpha should be 1.3 PM
+      // Total on Alpha should be 1.3 PM (0.5 + 0.8)
       await calculateMonth('2025-03');
       
       const output = document.getElementById('resultsOutput');
@@ -118,8 +118,8 @@ describe('Calculation Integration Tests', () => {
 
   describe('Yearly Calculations', () => {
     it('should calculate yearly allocations correctly', async () => {
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await addAllocation({ personId: 'p001', projectId: 'proj002', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj002', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       await calculateYear(2025);
       
@@ -137,7 +137,7 @@ describe('Calculation Integration Tests', () => {
 
     it('should calculate yearly totals correctly', async () => {
       // Alice at 100% for full year
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '' });
       
       await calculateYear(2025);
       
@@ -156,7 +156,7 @@ describe('Calculation Integration Tests', () => {
 
     it('should handle partial year allocations', async () => {
       // Alice only in Q1 (Jan-Mar)
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '2025-03' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '2025-03' });
       
       await calculateYear(2025);
       
@@ -177,7 +177,7 @@ describe('Calculation Integration Tests', () => {
   describe('Edge Cases', () => {
     it('should handle zero FTE person', async () => {
       await addPerson({ id: 'p003', name: 'Charlie', fte: 0, active: true });
-      await addAllocation({ personId: 'p003', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p003', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-03');
       
@@ -186,7 +186,7 @@ describe('Calculation Integration Tests', () => {
     });
 
     it('should handle missing endMonth (ongoing allocation)', async () => {
-      await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1, startMonth: '2025-01', endMonth: '' });
+      await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-12');
       

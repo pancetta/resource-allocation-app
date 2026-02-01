@@ -24,9 +24,9 @@ describe('Monthly Report', () => {
   });
 
   describe('calculateMonth', () => {
-    it('should generate monthly report with PM and percentage', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await db.addAllocation({ personId: 'p001', projectId: 'proj002', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+    it('should generate monthly report with PM values', async () => {
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj002', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-03');
       
@@ -34,8 +34,8 @@ describe('Monthly Report', () => {
       expect(output.innerHTML).toContain('Monthly Report 2025-03');
       expect(output.innerHTML).toContain('Alice');
       
-      // Should show PM with percentage format
-      expect(output.innerHTML).toContain('(50%)');
+      // Should show PM values (0.5 + 0.5 = 1.0)
+      expect(output.innerHTML).toContain('1.00');
     });
 
     it('should handle person with no allocations', async () => {
@@ -50,7 +50,7 @@ describe('Monthly Report', () => {
     });
 
     it('should handle FTE overrides', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       await db.addFteValue({ personId: 'p001', fte: 0.8, startMonth: '2025-03', endMonth: '2025-06' });
       
       await calculateMonth('2025-03');
@@ -61,7 +61,7 @@ describe('Monthly Report', () => {
     });
 
     it('should handle project budget overrides', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       await db.addBudgetValue({ projectId: 'proj001', plannedPM: 2.0, startMonth: '2025-03', endMonth: '2025-06' });
       
       await calculateMonth('2025-03');
@@ -75,19 +75,19 @@ describe('Monthly Report', () => {
     });
 
     it('should handle allocation overrides', async () => {
-      await db.addAllocation({ id: 1, personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
-      await db.addAllocationOverride({ allocationId: 1, month: '2025-03', pct: 0.5 });
+      await db.addAllocation({ id: 1, personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocationOverride({ allocationId: 1, month: '2025-03', pm: 0.5 });
       
       await calculateMonth('2025-03');
       
       const output = document.getElementById('resultsOutput');
-      // Should show 50% allocation for March
-      expect(output.innerHTML).toContain('(50%)');
+      // Should show 0.5 PM allocation for March
+      expect(output.innerHTML).toContain('0.50');
     });
 
     it('should calculate totals correctly', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await db.addAllocation({ personId: 'p001', projectId: 'proj002', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj002', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-03');
       
@@ -101,7 +101,7 @@ describe('Monthly Report', () => {
     });
 
     it('should show project allocation vs planned', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       
       await calculateMonth('2025-03');
       
@@ -125,7 +125,7 @@ describe('Monthly Report', () => {
     });
 
     it('should generate report on button click', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       initMonthlyReport();
       

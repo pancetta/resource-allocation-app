@@ -239,7 +239,7 @@ export async function openDatabase() {
                 };
             }
             
-            // Version 5 migration - add type field to people
+            // Version 5 migration - add type field to people AND convert allocations from pct to pm
             if (oldVersion < 5) {
                 const peopleStore = transaction.objectStore("people");
                 const peopleRequest = peopleStore.getAll();
@@ -255,6 +255,87 @@ export async function openDatabase() {
                             peopleStore.put(person);
                         }
                     });
+                };
+                
+                // Also convert allocations from pct to pm
+                const allocationsStore = transaction.objectStore("defaultAllocations");
+                const fteValuesStore = transaction.objectStore("fteValues");
+                
+                // Get all data needed for conversion
+                const allocationsRequest = allocationsStore.getAll();
+                const fteValuesRequest = fteValuesStore.getAll();
+                
+                allocationsRequest.onsuccess = () => {
+                    fteValuesRequest.onsuccess = () => {
+                        const allocations = allocationsRequest.result;
+                        const fteValues = fteValuesRequest.result;
+                        
+                        allocations.forEach(allocation => {
+                            if (allocation.pct !== undefined && allocation.pct !== null) {
+                                // Find effective FTE for this person at allocation start
+                                let fte = 1; // default
+                                const applicableFteValues = fteValues.filter(fv => 
+                                    fv.personId === allocation.personId &&
+                                    fv.startMonth <= allocation.startMonth &&
+                                    (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
+                                );
+                                
+                                if (applicableFteValues.length > 0) {
+                                    // Use the most recent one
+                                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                                    fte = applicableFteValues[0].fte;
+                                }
+                                
+                                // Convert pct to pm: pm = pct * fte
+                                allocation.pm = allocation.pct * fte;
+                                delete allocation.pct;
+                                
+                                allocationsStore.put(allocation);
+                            }
+                        });
+                        
+                        // Also convert allocation overrides
+                        if (db.objectStoreNames.contains("allocationOverrides")) {
+                            const overridesStore = transaction.objectStore("allocationOverrides");
+                            const overridesRequest = overridesStore.getAll();
+                            
+                            overridesRequest.onsuccess = () => {
+                                const overrides = overridesRequest.result;
+                                
+                                overrides.forEach(override => {
+                                    if (override.pct !== undefined && override.pct !== null) {
+                                        // For overrides, find the allocation to get the person
+                                        const allocationId = override.allocationId;
+                                        const allocRequest = allocationsStore.get(allocationId);
+                                        
+                                        allocRequest.onsuccess = () => {
+                                            const allocation = allocRequest.result;
+                                            if (allocation) {
+                                                // Find effective FTE for this person at override month
+                                                let fte = 1;
+                                                const applicableFteValues = fteValues.filter(fv => 
+                                                    fv.personId === allocation.personId &&
+                                                    fv.startMonth <= override.month &&
+                                                    (fv.endMonth === null || fv.endMonth >= override.month)
+                                                );
+                                                
+                                                if (applicableFteValues.length > 0) {
+                                                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                                                    fte = applicableFteValues[0].fte;
+                                                }
+                                                
+                                                // Convert pct to pm
+                                                override.pm = override.pct * fte;
+                                                delete override.pct;
+                                                
+                                                overridesStore.put(override);
+                                            }
+                                        };
+                                    }
+                                });
+                            };
+                        }
+                    };
                 };
             }
         };
@@ -815,17 +896,17 @@ export function getEffectivePlannedPM(projectId, month, budgetValues) {
  * @param {Array} allocationOverrides - Array of allocation override objects
  * @returns {number} Effective allocation percentage
  */
-export function getEffectiveAllocationPct(allocationId, month, allocations, allocationOverrides) {
+export function getEffectiveAllocationPM(allocationId, month, allocations, allocationOverrides) {
     // Find month-specific override
     const override = allocationOverrides.find(o => 
         o.allocationId === allocationId && o.month === month
     );
     
     if (override) {
-        return override.pct;
+        return override.pm;
     }
     
-    // Fall back to base allocation percentage
+    // Fall back to base allocation PM
     const allocation = allocations.find(a => a.id === allocationId);
-    return allocation ? allocation.pct : 0;
+    return allocation ? allocation.pm : 0;
 }

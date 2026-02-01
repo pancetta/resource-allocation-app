@@ -25,8 +25,8 @@ describe('Yearly Report', () => {
 
   describe('calculateYear', () => {
     it('should generate yearly report with PM and percentage', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await db.addAllocation({ personId: 'p001', projectId: 'proj002', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj002', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       await calculateYear(2025);
       
@@ -34,12 +34,12 @@ describe('Yearly Report', () => {
       expect(output.innerHTML).toContain('Yearly Overview 2025');
       expect(output.innerHTML).toContain('Alice');
       
-      // Should show PM with percentage format
-      expect(output.innerHTML).toContain('(100%)');
+      // Should show PM values
+      expect(output.innerHTML).toContain('1.00');
     });
 
     it('should display 12 months of data', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       
       await calculateYear(2025);
       
@@ -53,7 +53,7 @@ describe('Yearly Report', () => {
     });
 
     it('should handle FTE overrides across months', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       await db.addFteValue({ personId: 'p001', fte: 0.8, startMonth: '2025-03', endMonth: '2025-06' });
       
       await calculateYear(2025);
@@ -64,7 +64,7 @@ describe('Yearly Report', () => {
     });
 
     it('should calculate yearly totals correctly', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '2025-12' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '2025-12' });
       
       await calculateYear(2025);
       
@@ -79,7 +79,7 @@ describe('Yearly Report', () => {
     });
 
     it('should display project totals table', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       
       await calculateYear(2025);
       
@@ -94,7 +94,7 @@ describe('Yearly Report', () => {
     });
 
     it('should handle project budget overrides', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       await db.addBudgetValue({ projectId: 'proj001', plannedPM: 2.0, startMonth: '2025-03', endMonth: '2025-06' });
       
       await calculateYear(2025);
@@ -104,8 +104,8 @@ describe('Yearly Report', () => {
     });
 
     it('should show totals row in person table', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
-      await db.addAllocation({ personId: 'p002', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p002', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
       
       await calculateYear(2025);
       
@@ -119,8 +119,8 @@ describe('Yearly Report', () => {
     });
 
     it('should handle allocation overrides in yearly view', async () => {
-      await db.addAllocation({ id: 1, personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
-      await db.addAllocationOverride({ allocationId: 1, month: '2025-06', pct: 0.5 });
+      await db.addAllocation({ id: 1, personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocationOverride({ allocationId: 1, month: '2025-06', pm: 0.5 });
       
       await calculateYear(2025);
       
@@ -138,7 +138,7 @@ describe('Yearly Report', () => {
     });
 
     it('should generate report on button click', async () => {
-      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: '' });
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
       initYearlyReport();
       

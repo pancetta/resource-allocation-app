@@ -58,7 +58,7 @@ test.describe('Resource Allocation App - Basic E2E Tests', () => {
     // Check form elements exist
     await expect(page.locator('#personSelect')).toBeVisible();
     await expect(page.locator('#projectSelect')).toBeVisible();
-    await expect(page.locator('#pctInput')).toBeVisible();
+    await expect(page.locator('#pmInput')).toBeVisible();
     await expect(page.locator('#startMonthInput')).toBeVisible();
     await expect(page.locator('#endMonthInput')).toBeVisible();
     await expect(page.locator('#addAllocationBtn')).toBeVisible();

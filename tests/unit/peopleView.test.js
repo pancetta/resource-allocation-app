@@ -35,8 +35,8 @@ describe('People View', () => {
     });
 
     it('should render people in table', async () => {
-      await db.addPerson({ id: 'p001', name: 'Alice', type: '210', active: true });
-      await db.addPerson({ id: 'p002', name: 'Bob', type: '220', active: false });
+      await db.addPerson({ id: 'p001', name: 'Alice', active: true });
+      await db.addPerson({ id: 'p002', name: 'Bob', active: false });
       
       await renderPeople();
       
@@ -45,12 +45,11 @@ describe('People View', () => {
       
       const firstRow = tbody.children[0];
       expect(firstRow.querySelector('[data-field="name"]').textContent).toBe('Alice');
-      expect(firstRow.querySelector('[data-field="type"]').value).toBe('210');
       expect(firstRow.querySelector('[data-field="active"]').checked).toBe(true);
     });
 
     it('should render people without FTE column (FTE is now in separate table)', async () => {
-      await db.addPerson({ id: 'p001', name: 'Charlie', type: '230', active: true });
+      await db.addPerson({ id: 'p001', name: 'Charlie', active: true });
       
       await renderPeople();
       
@@ -60,7 +59,7 @@ describe('People View', () => {
     });
 
     it('should call populatePersonSelect after rendering', async () => {
-      await db.addPerson({ id: 'p001', name: 'Alice', type: '210', active: true });
+      await db.addPerson({ id: 'p001', name: 'Alice', active: true });
       
       await renderPeople();
       
@@ -73,9 +72,9 @@ describe('People View', () => {
 
   describe('populatePersonSelect', () => {
     it('should populate select with active people only', async () => {
-      await db.addPerson({ id: 'p001', name: 'Alice', type: '210', active: true });
-      await db.addPerson({ id: 'p002', name: 'Bob', type: '220', active: false });
-      await db.addPerson({ id: 'p003', name: 'Charlie', type: '230', active: true });
+      await db.addPerson({ id: 'p001', name: 'Alice', active: true });
+      await db.addPerson({ id: 'p002', name: 'Bob', active: false });
+      await db.addPerson({ id: 'p003', name: 'Charlie', active: true });
       
       await populatePersonSelect();
       
@@ -89,7 +88,7 @@ describe('People View', () => {
       const select = document.getElementById('personSelect');
       select.innerHTML = '<option>Old Option</option>';
       
-      await db.addPerson({ id: 'p001', name: 'Alice', type: '210', active: true });
+      await db.addPerson({ id: 'p001', name: 'Alice', active: true });
       await populatePersonSelect();
       
       expect(select.children.length).toBe(1);

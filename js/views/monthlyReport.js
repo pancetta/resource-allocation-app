@@ -1,6 +1,6 @@
 import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPMWithPct } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 
 // Monthly Report
@@ -35,8 +35,8 @@ export async function calculateMonth(month) {
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
-            cells.map(c => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join('') +
-            `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td>` +
+            cells.map(c => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join('') +
+            `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` +
             `<td>${fte.toFixed(2)}</td>` +
             `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
         pTbody.appendChild(tr);

@@ -2,6 +2,7 @@ import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudg
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPMWithPct } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getTotalEffectiveFte, getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
+import { getMonthsInYear } from '../helpers/dateHelper.js';
 
 // Yearly Overview
 export async function calculateYear(year) {
@@ -19,7 +20,7 @@ export async function calculateYear(year) {
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Yearly Overview ${year}</h3>`;
 
-    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    const months = getMonthsInYear(year);
 
     // --- People × Months Table ---
     const personTable = document.createElement("table");

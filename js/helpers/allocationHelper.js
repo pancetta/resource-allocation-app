@@ -5,6 +5,8 @@
  * to avoid repeated filtering and improve report performance.
  **********************/
 
+import { isMonthInRange, compareMonths } from './dateHelper.js';
+
 /**
  * Build an index map for fast allocation lookups by person and project
  * @param {Array} allocations - Array of allocation objects
@@ -60,7 +62,7 @@ export function calculatePM(allocationIndex, personId, projectId, month, fte, al
     
     return allocations.reduce((sum, alloc) => {
         // Check if allocation is active for this month
-        if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
+        if (isMonthInRange(month, alloc.startMonth, alloc.endMonth)) {
             // Check for allocation override
             let pct = alloc.pct;
             if (allocationOverrideIndex) {
@@ -116,14 +118,13 @@ export function calculateProjectTotal(allocationIndex, projectId, people, month,
         if (fteOverrides) {
             const applicableOverrides = fteOverrides.filter(override => 
                 override.personId === person.id &&
-                override.startMonth <= month &&
-                (!override.endMonth || override.endMonth >= month)
+                isMonthInRange(month, override.startMonth, override.endMonth)
             );
             
             if (applicableOverrides.length > 0) {
                 // Use the most recent override
                 const sortedOverrides = applicableOverrides.sort((a, b) => 
-                    b.startMonth.localeCompare(a.startMonth)
+                    compareMonths(b.startMonth, a.startMonth)
                 );
                 fte = sortedOverrides[0].fte;
             }

@@ -3,6 +3,8 @@
  * Eliminates duplication in report calculations
  */
 
+import { isMonthInRange, compareMonths } from './dateHelper.js';
+
 /**
  * Get the effective FTE for a person in a given month, considering FTE overrides
  * @param {string} personId - The person's ID
@@ -14,8 +16,7 @@
 export function getEffectiveFte(personId, month, defaultFte, fteOverrides) {
     const applicableOverrides = fteOverrides.filter(override =>
         override.personId === personId &&
-        override.startMonth <= month &&
-        (!override.endMonth || override.endMonth >= month)
+        isMonthInRange(month, override.startMonth, override.endMonth)
     );
     
     if (applicableOverrides.length === 0) {
@@ -24,7 +25,7 @@ export function getEffectiveFte(personId, month, defaultFte, fteOverrides) {
     
     // Use the most recent override (latest startMonth)
     const sortedOverrides = applicableOverrides.sort((a, b) =>
-        b.startMonth.localeCompare(a.startMonth)
+        compareMonths(b.startMonth, a.startMonth)
     );
     return sortedOverrides[0].fte;
 }
@@ -40,8 +41,7 @@ export function getEffectiveFte(personId, month, defaultFte, fteOverrides) {
 export function getEffectiveProjectBudget(projectId, month, defaultPlannedPM, projectBudgetOverrides) {
     const applicableOverrides = projectBudgetOverrides.filter(override =>
         override.projectId === projectId &&
-        override.startMonth <= month &&
-        (!override.endMonth || override.endMonth >= month)
+        isMonthInRange(month, override.startMonth, override.endMonth)
     );
     
     if (applicableOverrides.length === 0) {
@@ -50,7 +50,7 @@ export function getEffectiveProjectBudget(projectId, month, defaultPlannedPM, pr
     
     // Use the most recent override (latest startMonth)
     const sortedOverrides = applicableOverrides.sort((a, b) =>
-        b.startMonth.localeCompare(a.startMonth)
+        compareMonths(b.startMonth, a.startMonth)
     );
     return sortedOverrides[0].plannedPM;
 }

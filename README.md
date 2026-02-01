@@ -311,6 +311,17 @@ Tests run automatically on GitHub Actions for:
 
 See `.github/workflows/tests.yml` for CI configuration.
 
+### GitHub Actions Workflow Approvals
+
+**Note for Repository Maintainers:** By default, GitHub may require manual approval for workflows triggered by PRs from GitHub Apps (like Copilot). This is controlled by repository settings.
+
+If you see workflows with `action_required` status:
+- This is expected behavior for repositories with default security settings
+- To enable automatic workflow runs from Copilot (while maintaining security), see [Workflow Approvals Troubleshooting Guide](.github/WORKFLOW_APPROVALS.md)
+- The guide explains how to configure repository settings properly
+
+The workflows themselves are already configured with `pull_request_target` and appropriate security measures. The approval requirement comes from repository-level settings, not the workflow configuration.
+
 ## Development
 
 ### Project Structure

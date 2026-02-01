@@ -87,7 +87,7 @@ GitHub Copilot coding agent can help with various tasks:
 
 ### Copilot Test Environment
 
-**Important:** Copilot now runs the same tests as the main CI workflow to ensure consistency and prevent issues where internal tests pass but CI tests fail.
+**Important:** Copilot runs the same tests as the main CI workflow to ensure consistency and prevent issues where internal tests pass but CI tests fail.
 
 The `copilot-setup-steps.yml` workflow:
 - Runs automatically when Copilot creates or modifies PRs
@@ -97,10 +97,22 @@ The `copilot-setup-steps.yml` workflow:
 - Reports coverage and test results just like the main CI workflow
 
 This means:
-- ✅ No more manual workflow approvals needed
 - ✅ Copilot sees the same test results as your CI
-- ✅ Failures are caught early, before creating PRs
+- ✅ Failures are caught early in Copilot's environment
 - ✅ Consistent test environment across all workflows
+- ✅ No surprises when PR workflows run
+
+### Workflow Approvals
+
+**Note:** GitHub may require manual approval for workflows from Copilot (and other GitHub Apps) depending on your repository settings. This is a security feature.
+
+If you see workflows with `action_required` status that need manual approval:
+
+1. **This is expected behavior** for repositories with default security settings
+2. **To automate workflows** from Copilot, see [Workflow Approvals Troubleshooting Guide](.github/WORKFLOW_APPROVALS.md)
+3. The guide explains how to configure repository settings to allow automatic workflow runs while maintaining security
+
+After configuring the settings as described in the troubleshooting guide, Copilot PRs will trigger workflows automatically without requiring manual approval.
 
 ### Assigning Issues to Copilot
 
@@ -163,7 +175,7 @@ The project uses GitHub Actions for continuous integration:
 
 **Main CI Workflow** (`.github/workflows/tests.yml`):
 - Triggers on: Push to `main`/`develop` branches, pull requests
-- **Uses `pull_request_target` trigger** to avoid manual approval requirements for PRs from GitHub Apps (like Copilot)
+- **Uses `pull_request_target` trigger** to enable workflows in the context of the base branch
 - Two parallel jobs:
   1. **Unit Tests**: Runs Vitest with coverage reporting
   2. **E2E Tests**: Runs Playwright browser tests
@@ -178,13 +190,22 @@ The project uses GitHub Actions for continuous integration:
   - Automatically when Copilot creates/modifies PRs
 - Runs the exact same tests as the main CI workflow
 - Ensures Copilot uses the same environment and catches issues early
-- **Uses `pull_request_target` trigger**: This runs workflows in the context of the base branch, avoiding GitHub's security restrictions that require manual approval for PRs from GitHub Apps. The workflow explicitly checks out the PR code using `ref: ${{ github.event.pull_request.head.sha || github.sha }}` to test the actual changes (with a fallback to `github.sha` for push events) while maintaining security.
+- **Uses `pull_request_target` trigger**: Runs workflows in the context of the base branch while explicitly checking out PR code using `ref: ${{ github.event.pull_request.head.sha || github.sha }}` to test actual changes (with a fallback to `github.sha` for push events)
 
 Both workflows use identical:
 - Node.js version (20)
 - Dependencies (`npm ci`)
 - Test commands (`npm test`, `npm run test:e2e`)
 - Browser setup (Chromium with Playwright)
+
+**Workflow Approvals:**
+
+By default, GitHub may require manual approval for workflows triggered by PRs from GitHub Apps (like Copilot). This is controlled by repository settings, not the workflow configuration itself.
+
+- `pull_request_target` allows workflows to run in a trusted context
+- However, repository settings for "Approval for running fork pull request workflows from contributors" still apply
+- To automate Copilot workflows without manual approval, see [Workflow Approvals Troubleshooting Guide](.github/WORKFLOW_APPROVALS.md)
+- The guide explains how to safely configure repository settings while maintaining security
 
 ### Unit & Integration Tests
 

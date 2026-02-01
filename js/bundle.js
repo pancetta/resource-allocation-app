@@ -1369,8 +1369,14 @@ var App = (() => {
     document.querySelectorAll(".alloc-person").forEach((select) => {
       select.addEventListener("change", async function() {
         const id = parseInt(this.dataset.id);
+        if (isNaN(id)) return;
+        if (!this.value) {
+          alert("Please select a person");
+          return;
+        }
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        if (!alloc) return;
         alloc.personId = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1380,8 +1386,14 @@ var App = (() => {
     document.querySelectorAll(".alloc-project").forEach((select) => {
       select.addEventListener("change", async function() {
         const id = parseInt(this.dataset.id);
+        if (isNaN(id)) return;
+        if (!this.value) {
+          alert("Please select a project");
+          return;
+        }
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        if (!alloc) return;
         alloc.projectId = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1390,15 +1402,23 @@ var App = (() => {
     document.querySelectorAll(".alloc-pct").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
+        if (isNaN(id)) return;
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        if (!alloc) return;
         const validation = validateAllocationPercentage(this.value);
         if (!validation.valid) {
           alert(validation.message);
           this.value = alloc.pct;
           return;
         }
-        alloc.pct = parseFloat(this.value);
+        const pct = parseFloat(this.value);
+        if (isNaN(pct)) {
+          alert("Invalid percentage value");
+          this.value = alloc.pct;
+          return;
+        }
+        alloc.pct = pct;
         await updateAllocation(alloc);
         scheduleAutoBackup();
         await updateRowPMValues(this.closest("tr"), alloc);
@@ -1407,8 +1427,15 @@ var App = (() => {
     document.querySelectorAll(".alloc-start").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
+        if (isNaN(id)) return;
+        const datePattern = /^\d{4}-\d{2}$/;
+        if (!datePattern.test(this.value)) {
+          alert("Invalid date format. Please use YYYY-MM format");
+          return;
+        }
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        if (!alloc) return;
         alloc.startMonth = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1417,8 +1444,15 @@ var App = (() => {
     document.querySelectorAll(".alloc-end").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
+        if (isNaN(id)) return;
+        const datePattern = /^\d{4}-\d{2}$/;
+        if (this.value && !datePattern.test(this.value)) {
+          alert("Invalid date format. Please use YYYY-MM format or leave empty");
+          return;
+        }
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        if (!alloc) return;
         alloc.endMonth = this.value || null;
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1555,6 +1589,10 @@ var App = (() => {
         return;
       }
       const pct = parseFloat(pctInput);
+      if (isNaN(pct)) {
+        alert("Invalid percentage value");
+        return;
+      }
       await addAllocation({
         personId,
         projectId,
@@ -1591,6 +1629,10 @@ var App = (() => {
           return;
         }
         const pct = parseFloat(pctInput);
+        if (isNaN(pct)) {
+          alert("Invalid percentage value");
+          return;
+        }
         await addAllocationOverride({
           allocationId,
           month: monthInput,

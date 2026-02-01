@@ -72,135 +72,169 @@ function attachAllocationsEventListeners() {
     // Person select change handlers
     document.querySelectorAll(".alloc-person").forEach(select => {
         select.addEventListener("change", async function() {
-            const id = parseInt(this.dataset.id);
-            if (isNaN(id)) return;
-            
-            // Validate person selection
-            if (!this.value) {
-                alert('Please select a person');
-                return;
+            try {
+                const id = parseInt(this.dataset.id);
+                if (isNaN(id)) return;
+                
+                // Validate person selection
+                if (!this.value) {
+                    alert('Please select a person');
+                    return;
+                }
+                
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
+                alloc.personId = this.value;
+                await updateAllocation(alloc);
+                scheduleAutoBackup();
+                // Update PM values for this row
+                await updateRowPMValues(this.closest('tr'), alloc);
+            } catch (error) {
+                console.error('Error updating person allocation:', error);
+                alert('Failed to update person allocation. Please try again.');
             }
-            
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
-            if (!alloc) return;
-            
-            alloc.personId = this.value;
-            await updateAllocation(alloc);
-            scheduleAutoBackup();
-            // Update PM values for this row
-            await updateRowPMValues(this.closest('tr'), alloc);
         });
     });
     
     // Project select change handlers
     document.querySelectorAll(".alloc-project").forEach(select => {
         select.addEventListener("change", async function() {
-            const id = parseInt(this.dataset.id);
-            if (isNaN(id)) return;
-            
-            // Validate project selection
-            if (!this.value) {
-                alert('Please select a project');
-                return;
+            try {
+                const id = parseInt(this.dataset.id);
+                if (isNaN(id)) return;
+                
+                // Validate project selection
+                if (!this.value) {
+                    alert('Please select a project');
+                    return;
+                }
+                
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
+                alloc.projectId = this.value;
+                await updateAllocation(alloc);
+                scheduleAutoBackup();
+            } catch (error) {
+                console.error('Error updating project allocation:', error);
+                alert('Failed to update project allocation. Please try again.');
             }
-            
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
-            if (!alloc) return;
-            
-            alloc.projectId = this.value;
-            await updateAllocation(alloc);
-            scheduleAutoBackup();
         });
     });
     
     // Percentage input blur handlers
     document.querySelectorAll(".alloc-pct").forEach(input => {
         input.addEventListener("blur", async function() {
-            const id = parseInt(this.dataset.id);
-            if (isNaN(id)) return;
-            
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
-            if (!alloc) return;
-            
-            const validation = validateAllocationPercentage(this.value);
-            if (!validation.valid) {
-                alert(validation.message);
-                // Revert to original value
-                this.value = alloc.pct;
-                return;
+            try {
+                const id = parseInt(this.dataset.id);
+                if (isNaN(id)) return;
+                
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
+                const validation = validateAllocationPercentage(this.value);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    // Revert to original value
+                    this.value = alloc.pct;
+                    return;
+                }
+                
+                const pct = parseFloat(this.value);
+                if (isNaN(pct)) {
+                    alert('Invalid percentage value');
+                    this.value = alloc.pct;
+                    return;
+                }
+                
+                alloc.pct = pct;
+                await updateAllocation(alloc);
+                scheduleAutoBackup();
+                // Update PM values for this row
+                await updateRowPMValues(this.closest('tr'), alloc);
+            } catch (error) {
+                console.error('Error updating allocation percentage:', error);
+                alert('Failed to update allocation percentage. Please try again.');
             }
-            
-            const pct = parseFloat(this.value);
-            if (isNaN(pct)) {
-                alert('Invalid percentage value');
-                this.value = alloc.pct;
-                return;
-            }
-            
-            alloc.pct = pct;
-            await updateAllocation(alloc);
-            scheduleAutoBackup();
-            // Update PM values for this row
-            await updateRowPMValues(this.closest('tr'), alloc);
         });
     });
     
     // Start month input blur handlers
     document.querySelectorAll(".alloc-start").forEach(input => {
         input.addEventListener("blur", async function() {
-            const id = parseInt(this.dataset.id);
-            if (isNaN(id)) return;
-            
-            // Validate date format (YYYY-MM)
-            const datePattern = /^\d{4}-\d{2}$/;
-            if (!datePattern.test(this.value)) {
-                alert('Invalid date format. Please use YYYY-MM format');
-                return;
+            try {
+                const id = parseInt(this.dataset.id);
+                if (isNaN(id)) return;
+                
+                // Validate date format (YYYY-MM)
+                const datePattern = /^\d{4}-\d{2}$/;
+                if (!datePattern.test(this.value)) {
+                    alert('Invalid date format. Please use YYYY-MM format');
+                    return;
+                }
+                
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
+                alloc.startMonth = this.value;
+                await updateAllocation(alloc);
+                scheduleAutoBackup();
+            } catch (error) {
+                console.error('Error updating start month:', error);
+                alert('Failed to update start month. Please try again.');
             }
-            
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
-            if (!alloc) return;
-            
-            alloc.startMonth = this.value;
-            await updateAllocation(alloc);
-            scheduleAutoBackup();
         });
     });
     
     // End month input blur handlers
     document.querySelectorAll(".alloc-end").forEach(input => {
         input.addEventListener("blur", async function() {
-            const id = parseInt(this.dataset.id);
-            if (isNaN(id)) return;
-            
-            // Validate date format if not empty (YYYY-MM)
-            const datePattern = /^\d{4}-\d{2}$/;
-            if (this.value && !datePattern.test(this.value)) {
-                alert('Invalid date format. Please use YYYY-MM format or leave empty');
-                return;
+            try {
+                const id = parseInt(this.dataset.id);
+                if (isNaN(id)) return;
+                
+                // Validate date format if not empty (YYYY-MM)
+                const datePattern = /^\d{4}-\d{2}$/;
+                if (this.value && !datePattern.test(this.value)) {
+                    alert('Invalid date format. Please use YYYY-MM format or leave empty');
+                    return;
+                }
+                
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
+                alloc.endMonth = this.value || null;
+                await updateAllocation(alloc);
+                scheduleAutoBackup();
+            } catch (error) {
+                console.error('Error updating end month:', error);
+                alert('Failed to update end month. Please try again.');
             }
-            
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
-            if (!alloc) return;
-            
-            alloc.endMonth = this.value || null;
-            await updateAllocation(alloc);
-            scheduleAutoBackup();
         });
     });
     
     // Delete button handlers
     document.querySelectorAll(".delete-allocation").forEach(btn => {
         btn.addEventListener("click", async function() {
-            const id = parseInt(this.dataset.id);
-            await deleteAllocation(id);
-            scheduleAutoBackup();
-            renderAllocations();
+            try {
+                const id = parseInt(this.dataset.id);
+                if (isNaN(id)) return;
+                
+                await deleteAllocation(id);
+                scheduleAutoBackup();
+                renderAllocations();
+            } catch (error) {
+                console.error('Error deleting allocation:', error);
+                if (typeof alert === 'function') {
+                    alert('Failed to delete allocation. Please try again.');
+                }
+            }
         });
     });
 }
@@ -334,67 +368,26 @@ export function initAllocationsView() {
     if (!addAllocationBtn) return;
     
     addAllocationBtn.addEventListener("click", async () => {
-        const personId = document.getElementById("personSelect")?.value;
-        const projectId = document.getElementById("projectSelect")?.value;
-        const pctInput = document.getElementById("pctInput")?.value;
-        const startMonthInput = document.getElementById("startMonthInput")?.value;
-        const endMonthInput = document.getElementById("endMonthInput")?.value;
-        
-        // Validate required inputs exist
-        if (!personId || !projectId) {
-            alert('Please select both a person and a project');
-            return;
-        }
-        
-        if (!pctInput) {
-            alert('Please enter an allocation percentage');
-            return;
-        }
-        
-        if (!startMonthInput) {
-            alert('Please enter a start month');
-            return;
-        }
-        
-        // Validate percentage
-        const validation = validateAllocationPercentage(pctInput);
-        if (!validation.valid) {
-            alert(validation.message);
-            return;
-        }
-        
-        const pct = parseFloat(pctInput);
-        if (isNaN(pct)) {
-            alert('Invalid percentage value');
-            return;
-        }
-        
-        await addAllocation({
-            personId,
-            projectId,
-            pct,
-            startMonth: startMonthInput,
-            endMonth: endMonthInput || null
-        });
-        scheduleAutoBackup();
-        renderAllocations();
-        populateAllocationSelect(); // Update allocation override select
-    });
-    
-    const addOverrideBtn = document.getElementById("addAllocationOverrideBtn");
-    if (addOverrideBtn) {
-        addOverrideBtn.addEventListener("click", async () => {
-            const allocationIdInput = document.getElementById("allocationSelect")?.value;
-            const monthInput = document.getElementById("overrideMonthInput")?.value;
-            const pctInput = document.getElementById("overridePctInput")?.value;
+        try {
+            const personId = document.getElementById("personSelect")?.value;
+            const projectId = document.getElementById("projectSelect")?.value;
+            const pctInput = document.getElementById("pctInput")?.value;
+            const startMonthInput = document.getElementById("startMonthInput")?.value;
+            const endMonthInput = document.getElementById("endMonthInput")?.value;
             
-            if (!allocationIdInput || !monthInput) {
-                alert("Please select an allocation and month");
+            // Validate required inputs exist
+            if (!personId || !projectId) {
+                alert('Please select both a person and a project');
                 return;
             }
             
             if (!pctInput) {
-                alert("Please enter an override percentage");
+                alert('Please enter an allocation percentage');
+                return;
+            }
+            
+            if (!startMonthInput) {
+                alert('Please enter a start month');
                 return;
             }
             
@@ -405,25 +398,76 @@ export function initAllocationsView() {
                 return;
             }
             
-            const allocationId = parseInt(allocationIdInput);
-            if (isNaN(allocationId)) {
-                alert("Invalid allocation selected");
-                return;
-            }
-            
             const pct = parseFloat(pctInput);
             if (isNaN(pct)) {
-                alert("Invalid percentage value");
+                alert('Invalid percentage value');
                 return;
             }
             
-            await addAllocationOverride({
-                allocationId,
-                month: monthInput,
-                pct
+            await addAllocation({
+                personId,
+                projectId,
+                pct,
+                startMonth: startMonthInput,
+                endMonth: endMonthInput || null
             });
             scheduleAutoBackup();
-            renderAllocationOverrides();
+            renderAllocations();
+            populateAllocationSelect(); // Update allocation override select
+        } catch (error) {
+            console.error('Error adding allocation:', error);
+            alert('Failed to add allocation. Please try again.');
+        }
+    });
+    
+    const addOverrideBtn = document.getElementById("addAllocationOverrideBtn");
+    if (addOverrideBtn) {
+        addOverrideBtn.addEventListener("click", async () => {
+            try {
+                const allocationIdInput = document.getElementById("allocationSelect")?.value;
+                const monthInput = document.getElementById("overrideMonthInput")?.value;
+                const pctInput = document.getElementById("overridePctInput")?.value;
+                
+                if (!allocationIdInput || !monthInput) {
+                    alert("Please select an allocation and month");
+                    return;
+                }
+                
+                if (!pctInput) {
+                    alert("Please enter an override percentage");
+                    return;
+                }
+                
+                // Validate percentage
+                const validation = validateAllocationPercentage(pctInput);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    return;
+                }
+                
+                const allocationId = parseInt(allocationIdInput);
+                if (isNaN(allocationId)) {
+                    alert("Invalid allocation selected");
+                    return;
+                }
+                
+                const pct = parseFloat(pctInput);
+                if (isNaN(pct)) {
+                    alert("Invalid percentage value");
+                    return;
+                }
+                
+                await addAllocationOverride({
+                    allocationId,
+                    month: monthInput,
+                    pct
+                });
+                scheduleAutoBackup();
+                renderAllocationOverrides();
+            } catch (error) {
+                console.error('Error adding allocation override:', error);
+                alert('Failed to add allocation override. Please try again.');
+            }
         });
     }
 }

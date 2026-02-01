@@ -241,36 +241,7 @@ export async function openDatabase() {
         
         request.onsuccess = (e) => {
             db = e.target.result;
-            
-            // Clean up old object stores after successful migration
-            if (db.objectStoreNames.contains("fteOverrides") || db.objectStoreNames.contains("projectBudgetOverrides")) {
-                // Need to close and reopen to delete stores
-                db.close();
-                const deleteRequest = indexedDB.open(DB_NAME, DB_VERSION + 0.1);
-                
-                deleteRequest.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (db.objectStoreNames.contains("fteOverrides")) {
-                        db.deleteObjectStore("fteOverrides");
-                    }
-                    if (db.objectStoreNames.contains("projectBudgetOverrides")) {
-                        db.deleteObjectStore("projectBudgetOverrides");
-                    }
-                };
-                
-                deleteRequest.onsuccess = (e) => {
-                    db = e.target.result;
-                    resolve(db);
-                };
-                
-                deleteRequest.onerror = (e) => {
-                    // If cleanup fails, it's not critical - use the db as is
-                    console.warn("Failed to clean up old stores, but migration succeeded");
-                    resolve(db);
-                };
-            } else {
-                resolve(db);
-            }
+            resolve(db);
         };
         
         request.onerror = (e) => reject(e.target.error);

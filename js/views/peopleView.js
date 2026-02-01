@@ -109,20 +109,18 @@ function attachPeopleEventListeners() {
     document.querySelectorAll(".delete-person").forEach(btn => {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
-            if (confirm("Delete this person? This will also delete all their FTE values.")) {
-                // Delete person's FTE values first
-                const fteValues = await getFteValues();
-                const personFteValues = fteValues.filter(v => v.personId === id);
-                for (const value of personFteValues) {
-                    await deleteFteValue(value.id);
-                }
-                
-                // Then delete the person
-                await deletePerson(id);
-                scheduleAutoBackup();
-                renderPeople();
-                renderFteValues();
+            // Delete person's FTE values first
+            const fteValues = await getFteValues();
+            const personFteValues = fteValues.filter(v => v.personId === id);
+            for (const value of personFteValues) {
+                await deleteFteValue(value.id);
             }
+            
+            // Then delete the person
+            await deletePerson(id);
+            scheduleAutoBackup();
+            renderPeople();
+            renderFteValues();
         });
     });
 }

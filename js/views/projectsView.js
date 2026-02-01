@@ -90,20 +90,18 @@ function attachProjectsEventListeners() {
     document.querySelectorAll(".delete-project").forEach(btn => {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
-            if (confirm("Delete this project? This will also delete all its budget values.")) {
-                // Delete project's budget values first
-                const budgetValues = await getBudgetValues();
-                const projectBudgetValues = budgetValues.filter(v => v.projectId === id);
-                for (const value of projectBudgetValues) {
-                    await deleteBudgetValue(value.id);
-                }
-                
-                // Then delete the project
-                await deleteProject(id);
-                scheduleAutoBackup();
-                renderProjects();
-                renderBudgetValues();
+            // Delete project's budget values first
+            const budgetValues = await getBudgetValues();
+            const projectBudgetValues = budgetValues.filter(v => v.projectId === id);
+            for (const value of projectBudgetValues) {
+                await deleteBudgetValue(value.id);
             }
+            
+            // Then delete the project
+            await deleteProject(id);
+            scheduleAutoBackup();
+            renderProjects();
+            renderBudgetValues();
         });
     });
 }

@@ -1982,7 +1982,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");

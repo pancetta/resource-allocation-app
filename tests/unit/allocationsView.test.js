@@ -56,7 +56,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -79,7 +79,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: null
       });
@@ -98,7 +98,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-06'
       });
@@ -106,7 +106,7 @@ describe('Allocations View', () => {
         id: 2,
         personId: 'p002',
         projectId: 'proj002',
-        pct: 75,
+        pm: 75,
         startMonth: '2024-07',
         endMonth: '2024-12'
       });
@@ -123,7 +123,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -144,7 +144,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -168,7 +168,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -191,22 +191,22 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
       
       await renderAllocations();
       
-      const pctInput = document.querySelector('.alloc-pm');
-      pctInput.value = '75';
-      pctInput.dispatchEvent(new Event('blur'));
+      const pmInput = document.querySelector('.alloc-pm');
+      pmInput.value = '75';
+      pmInput.dispatchEvent(new Event('blur'));
       
       // Wait for async update
       await new Promise(resolve => setTimeout(resolve, 10));
       
       const allocations = await db.getAllocations();
-      expect(allocations[0].pct).toBe(75);
+      expect(allocations[0].pm).toBe(75);
     });
 
     it('should update allocation start month on blur', async () => {
@@ -214,7 +214,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -237,7 +237,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -260,7 +260,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -283,7 +283,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 0.5,
+        pm: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -319,7 +319,7 @@ describe('Allocations View', () => {
       expect(allocations.length).toBe(1);
       expect(allocations[0].personId).toBe('p001');
       expect(allocations[0].projectId).toBe('proj001');
-      expect(allocations[0].pct).toBe(0.5);
+      expect(allocations[0].pm).toBe(0.5);
       expect(allocations[0].startMonth).toBe('2024-01');
       expect(allocations[0].endMonth).toBe('2024-12');
     });
@@ -355,7 +355,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 1.0,
+        pm: 1.0,
         startMonth: '2025-01',
         endMonth: null
       });
@@ -363,7 +363,7 @@ describe('Allocations View', () => {
       await db.addAllocationOverride({
         allocationId: 1,
         month: '2025-06',
-        pct: 0.5
+        pm: 0.5
       });
       
       await renderAllocationOverrides();
@@ -385,7 +385,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 1.0,
+        pm: 1.0,
         startMonth: '2025-01',
         endMonth: null
       });
@@ -404,7 +404,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 1.0,
+        pm: 1.0,
         startMonth: '2025-01',
         endMonth: null
       });
@@ -427,7 +427,7 @@ describe('Allocations View', () => {
       expect(overrides.length).toBe(1);
       expect(overrides[0].allocationId).toBe(1);
       expect(overrides[0].month).toBe('2025-06');
-      expect(overrides[0].pct).toBe(0.5);
+      expect(overrides[0].pm).toBe(0.5);
     });
 
     it('should show alert when allocation override is missing data', async () => {

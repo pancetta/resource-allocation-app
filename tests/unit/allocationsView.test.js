@@ -24,7 +24,7 @@ describe('Allocations View', () => {
       </table>
       <select id="personSelect"></select>
       <select id="projectSelect"></select>
-      <input type="number" id="pctInput" value="0.5" step="0.01" min="0" max="1">
+      <input type="number" id="pmInput" value="0.5" step="0.01" min="0">
       <input type="month" id="startMonthInput" value="2024-01">
       <input type="month" id="endMonthInput" value="2024-12">
       <button id="addAllocationBtn">Add Allocation</button>

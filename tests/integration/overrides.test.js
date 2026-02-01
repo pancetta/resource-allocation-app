@@ -30,17 +30,17 @@ describe('Value Integration Tests', () => {
             const fteValues = await getFteValues();
             const allocationIndex = buildAllocationIndex(allocations);
             
-            // February: should use first FTE value (1.0)
+            // February: FTE is 1.0, allocation PM is 1.0
             let fte = getEffectiveFte('p001', '2025-02', fteValues);
             expect(fte).toBe(1.0);
             let result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-02', fte, null);
-            expect(result).toBe(1.0);
+            expect(result).toBe(1.0); // PM is fixed at 1.0
             
-            // March: should use second FTE value (0.5)
+            // March: FTE is 0.5, but allocation PM is still 1.0 (PM doesn't change with FTE)
             fte = getEffectiveFte('p001', '2025-03', fteValues);
             expect(fte).toBe(0.5);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-03', fte, null);
-            expect(result).toBe(0.5);
+            expect(result).toBe(1.0); // PM remains 1.0 regardless of FTE
         });
     });
 
@@ -115,7 +115,7 @@ describe('Value Integration Tests', () => {
             const allocations = await getAllocations();
             const allocationId = allocations[0].id;
             
-            // Allocation override: 0.8 pct in April only
+            // Allocation override: 0.8 PM in April only
             await addAllocationOverride({ allocationId, month: '2025-04', pm: 0.8 });
             
             const fteValues = await getFteValues();
@@ -123,25 +123,25 @@ describe('Value Integration Tests', () => {
             const allocationIndex = buildAllocationIndex(allocations);
             const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
             
-            // February: FTE 1.0 * base allocation 1.0 = 1.0
+            // February: base allocation 1.0 PM
             let fte = getEffectiveFte('p001', '2025-02', fteValues);
             let result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-02', fte, allocationOverrideIndex);
             expect(result).toBe(1.0);
             
-            // March: FTE 0.5 * base allocation 1.0 = 0.5
+            // March: base allocation still 1.0 PM (PM doesn't change with FTE)
             fte = getEffectiveFte('p001', '2025-03', fteValues);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-03', fte, allocationOverrideIndex);
-            expect(result).toBe(0.5);
+            expect(result).toBe(1.0);
             
-            // April: FTE 0.5 * allocation override 0.8 = 0.4
+            // April: allocation override 0.8 PM
             fte = getEffectiveFte('p001', '2025-04', fteValues);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-04', fte, allocationOverrideIndex);
-            expect(result).toBe(0.4);
+            expect(result).toBe(0.8);
             
-            // May: FTE 0.5 * base allocation 1.0 = 0.5 (allocation override is month-specific)
+            // May: base allocation 1.0 PM (allocation override is month-specific)
             fte = getEffectiveFte('p001', '2025-05', fteValues);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-05', fte, allocationOverrideIndex);
-            expect(result).toBe(0.5);
+            expect(result).toBe(1.0);
         });
     });
 });

@@ -92,13 +92,13 @@ describe('Calculation Integration Tests', () => {
     });
 
     it('should calculate project totals correctly', async () => {
-      // Alice (1.0 FTE) at 50% = 0.5 PM
+      // Alice allocation: 0.5 PM
       await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
       
-      // Bob (0.8 FTE) at 100% = 0.8 PM
-      await addAllocation({ personId: 'p002', projectId: 'proj001', pm: 1, startMonth: '2025-01', endMonth: '' });
+      // Bob allocation: 0.8 PM
+      await addAllocation({ personId: 'p002', projectId: 'proj001', pm: 0.8, startMonth: '2025-01', endMonth: '' });
       
-      // Total on Alpha should be 1.3 PM
+      // Total on Alpha should be 1.3 PM (0.5 + 0.8)
       await calculateMonth('2025-03');
       
       const output = document.getElementById('resultsOutput');

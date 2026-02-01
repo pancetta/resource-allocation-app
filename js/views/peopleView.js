@@ -1,5 +1,6 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
+import { validateFteValueDeletion } from '../helpers/validationHelper.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
@@ -175,6 +176,14 @@ function attachFteValueEventListeners() {
     document.querySelectorAll(".delete-fte-value").forEach(btn => {
         btn.addEventListener("click", async function() {
             const id = parseInt(this.dataset.id);
+            
+            // Validate deletion
+            const validation = await validateFteValueDeletion(id);
+            if (!validation.valid) {
+                alert(validation.message);
+                return;
+            }
+            
             await deleteFteValue(id);
             scheduleAutoBackup();
             renderFteValues();

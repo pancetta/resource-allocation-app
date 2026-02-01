@@ -1,5 +1,6 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
+import { validateBudgetValueDeletion } from '../helpers/validationHelper.js';
 
 // Render projects table (basic project info)
 export async function renderProjects() {
@@ -156,6 +157,14 @@ function attachBudgetValueEventListeners() {
     document.querySelectorAll(".delete-budget-value").forEach(btn => {
         btn.addEventListener("click", async function() {
             const id = parseInt(this.dataset.id);
+            
+            // Validate deletion
+            const validation = await validateBudgetValueDeletion(id);
+            if (!validation.valid) {
+                alert(validation.message);
+                return;
+            }
+            
             await deleteBudgetValue(id);
             scheduleAutoBackup();
             renderBudgetValues();

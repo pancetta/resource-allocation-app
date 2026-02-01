@@ -141,6 +141,18 @@ npx http-server -p 8080
 
 Then navigate to `http://localhost:8080` in your browser.
 
+### Fallback for Non-ES6 Module Environments
+
+The application includes an automatic fallback (`js/bundle.js`) that loads when ES6 modules are not supported (e.g., when using `file://` protocol or older browsers).
+
+**For Developers**: After making code changes, regenerate the bundle:
+
+```bash
+npm run build:bundle
+```
+
+See [docs/BUNDLE.md](docs/BUNDLE.md) for detailed information about the bundle.js fallback mechanism.
+
 ## Testing
 
 This application includes comprehensive test coverage with automated regression prevention.

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Resource Allocation App - Fallback Test</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+<h1>Resource Allocation App - Testing Fallback (bundle.js)</h1>
+<p style="color: red; font-weight: bold;">This page tests the bundle.js fallback (no ES6 modules)</p>
+
+<div class="tabs">
+    <button class="tab-button" data-tab="people">People</button>
+    <button class="tab-button" data-tab="projects">Projects</button>
+    <button class="tab-button" data-tab="allocations">Allocations</button>
+    <button class="tab-button" data-tab="fte-history">FTE History</button>
+    <button class="tab-button" data-tab="budget-history">Budget History</button>
+    <button class="tab-button" data-tab="results">Results</button>
+    <button class="tab-button" data-tab="data">Data</button>
+</div>
+
+<!-- PEOPLE -->
+<div id="people" class="tab-content">
+    <h2>People</h2>
+    <table id="peopleTable">
+        <thead><tr><th>Name</th><th>FTE</th><th>Active</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button id="addPersonBtn">Add Person</button>
+</div>
+
+<!-- PROJECTS -->
+<div id="projects" class="tab-content">
+    <h2>Projects</h2>
+    <table id="projectsTable">
+        <thead><tr><th>Name</th><th>Planned PM</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button id="addProjectBtn">Add Project</button>
+</div>
+
+<!-- ALLOCATIONS -->
+<div id="allocations" class="tab-content">
+    <h2>Default / Monthly Allocations</h2>
+    <table id="allocationsTable">
+        <thead><tr><th>Person</th><th>Project</th><th>Pct</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <select id="personSelect"></select>
+    <select id="projectSelect"></select>
+    <input type="number" id="pctInput" step="0.01" min="0" max="1" value="1">
+    <input type="month" id="startMonthInput" value="2025-01">
+    <input type="month" id="endMonthInput" value="">
+    <button id="addAllocationBtn">Add Allocation</button>
+    
+    <h3>Allocation Overrides (Month-Specific Exceptions)</h3>
+    <p>Define month-specific exceptions to allocations (e.g., normally 100% but 50% in June 2025).</p>
+    <table id="allocationOverridesTable">
+        <thead><tr><th>Allocation</th><th>Month</th><th>Override Pct</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    
+    <select id="allocationSelect"></select>
+    <input type="month" id="overrideMonthInput" value="2025-01">
+    <input type="number" id="overridePctInput" step="0.01" min="0" max="1" value="0.5">
+    <button id="addAllocationOverrideBtn">Add Override</button>
+</div>
+
+<!-- FTE HISTORY -->
+<div id="fte-history" class="tab-content">
+    <h2>FTE History</h2>
+    <p>Track FTE changes over time. Define when a person's FTE changes (e.g., goes part-time, returns from leave).</p>
+    <table id="fteOverridesTable">
+        <thead><tr><th>Person</th><th>FTE</th><th>Start Month</th><th>End Month</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    
+    <select id="ftePersonSelect"></select>
+    <input type="number" id="fteValueInput" step="0.01" min="0" max="1" value="0.5" placeholder="FTE">
+    <input type="month" id="fteStartMonthInput" value="2025-01" placeholder="Start">
+    <input type="month" id="fteEndMonthInput" value="" placeholder="End (leave empty for ongoing)">
+    <button id="addFteOverrideBtn">Add FTE Override</button>
+</div>
+
+<!-- BUDGET HISTORY -->
+<div id="budget-history" class="tab-content">
+    <h2>Project Budget History</h2>
+    <p>Track project budget (PM) changes over time. Define when a project's monthly budget changes.</p>
+    <table id="budgetOverridesTable">
+        <thead><tr><th>Project</th><th>Planned PM</th><th>Start Month</th><th>End Month</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    
+    <select id="budgetProjectSelect"></select>
+    <input type="number" id="budgetValueInput" step="0.1" min="0" value="5" placeholder="Planned PM">
+    <input type="month" id="budgetStartMonthInput" value="2025-01" placeholder="Start">
+    <input type="month" id="budgetEndMonthInput" value="" placeholder="End (leave empty for ongoing)">
+    <button id="addBudgetOverrideBtn">Add Budget Override</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="tab-content">
+    <h2>Results</h2>
+
+    <h3>Monthly</h3>
+    <label>Month: <input type="month" id="monthInput" value="2025-03"></label>
+    <button id="calculateBtn">Calculate Month</button>
+
+    <h3>Yearly</h3>
+    <label>Year: <input type="number" id="yearInput" value="2025" min="2000" max="2100"></label>
+    <button id="calculateYearBtn">Yearly Overview</button>
+
+    <h3>Project Monthly Overview</h3>
+    <label>Year: <input type="number" id="overviewYearInput" value="2025" min="2000" max="2100"></label>
+    <button id="projectMonthlyBtn">Project × Month</button>
+
+    <div id="resultsOutput"></div>
+</div>
+
+<!-- DATA MANAGEMENT -->
+<div id="data" class="tab-content">
+    <h2>Data Management</h2>
+    
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+        <h3 style="margin-top: 0; color: #856404;">⚠️ Important: Data Safety</h3>
+        <p><strong>Browser Cache Cleanup:</strong> The automatic backups stored in your browser's localStorage <strong>CAN be deleted</strong> when you clear browsing data/cache. They are NOT permanent storage.</p>
+        <p><strong>Recommendation:</strong> Regularly export your data to a JSON file (stored on your computer/cloud) for true data safety. This is the ONLY way to protect against data loss from browser cache cleanup, browser crashes, or computer failures.</p>
+    </div>
+    
+    <h3>Export / Import</h3>
+    <p><strong>Export:</strong> Download all your data as a JSON file. The file will be automatically saved to your browser's Downloads folder.</p>
+    <p><strong>Import:</strong> Restore data from a previously exported JSON file. This will replace ALL current data.</p>
+    <button id="exportDataBtn">📥 Export All Data</button>
+    <button id="importDataBtn">📤 Import Data</button>
+    <input type="file" id="importFileInput" accept=".json" style="display: none;">
+    
+    <h3>🔄 Automatic JSON Backup</h3>
+    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+        <p><strong>How it works:</strong> Every time your data changes, a JSON backup is automatically prepared in your browser's memory (localStorage). You can download it instantly with one click - no waiting!</p>
+        <p><strong>Status:</strong> <span id="autoBackupStatus" class="auto-backup-status">Checking...</span></p>
+        <button id="downloadAutoBackupBtn" style="background-color: #28a745; color: white; font-weight: bold; padding: 10px 20px;">⚡ Download Latest Auto-Backup</button>
+        <p style="margin-top: 10px; font-size: 0.9em; color: #555;">
+            <strong>💡 Tip:</strong> Click this button regularly (e.g., at the end of each work session) to download your latest changes as a JSON file to your Downloads folder. This is your safety net against data loss!
+        </p>
+        <p style="margin-top: 10px; font-size: 0.85em; color: #666;">
+            <strong>📁 Where will the file be saved?</strong> The backup file will be automatically downloaded to your browser's default Downloads folder (check your browser's download bar at the bottom of the window).
+        </p>
+    </div>
+    
+    <h3>Automatic Backups (Browser Storage Only)</h3>
+    <p><strong>What are these?</strong> Automatic backups are saved in your browser's localStorage (same as browser cache). They provide quick recovery from accidental changes but are NOT safe from cache cleanup.</p>
+    <p><strong>Limitations:</strong></p>
+    <ul>
+        <li>❌ Cleared when you clear browser cache/data</li>
+        <li>❌ Only accessible in this specific browser</li>
+        <li>❌ Not accessible if browser crashes or is reinstalled</li>
+        <li>❌ Cannot be accessed outside the browser</li>
+        <li>✅ Good for: Quick undo of recent changes</li>
+        <li>✅ Kept: Up to 10 most recent backups</li>
+    </ul>
+    <button id="createBackupBtn">Create Manual Backup</button>
+    
+    <table id="backupsTable">
+        <thead>
+            <tr>
+                <th>Backup Date</th>
+                <th>Data Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+    <h3>How to Access localStorage (for debugging)</h3>
+    <p>To view or extract your localStorage data outside the normal UI:</p>
+    <ol>
+        <li>Open your browser's Developer Tools (F12 or right-click → Inspect)</li>
+        <li>Go to the "Application" tab (Chrome/Edge) or "Storage" tab (Firefox)</li>
+        <li>Expand "Local Storage" in the sidebar</li>
+        <li>Click on your site's URL</li>
+        <li>Look for keys starting with "resource-planning-backup-"</li>
+        <li>Copy the value and save it to a file if needed</li>
+    </ol>
+</div>
+
+<!-- Load bundle.js directly (no ES6 modules) -->
+<script src="js/bundle.js"></script>
+
+</body>
+</html>

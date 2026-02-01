@@ -1,6 +1,6 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateFteValueDeletion, validateFteValue, findOverlappingFteValues, findOpenEndedFteValuesToClose } from '../helpers/validationHelper.js';
+import { validateFteValueDeletion, validateFteValue, findOverlappingFteValues, findOpenEndedFteValuesToClose, getMonthBefore } from '../helpers/validationHelper.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
@@ -351,9 +351,7 @@ export function initPeopleView() {
                 if (toClose.length > 0) {
                     // Ask user if they want to auto-close previous open-ended entry
                     const closeMsg = toClose.map(v => {
-                        const endDate = new Date(startMonth + '-01');
-                        endDate.setMonth(endDate.getMonth() - 1);
-                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        const suggestedEnd = getMonthBefore(startMonth);
                         return `  - FTE ${v.fte} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
                     }).join('\n');
                     
@@ -365,9 +363,7 @@ export function initPeopleView() {
                     
                     if (shouldClose) {
                         // Auto-close previous open-ended entries
-                        const endDate = new Date(startMonth + '-01');
-                        endDate.setMonth(endDate.getMonth() - 1);
-                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        const suggestedEnd = getMonthBefore(startMonth);
                         
                         for (const value of toClose) {
                             value.endMonth = suggestedEnd;

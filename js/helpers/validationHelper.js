@@ -4,7 +4,6 @@
  */
 
 import { getFteValues, getBudgetValues } from '../data/database.js';
-import { isMonthInRange } from './dateHelper.js';
 
 /**
  * Check if a person has at least one FTE value
@@ -253,7 +252,7 @@ export async function findOverlappingBudgetValues(projectId, startMonth, endMont
  * @param {string} month - Month in YYYY-MM format
  * @returns {string} Previous month in YYYY-MM format
  */
-function getMonthBefore(month) {
+export function getMonthBefore(month) {
     const date = new Date(month + '-01');
     date.setMonth(date.getMonth() - 1);
     return date.toISOString().slice(0, 7);

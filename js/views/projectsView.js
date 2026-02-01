@@ -1,6 +1,6 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateBudgetValueDeletion, validatePlannedPM, findOverlappingBudgetValues, findOpenEndedBudgetValuesToClose } from '../helpers/validationHelper.js';
+import { validateBudgetValueDeletion, validatePlannedPM, findOverlappingBudgetValues, findOpenEndedBudgetValuesToClose, getMonthBefore } from '../helpers/validationHelper.js';
 
 // Render projects table (basic project info)
 export async function renderProjects() {
@@ -332,9 +332,7 @@ export function initProjectsView() {
                 if (toClose.length > 0) {
                     // Ask user if they want to auto-close previous open-ended entry
                     const closeMsg = toClose.map(v => {
-                        const endDate = new Date(startMonth + '-01');
-                        endDate.setMonth(endDate.getMonth() - 1);
-                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        const suggestedEnd = getMonthBefore(startMonth);
                         return `  - Planned PM ${v.plannedPM} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
                     }).join('\n');
                     
@@ -346,9 +344,7 @@ export function initProjectsView() {
                     
                     if (shouldClose) {
                         // Auto-close previous open-ended entries
-                        const endDate = new Date(startMonth + '-01');
-                        endDate.setMonth(endDate.getMonth() - 1);
-                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        const suggestedEnd = getMonthBefore(startMonth);
                         
                         for (const value of toClose) {
                             value.endMonth = suggestedEnd;

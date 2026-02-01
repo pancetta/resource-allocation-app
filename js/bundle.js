@@ -544,6 +544,42 @@ var App = (() => {
   }
 
   // js/helpers/validationHelper.js
+  function validateFteValue(fte) {
+    const value = parseFloat(fte);
+    if (isNaN(value)) {
+      return { valid: false, message: "FTE must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "FTE cannot be below 0" };
+    }
+    if (value > 1) {
+      return { valid: false, message: "FTE cannot be above 1" };
+    }
+    return { valid: true, message: "" };
+  }
+  function validatePlannedPM(plannedPM) {
+    const value = parseFloat(plannedPM);
+    if (isNaN(value)) {
+      return { valid: false, message: "Planned PM must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "Planned PM cannot be negative" };
+    }
+    return { valid: true, message: "" };
+  }
+  function validateAllocationPercentage(pct) {
+    const value = parseFloat(pct);
+    if (isNaN(value)) {
+      return { valid: false, message: "Allocation percentage must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "Allocation percentage cannot be negative" };
+    }
+    if (value > 100) {
+      return { valid: false, message: "Allocation percentage cannot exceed 100" };
+    }
+    return { valid: true, message: "" };
+  }
   async function validateFteValueDeletion(fteValueId) {
     const fteValues = await getFteValues();
     const value = fteValues.find((v) => v.id === fteValueId);
@@ -573,6 +609,73 @@ var App = (() => {
       };
     }
     return { valid: true, message: "" };
+  }
+  function dateRangesOverlap(start1, end1, start2, end2) {
+    if (!end1 || !end2) {
+      if (!end1 && !end2) {
+        return true;
+      }
+      if (!end1) {
+        return end2 >= start1;
+      }
+      if (!end2) {
+        return end1 >= start2;
+      }
+    }
+    return start1 <= end2 && start2 <= end1;
+  }
+  async function findOverlappingFteValues(personId, startMonth, endMonth, excludeId = null) {
+    const fteValues = await getFteValues();
+    return fteValues.filter((value) => {
+      if (excludeId !== null && value.id === excludeId) {
+        return false;
+      }
+      if (value.personId !== personId) {
+        return false;
+      }
+      return dateRangesOverlap(startMonth, endMonth, value.startMonth, value.endMonth);
+    });
+  }
+  async function findOverlappingBudgetValues(projectId, startMonth, endMonth, excludeId = null) {
+    const budgetValues = await getBudgetValues();
+    return budgetValues.filter((value) => {
+      if (excludeId !== null && value.id === excludeId) {
+        return false;
+      }
+      if (value.projectId !== projectId) {
+        return false;
+      }
+      return dateRangesOverlap(startMonth, endMonth, value.startMonth, value.endMonth);
+    });
+  }
+  function getMonthBefore(month) {
+    const date = /* @__PURE__ */ new Date(month + "-01");
+    date.setMonth(date.getMonth() - 1);
+    return date.toISOString().slice(0, 7);
+  }
+  async function findOpenEndedFteValuesToClose(personId, startMonth) {
+    const fteValues = await getFteValues();
+    return fteValues.filter((value) => {
+      if (value.personId !== personId) {
+        return false;
+      }
+      if (value.endMonth !== null) {
+        return false;
+      }
+      return value.startMonth < startMonth;
+    });
+  }
+  async function findOpenEndedBudgetValuesToClose(projectId, startMonth) {
+    const budgetValues = await getBudgetValues();
+    return budgetValues.filter((value) => {
+      if (value.projectId !== projectId) {
+        return false;
+      }
+      if (value.endMonth !== null) {
+        return false;
+      }
+      return value.startMonth < startMonth;
+    });
   }
 
   // js/views/peopleView.js
@@ -678,6 +781,12 @@ var App = (() => {
         const fteValues = await getFteValues();
         const fteValue = fteValues.find((v) => v.id === id);
         if (field === "fte") {
+          const validation = validateFteValue(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = fteValue.fte;
+            return;
+          }
           fteValue.fte = parseFloat(value);
         }
         await updateFteValue(fteValue);
@@ -689,7 +798,31 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const fteValues = await getFteValues();
         const fteValue = fteValues.find((v) => v.id === id);
-        fteValue.startMonth = this.value;
+        const newStartMonth = this.value;
+        const overlapping = await findOverlappingFteValues(
+          fteValue.personId,
+          newStartMonth,
+          fteValue.endMonth,
+          id
+          // Exclude current entry
+        );
+        if (overlapping.length > 0) {
+          const overlapMsg = overlapping.map(
+            (v) => `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || "ongoing"}`
+          ).join("\n");
+          const confirmOverlap = confirm(
+            `Warning: This change creates overlapping FTE entries:
+${overlapMsg}
+
+The system will use the most recent entry when multiple values apply.
+Are you sure you want to continue?`
+          );
+          if (!confirmOverlap) {
+            this.value = fteValue.startMonth;
+            return;
+          }
+        }
+        fteValue.startMonth = newStartMonth;
         await updateFteValue(fteValue);
         scheduleAutoBackup();
       });
@@ -699,7 +832,31 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const fteValues = await getFteValues();
         const fteValue = fteValues.find((v) => v.id === id);
-        fteValue.endMonth = this.value || null;
+        const newEndMonth = this.value || null;
+        const overlapping = await findOverlappingFteValues(
+          fteValue.personId,
+          fteValue.startMonth,
+          newEndMonth,
+          id
+          // Exclude current entry
+        );
+        if (overlapping.length > 0) {
+          const overlapMsg = overlapping.map(
+            (v) => `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || "ongoing"}`
+          ).join("\n");
+          const confirmOverlap = confirm(
+            `Warning: This change creates overlapping FTE entries:
+${overlapMsg}
+
+The system will use the most recent entry when multiple values apply.
+Are you sure you want to continue?`
+          );
+          if (!confirmOverlap) {
+            this.value = fteValue.endMonth || "";
+            return;
+          }
+        }
+        fteValue.endMonth = newEndMonth;
         await updateFteValue(fteValue);
         scheduleAutoBackup();
       });
@@ -778,6 +935,59 @@ var App = (() => {
         if (!personId || !startMonth) {
           alert("Please select a person and start month");
           return;
+        }
+        const validation = validateFteValue(fte);
+        if (!validation.valid) {
+          alert(validation.message);
+          return;
+        }
+        const overlapping = await findOverlappingFteValues(personId, startMonth, endMonth);
+        if (overlapping.length > 0) {
+          const toClose = await findOpenEndedFteValuesToClose(personId, startMonth);
+          if (toClose.length > 0) {
+            const closeMsg = toClose.map((v) => {
+              const suggestedEnd = getMonthBefore(startMonth);
+              return `  - FTE ${v.fte} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
+            }).join("\n");
+            const shouldClose = confirm(
+              `This FTE value overlaps with existing open-ended entries:
+${closeMsg}
+
+Do you want to automatically close the previous entries?
+Click OK to auto-close, or Cancel to create overlapping entries (not recommended).`
+            );
+            if (shouldClose) {
+              const suggestedEnd = getMonthBefore(startMonth);
+              for (const value of toClose) {
+                value.endMonth = suggestedEnd;
+                await updateFteValue(value);
+              }
+            } else {
+              const warnConfirm = confirm(
+                `Warning: Creating overlapping FTE entries may lead to unexpected behavior.
+The system will use the most recent entry when multiple values apply.
+
+Are you sure you want to continue?`
+              );
+              if (!warnConfirm) {
+                return;
+              }
+            }
+          } else {
+            const overlapMsg = overlapping.map(
+              (v) => `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || "ongoing"}`
+            ).join("\n");
+            const confirmOverlap = confirm(
+              `Warning: This FTE value overlaps with existing entries:
+${overlapMsg}
+
+The system will use the most recent entry when multiple values apply.
+Are you sure you want to continue?`
+            );
+            if (!confirmOverlap) {
+              return;
+            }
+          }
         }
         await addFteValue({
           personId,
@@ -880,6 +1090,12 @@ var App = (() => {
         const budgetValues = await getBudgetValues();
         const budgetValue = budgetValues.find((v) => v.id === id);
         if (field === "plannedPM") {
+          const validation = validatePlannedPM(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = budgetValue.plannedPM;
+            return;
+          }
           budgetValue.plannedPM = parseFloat(value);
         }
         await updateBudgetValue(budgetValue);
@@ -891,7 +1107,31 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const budgetValues = await getBudgetValues();
         const budgetValue = budgetValues.find((v) => v.id === id);
-        budgetValue.startMonth = this.value;
+        const newStartMonth = this.value;
+        const overlapping = await findOverlappingBudgetValues(
+          budgetValue.projectId,
+          newStartMonth,
+          budgetValue.endMonth,
+          id
+          // Exclude current entry
+        );
+        if (overlapping.length > 0) {
+          const overlapMsg = overlapping.map(
+            (v) => `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || "ongoing"}`
+          ).join("\n");
+          const confirmOverlap = confirm(
+            `Warning: This change creates overlapping budget entries:
+${overlapMsg}
+
+The system will use the most recent entry when multiple values apply.
+Are you sure you want to continue?`
+          );
+          if (!confirmOverlap) {
+            this.value = budgetValue.startMonth;
+            return;
+          }
+        }
+        budgetValue.startMonth = newStartMonth;
         await updateBudgetValue(budgetValue);
         scheduleAutoBackup();
       });
@@ -901,7 +1141,31 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const budgetValues = await getBudgetValues();
         const budgetValue = budgetValues.find((v) => v.id === id);
-        budgetValue.endMonth = this.value || null;
+        const newEndMonth = this.value || null;
+        const overlapping = await findOverlappingBudgetValues(
+          budgetValue.projectId,
+          budgetValue.startMonth,
+          newEndMonth,
+          id
+          // Exclude current entry
+        );
+        if (overlapping.length > 0) {
+          const overlapMsg = overlapping.map(
+            (v) => `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || "ongoing"}`
+          ).join("\n");
+          const confirmOverlap = confirm(
+            `Warning: This change creates overlapping budget entries:
+${overlapMsg}
+
+The system will use the most recent entry when multiple values apply.
+Are you sure you want to continue?`
+          );
+          if (!confirmOverlap) {
+            this.value = budgetValue.endMonth || "";
+            return;
+          }
+        }
+        budgetValue.endMonth = newEndMonth;
         await updateBudgetValue(budgetValue);
         scheduleAutoBackup();
       });
@@ -980,6 +1244,59 @@ var App = (() => {
         if (!projectId || !startMonth) {
           alert("Please select a project and start month");
           return;
+        }
+        const validation = validatePlannedPM(plannedPM);
+        if (!validation.valid) {
+          alert(validation.message);
+          return;
+        }
+        const overlapping = await findOverlappingBudgetValues(projectId, startMonth, endMonth);
+        if (overlapping.length > 0) {
+          const toClose = await findOpenEndedBudgetValuesToClose(projectId, startMonth);
+          if (toClose.length > 0) {
+            const closeMsg = toClose.map((v) => {
+              const suggestedEnd = getMonthBefore(startMonth);
+              return `  - Planned PM ${v.plannedPM} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
+            }).join("\n");
+            const shouldClose = confirm(
+              `This budget value overlaps with existing open-ended entries:
+${closeMsg}
+
+Do you want to automatically close the previous entries?
+Click OK to auto-close, or Cancel to create overlapping entries (not recommended).`
+            );
+            if (shouldClose) {
+              const suggestedEnd = getMonthBefore(startMonth);
+              for (const value of toClose) {
+                value.endMonth = suggestedEnd;
+                await updateBudgetValue(value);
+              }
+            } else {
+              const warnConfirm = confirm(
+                `Warning: Creating overlapping budget entries may lead to unexpected behavior.
+The system will use the most recent entry when multiple values apply.
+
+Are you sure you want to continue?`
+              );
+              if (!warnConfirm) {
+                return;
+              }
+            }
+          } else {
+            const overlapMsg = overlapping.map(
+              (v) => `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || "ongoing"}`
+            ).join("\n");
+            const confirmOverlap = confirm(
+              `Warning: This budget value overlaps with existing entries:
+${overlapMsg}
+
+The system will use the most recent entry when multiple values apply.
+Are you sure you want to continue?`
+            );
+            if (!confirmOverlap) {
+              return;
+            }
+          }
         }
         await addBudgetValue({
           projectId,
@@ -1212,6 +1529,12 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        const validation = validateAllocationPercentage(this.value);
+        if (!validation.valid) {
+          alert(validation.message);
+          this.value = alloc.pct;
+          return;
+        }
         alloc.pct = parseFloat(this.value);
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1292,6 +1615,12 @@ var App = (() => {
         const overrides = await getAllocationOverrides();
         const override = overrides.find((o) => o.id === id);
         if (field === "pct") {
+          const validation = validateAllocationPercentage(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = override.pct;
+            return;
+          }
           override.pct = parseFloat(value);
         }
         await updateAllocationOverride(override);

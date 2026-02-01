@@ -1,6 +1,6 @@
 import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPMWithPct } from '../helpers/allocationHelper.js';
 
 // Yearly Overview
 export async function calculateYear(year) {
@@ -67,7 +67,7 @@ export async function calculateYear(year) {
                     );
                     monthFte = sortedOverrides[0].fte;
                 }
-                return `<td class="${cellClass(c, monthFte)}">${c.toFixed(2)}</td>`;
+                return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
             }).join('') +
             `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td>` +
             `<td>${expectedFteYearly.toFixed(2)}</td>` +

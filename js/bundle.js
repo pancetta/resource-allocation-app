@@ -868,6 +868,13 @@ var App = (() => {
   function pctToPMPerYear(fte, pct) {
     return fte * pct * 12;
   }
+  function formatPMWithPct(pm, fte) {
+    if (fte === 0) {
+      return `${pm.toFixed(2)} (N/A)`;
+    }
+    const pct = pm / fte * 100;
+    return `${pm.toFixed(2)} (${pct.toFixed(0)}%)`;
+  }
 
   // js/views/allocationsView.js
   async function renderAllocations() {
@@ -1364,7 +1371,7 @@ var App = (() => {
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
@@ -1460,7 +1467,7 @@ var App = (() => {
           );
           monthFte = sortedOverrides[0].fte;
         }
-        return `<td class="${cellClass(c, monthFte)}">${c.toFixed(2)}</td>`;
+        return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td><td>${expectedFteYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });

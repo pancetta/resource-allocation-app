@@ -212,3 +212,17 @@ export function pctToPMPerMonth(fte, pct) {
 export function pctToPMPerYear(fte, pct) {
     return fte * pct * 12;
 }
+
+/**
+ * Format PM and percentage together for display
+ * @param {number} pm - Person-months value
+ * @param {number} fte - Person's FTE value for calculating percentage
+ * @returns {string} Formatted string like "0.50 (50%)"
+ */
+export function formatPMWithPct(pm, fte) {
+    if (fte === 0) {
+        return `${pm.toFixed(2)} (N/A)`;
+    }
+    const pct = (pm / fte) * 100;
+    return `${pm.toFixed(2)} (${pct.toFixed(0)}%)`;
+}

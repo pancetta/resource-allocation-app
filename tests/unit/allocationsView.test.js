@@ -7,6 +7,10 @@ vi.mock('../../js/main.js', () => ({
     scheduleAutoBackup: vi.fn()
 }));
 
+// Mock global alert and confirm
+global.alert = vi.fn(); // Mock alert to not throw
+global.confirm = vi.fn(() => false); // Default to false (cancel) to avoid deleting overlaps in tests
+
 describe('Allocations View', () => {
   beforeEach(async () => {
     // Initialize database
@@ -20,7 +24,7 @@ describe('Allocations View', () => {
       </table>
       <select id="personSelect"></select>
       <select id="projectSelect"></select>
-      <input type="number" id="pctInput" value="50">
+      <input type="number" id="pctInput" value="0.5" step="0.01" min="0" max="1">
       <input type="month" id="startMonthInput" value="2024-01">
       <input type="month" id="endMonthInput" value="2024-12">
       <button id="addAllocationBtn">Add Allocation</button>
@@ -52,7 +56,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -65,7 +69,7 @@ describe('Allocations View', () => {
       const firstRow = tbody.children[0];
       expect(firstRow.querySelector('.alloc-person')).toBeTruthy();
       expect(firstRow.querySelector('.alloc-project')).toBeTruthy();
-      expect(firstRow.querySelector('.alloc-pct').value).toBe('50');
+      expect(firstRow.querySelector('.alloc-pct').value).toBe('0.5');
       expect(firstRow.querySelector('.alloc-start').value).toBe('2024-01');
       expect(firstRow.querySelector('.alloc-end').value).toBe('2024-12');
     });
@@ -75,7 +79,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: null
       });
@@ -94,7 +98,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-06'
       });
@@ -119,7 +123,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -140,7 +144,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -164,7 +168,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -187,7 +191,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -210,7 +214,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -233,7 +237,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -256,7 +260,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -279,7 +283,7 @@ describe('Allocations View', () => {
         id: 1,
         personId: 'p001',
         projectId: 'proj001',
-        pct: 50,
+        pct: 0.5,
         startMonth: '2024-01',
         endMonth: '2024-12'
       });
@@ -315,7 +319,7 @@ describe('Allocations View', () => {
       expect(allocations.length).toBe(1);
       expect(allocations[0].personId).toBe('p001');
       expect(allocations[0].projectId).toBe('proj001');
-      expect(allocations[0].pct).toBe(50);
+      expect(allocations[0].pct).toBe(0.5);
       expect(allocations[0].startMonth).toBe('2024-01');
       expect(allocations[0].endMonth).toBe('2024-12');
     });

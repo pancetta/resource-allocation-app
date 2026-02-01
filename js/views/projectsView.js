@@ -338,8 +338,7 @@ export function initProjectsView() {
                     
                     const shouldClose = confirm(
                         `This budget value overlaps with existing open-ended entries:\n${closeMsg}\n\n` +
-                        `Do you want to automatically close the previous entries?\n` +
-                        `Click OK to auto-close, or Cancel to create overlapping entries (not recommended).`
+                        `Click OK to AUTO-CLOSE (set end date), or Cancel for more options.`
                     );
                     
                     if (shouldClose) {
@@ -351,15 +350,28 @@ export function initProjectsView() {
                             await updateBudgetValue(value);
                         }
                     } else {
-                        // User chose to create overlapping entries - warn them
-                        const warnConfirm = confirm(
-                            `Warning: Creating overlapping budget entries may lead to unexpected behavior.\n` +
-                            `The system will use the most recent entry when multiple values apply.\n\n` +
-                            `Are you sure you want to continue?`
+                        // Ask if user wants to overwrite instead
+                        const shouldOverwrite = confirm(
+                            `Do you want to OVERWRITE (delete) the conflicting entries instead?\n` +
+                            `Click OK to delete conflicting entries, or Cancel to keep overlapping entries.`
                         );
                         
-                        if (!warnConfirm) {
-                            return; // User cancelled
+                        if (shouldOverwrite) {
+                            // Delete all overlapping entries
+                            for (const value of overlapping) {
+                                await deleteBudgetValue(value.id);
+                            }
+                        } else {
+                            // User chose to create overlapping entries - warn them
+                            const warnConfirm = confirm(
+                                `Warning: Creating overlapping budget entries may lead to unexpected behavior.\n` +
+                                `The system will use the most recent entry when multiple values apply.\n\n` +
+                                `Are you sure you want to continue?`
+                            );
+                            
+                            if (!warnConfirm) {
+                                return; // User cancelled
+                            }
                         }
                     }
                 } else {
@@ -368,14 +380,27 @@ export function initProjectsView() {
                         `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
                     ).join('\n');
                     
-                    const confirmOverlap = confirm(
+                    const shouldOverwrite = confirm(
                         `Warning: This budget value overlaps with existing entries:\n${overlapMsg}\n\n` +
-                        `The system will use the most recent entry when multiple values apply.\n` +
-                        `Are you sure you want to continue?`
+                        `Click OK to OVERWRITE (delete conflicting entries), or Cancel for more options.`
                     );
                     
-                    if (!confirmOverlap) {
-                        return; // User cancelled
+                    if (shouldOverwrite) {
+                        // Delete all overlapping entries
+                        for (const value of overlapping) {
+                            await deleteBudgetValue(value.id);
+                        }
+                    } else {
+                        // Ask if user wants to keep overlapping entries
+                        const confirmOverlap = confirm(
+                            `Do you want to keep the overlapping entries?\n` +
+                            `The system will use the most recent entry when multiple values apply.\n\n` +
+                            `Click OK to proceed with overlap, or Cancel to abort.`
+                        );
+                        
+                        if (!confirmOverlap) {
+                            return; // User cancelled
+                        }
                     }
                 }
             }

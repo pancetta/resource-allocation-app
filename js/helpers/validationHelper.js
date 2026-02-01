@@ -3,7 +3,7 @@
  * Ensures entities have required time-based values
  */
 
-import { getFteValues, getBudgetValues } from '../data/database.js';
+import { getFteValues, getBudgetValues, getAllocations } from '../data/database.js';
 
 /**
  * Check if a person has at least one FTE value
@@ -309,5 +309,65 @@ export async function findOpenEndedBudgetValuesToClose(projectId, startMonth) {
         // Only include if this value starts before the new value
         // (so it would overlap with the new entry)
         return value.startMonth < startMonth;
+    });
+}
+
+/**********************
+ * Allocation Overlap Detection
+ **********************/
+
+/**
+ * Find overlapping allocations for a person-project pair
+ * @param {string} personId - The person's ID
+ * @param {string} projectId - The project's ID
+ * @param {string} startMonth - Start month of new allocation (YYYY-MM)
+ * @param {string|null} endMonth - End month of new allocation (YYYY-MM) or null for open-ended
+ * @param {number} [excludeId] - Optional allocation ID to exclude from check (for updates)
+ * @returns {Promise<Array>} Array of overlapping allocations
+ */
+export async function findOverlappingAllocations(personId, projectId, startMonth, endMonth, excludeId = null) {
+    const allocations = await getAllocations();
+    
+    return allocations.filter(alloc => {
+        // Skip the allocation being updated
+        if (excludeId !== null && alloc.id === excludeId) {
+            return false;
+        }
+        
+        // Only check allocations for the same person and project
+        if (alloc.personId !== personId || alloc.projectId !== projectId) {
+            return false;
+        }
+        
+        // Check if date ranges overlap
+        return dateRangesOverlap(startMonth, endMonth, alloc.startMonth, alloc.endMonth);
+    });
+}
+
+/**
+ * Find open-ended allocations that should be closed when adding a new allocation
+ * Returns open-ended entries that would overlap with the new entry
+ * @param {string} personId - The person's ID
+ * @param {string} projectId - The project's ID
+ * @param {string} startMonth - Start month of new allocation (YYYY-MM)
+ * @returns {Promise<Array>} Array of open-ended allocations to close
+ */
+export async function findOpenEndedAllocationsToClose(personId, projectId, startMonth) {
+    const allocations = await getAllocations();
+    
+    return allocations.filter(alloc => {
+        // Only check allocations for the same person and project
+        if (alloc.personId !== personId || alloc.projectId !== projectId) {
+            return false;
+        }
+        
+        // Only look for open-ended allocations
+        if (alloc.endMonth !== null) {
+            return false;
+        }
+        
+        // Only include if this allocation starts before the new one
+        // (so it would overlap with the new entry)
+        return alloc.startMonth < startMonth;
     });
 }

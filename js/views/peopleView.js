@@ -1,6 +1,6 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateFteValueDeletion } from '../helpers/validationHelper.js';
+import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
@@ -140,6 +140,13 @@ function attachFteValueEventListeners() {
             const fteValue = fteValues.find(v => v.id === id);
             
             if (field === "fte") {
+                const validation = validateFteValue(value);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    // Revert to original value
+                    this.textContent = fteValue.fte;
+                    return;
+                }
                 fteValue.fte = parseFloat(value);
             }
             

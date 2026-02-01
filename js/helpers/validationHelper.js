@@ -46,6 +46,71 @@ export async function getBudgetValueCount(projectId) {
 }
 
 /**
+ * Validate FTE value is within acceptable range (0 to 1)
+ * @param {number} fte - The FTE value to validate
+ * @returns {{valid: boolean, message: string}} Validation result
+ */
+export function validateFteValue(fte) {
+    const value = parseFloat(fte);
+    
+    if (isNaN(value)) {
+        return { valid: false, message: 'FTE must be a valid number' };
+    }
+    
+    if (value < 0) {
+        return { valid: false, message: 'FTE cannot be below 0' };
+    }
+    
+    if (value > 1) {
+        return { valid: false, message: 'FTE cannot be above 1' };
+    }
+    
+    return { valid: true, message: '' };
+}
+
+/**
+ * Validate planned PM (budget) value is not negative
+ * @param {number} plannedPM - The planned PM value to validate
+ * @returns {{valid: boolean, message: string}} Validation result
+ */
+export function validatePlannedPM(plannedPM) {
+    const value = parseFloat(plannedPM);
+    
+    if (isNaN(value)) {
+        return { valid: false, message: 'Planned PM must be a valid number' };
+    }
+    
+    if (value < 0) {
+        return { valid: false, message: 'Planned PM cannot be negative' };
+    }
+    
+    return { valid: true, message: '' };
+}
+
+/**
+ * Validate allocation percentage is within acceptable range (0 to 100)
+ * @param {number} pct - The allocation percentage to validate
+ * @returns {{valid: boolean, message: string}} Validation result
+ */
+export function validateAllocationPercentage(pct) {
+    const value = parseFloat(pct);
+    
+    if (isNaN(value)) {
+        return { valid: false, message: 'Allocation percentage must be a valid number' };
+    }
+    
+    if (value < 0) {
+        return { valid: false, message: 'Allocation percentage cannot be negative' };
+    }
+    
+    if (value > 100) {
+        return { valid: false, message: 'Allocation percentage cannot exceed 100' };
+    }
+    
+    return { valid: true, message: '' };
+}
+
+/**
  * Validate that deleting an FTE value won't leave person without any values
  * @param {number} fteValueId - The FTE value ID to delete
  * @returns {Promise<{valid: boolean, message: string}>} Validation result

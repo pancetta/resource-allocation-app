@@ -1,6 +1,7 @@
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { pctToPMPerMonth, pctToPMPerYear } from '../helpers/allocationHelper.js';
+import { validateAllocationPercentage } from '../helpers/validationHelper.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -99,6 +100,15 @@ function attachAllocationsEventListeners() {
             const id = parseInt(this.dataset.id);
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
+            
+            const validation = validateAllocationPercentage(this.value);
+            if (!validation.valid) {
+                alert(validation.message);
+                // Revert to original value
+                this.value = alloc.pct;
+                return;
+            }
+            
             alloc.pct = parseFloat(this.value);
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -201,6 +211,13 @@ function attachAllocationOverrideEventListeners() {
             const override = overrides.find(o => o.id === id);
             
             if (field === "pct") {
+                const validation = validateAllocationPercentage(value);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    // Revert to original value
+                    this.textContent = override.pct;
+                    return;
+                }
                 override.pct = parseFloat(value);
             }
             

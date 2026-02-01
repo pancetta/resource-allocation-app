@@ -1,4 +1,4 @@
-import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects } from '../data/database.js';
+import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 
 // Render allocations table
@@ -109,6 +109,120 @@ function attachAllocationsEventListeners() {
     });
 }
 
+// Render allocation overrides table
+export async function renderAllocationOverrides() {
+    if (typeof document === 'undefined') return;
+    
+    const tbody = document.querySelector("#allocationOverridesTable tbody");
+    if (!tbody) return;
+    
+    tbody.innerHTML = "";
+    const overrides = await getAllocationOverrides();
+    const allocations = await getAllocations();
+    const people = await getPeople();
+    const projects = await getProjects();
+    
+    // Sort by allocation and month
+    const sortedOverrides = overrides.sort((a, b) => {
+        if (a.allocationId !== b.allocationId) {
+            return a.allocationId - b.allocationId;
+        }
+        return a.month.localeCompare(b.month);
+    });
+    
+    sortedOverrides.forEach(override => {
+        const allocation = allocations.find(a => a.id === override.allocationId);
+        let allocationLabel = `Allocation #${override.allocationId}`;
+        if (allocation) {
+            const person = people.find(p => p.id === allocation.personId);
+            const project = projects.find(p => p.id === allocation.projectId);
+            allocationLabel = `${person ? person.name : allocation.personId} → ${project ? project.name : allocation.projectId}`;
+        }
+        
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${allocationLabel}</td>
+            <td><input type="month" class="override-month" value="${override.month}" data-id="${override.id}"></td>
+            <td contenteditable="true" data-id="${override.id}" data-field="pct">${override.pct}</td>
+            <td><button class="delete-allocation-override" data-id="${override.id}">Delete</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    // Attach event listeners
+    attachAllocationOverrideEventListeners();
+    populateAllocationSelect();
+}
+
+function attachAllocationOverrideEventListeners() {
+    if (typeof document === 'undefined') return;
+    
+    // Content editable blur handlers
+    document.querySelectorAll("#allocationOverridesTable td[contenteditable]").forEach(td => {
+        td.addEventListener("blur", async function() {
+            const id = parseInt(this.dataset.id);
+            const field = this.dataset.field;
+            const value = this.textContent;
+            
+            const overrides = await getAllocationOverrides();
+            const override = overrides.find(o => o.id === id);
+            
+            if (field === "pct") {
+                override.pct = parseFloat(value);
+            }
+            
+            await updateAllocationOverride(override);
+            scheduleAutoBackup();
+        });
+    });
+    
+    // Month input blur handlers
+    document.querySelectorAll(".override-month").forEach(input => {
+        input.addEventListener("blur", async function() {
+            const id = parseInt(this.dataset.id);
+            const overrides = await getAllocationOverrides();
+            const override = overrides.find(o => o.id === id);
+            override.month = this.value;
+            await updateAllocationOverride(override);
+            scheduleAutoBackup();
+        });
+    });
+    
+    // Delete button handlers
+    document.querySelectorAll(".delete-allocation-override").forEach(btn => {
+        btn.addEventListener("click", async function() {
+            const id = parseInt(this.dataset.id);
+            await deleteAllocationOverride(id);
+            scheduleAutoBackup();
+            renderAllocationOverrides();
+        });
+    });
+}
+
+// Populate allocation select dropdown
+export async function populateAllocationSelect() {
+    if (typeof document === 'undefined') return;
+    
+    const select = document.getElementById("allocationSelect");
+    if (!select) return;
+    
+    select.innerHTML = "";
+    const allocations = await getAllocations();
+    const people = await getPeople();
+    const projects = await getProjects();
+    
+    allocations.forEach(a => {
+        const person = people.find(p => p.id === a.personId);
+        const project = projects.find(p => p.id === a.projectId);
+        const label = `${person ? person.name : a.personId} → ${project ? project.name : a.projectId}`;
+        
+        const option = document.createElement("option");
+        option.value = a.id;
+        option.textContent = label;
+        select.appendChild(option);
+    });
+}
+
 // Initialize allocations view
 export function initAllocationsView() {
     if (typeof document === 'undefined') return;
@@ -126,5 +240,28 @@ export function initAllocationsView() {
         });
         scheduleAutoBackup();
         renderAllocations();
+        populateAllocationSelect(); // Update allocation override select
     });
+    
+    const addOverrideBtn = document.getElementById("addAllocationOverrideBtn");
+    if (addOverrideBtn) {
+        addOverrideBtn.addEventListener("click", async () => {
+            const allocationId = parseInt(document.getElementById("allocationSelect").value);
+            const month = document.getElementById("overrideMonthInput").value;
+            const pct = parseFloat(document.getElementById("overridePctInput").value);
+            
+            if (!allocationId || !month) {
+                alert("Please select an allocation and month");
+                return;
+            }
+            
+            await addAllocationOverride({
+                allocationId,
+                month,
+                pct
+            });
+            scheduleAutoBackup();
+            renderAllocationOverrides();
+        });
+    }
 }

@@ -1532,12 +1532,35 @@ var App = (() => {
     const addAllocationBtn = document.getElementById("addAllocationBtn");
     if (!addAllocationBtn) return;
     addAllocationBtn.addEventListener("click", async () => {
+      const personId = document.getElementById("personSelect")?.value;
+      const projectId = document.getElementById("projectSelect")?.value;
+      const pctInput = document.getElementById("pctInput")?.value;
+      const startMonthInput = document.getElementById("startMonthInput")?.value;
+      const endMonthInput = document.getElementById("endMonthInput")?.value;
+      if (!personId || !projectId) {
+        alert("Please select both a person and a project");
+        return;
+      }
+      if (!pctInput) {
+        alert("Please enter an allocation percentage");
+        return;
+      }
+      if (!startMonthInput) {
+        alert("Please enter a start month");
+        return;
+      }
+      const validation = validateAllocationPercentage(pctInput);
+      if (!validation.valid) {
+        alert(validation.message);
+        return;
+      }
+      const pct = parseFloat(pctInput);
       await addAllocation({
-        personId: document.getElementById("personSelect").value,
-        projectId: document.getElementById("projectSelect").value,
-        pct: parseFloat(document.getElementById("pctInput").value),
-        startMonth: document.getElementById("startMonthInput").value,
-        endMonth: document.getElementById("endMonthInput").value || null
+        personId,
+        projectId,
+        pct,
+        startMonth: startMonthInput,
+        endMonth: endMonthInput || null
       });
       scheduleAutoBackup();
       renderAllocations();
@@ -1546,16 +1569,31 @@ var App = (() => {
     const addOverrideBtn = document.getElementById("addAllocationOverrideBtn");
     if (addOverrideBtn) {
       addOverrideBtn.addEventListener("click", async () => {
-        const allocationId = parseInt(document.getElementById("allocationSelect").value);
-        const month = document.getElementById("overrideMonthInput").value;
-        const pct = parseFloat(document.getElementById("overridePctInput").value);
-        if (!allocationId || !month) {
+        const allocationIdInput = document.getElementById("allocationSelect")?.value;
+        const monthInput = document.getElementById("overrideMonthInput")?.value;
+        const pctInput = document.getElementById("overridePctInput")?.value;
+        if (!allocationIdInput || !monthInput) {
           alert("Please select an allocation and month");
           return;
         }
+        if (!pctInput) {
+          alert("Please enter an override percentage");
+          return;
+        }
+        const validation = validateAllocationPercentage(pctInput);
+        if (!validation.valid) {
+          alert(validation.message);
+          return;
+        }
+        const allocationId = parseInt(allocationIdInput);
+        if (isNaN(allocationId)) {
+          alert("Invalid allocation selected");
+          return;
+        }
+        const pct = parseFloat(pctInput);
         await addAllocationOverride({
           allocationId,
-          month,
+          month: monthInput,
           pct
         });
         scheduleAutoBackup();

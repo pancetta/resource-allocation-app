@@ -129,3 +129,20 @@ This is a client-side resource allocation web application built with vanilla Jav
 8. Test manually in browser if needed
 9. Verify IndexedDB operations in browser console for data layer changes
 10. Check for failing tests in the linked CI pipeline after creating the PR and debug them.
+
+## Pull Request Workflow
+
+### Before Completing a PR
+- **ALWAYS** check GitHub Actions workflow results before marking a PR as complete
+- Use GitHub MCP tools to verify all CI checks have passed:
+  - `list_workflow_runs` to see recent workflow runs and their status
+  - `get_job_logs` to review any failures
+- Do NOT complete the PR if workflows are failing - fix the issues first
+- Ensure both unit tests and E2E tests pass successfully
+
+### When Iterating on a PR
+- **ALWAYS** merge updates from the main branch before continuing work
+- Use `git fetch origin main` and `git merge origin/main` to get latest changes
+- Resolve any merge conflicts that arise
+- Re-run tests after merging to ensure compatibility with latest main branch
+- This helps avoid integration issues and keeps the PR up-to-date

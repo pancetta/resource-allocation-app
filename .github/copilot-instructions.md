@@ -139,6 +139,7 @@ This is a client-side resource allocation web application built with vanilla Jav
   - `get_job_logs` to review any failures
 - Do NOT complete the PR if workflows are failing - fix the issues first
 - Ensure both unit tests and E2E tests pass successfully
+- Make sure test coverage is NOT degrading. In particular, if you add new features/code, also add tests to check this new code.
 
 ### When Iterating on a PR
 - **ALWAYS** merge updates from the main branch before continuing work

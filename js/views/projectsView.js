@@ -1,6 +1,6 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
+import { validateBudgetValueDeletion, validatePlannedPM, findOverlappingBudgetValues, findOpenEndedBudgetValuesToClose } from '../helpers/validationHelper.js';
 
 // Render projects table (basic project info)
 export async function renderProjects() {
@@ -257,6 +257,75 @@ export function initProjectsView() {
             if (!projectId || !startMonth) {
                 alert("Please select a project and start month");
                 return;
+            }
+            
+            // Validate planned PM value
+            const validation = validatePlannedPM(plannedPM);
+            if (!validation.valid) {
+                alert(validation.message);
+                return;
+            }
+            
+            // Check for overlapping entries
+            const overlapping = await findOverlappingBudgetValues(projectId, startMonth, endMonth);
+            
+            if (overlapping.length > 0) {
+                // Find open-ended entries to auto-close
+                const toClose = await findOpenEndedBudgetValuesToClose(projectId, startMonth);
+                
+                if (toClose.length > 0) {
+                    // Ask user if they want to auto-close previous open-ended entry
+                    const closeMsg = toClose.map(v => {
+                        const endDate = new Date(startMonth + '-01');
+                        endDate.setMonth(endDate.getMonth() - 1);
+                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        return `  - Planned PM ${v.plannedPM} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
+                    }).join('\n');
+                    
+                    const shouldClose = confirm(
+                        `This budget value overlaps with existing open-ended entries:\n${closeMsg}\n\n` +
+                        `Do you want to automatically close the previous entries?\n` +
+                        `Click OK to auto-close, or Cancel to create overlapping entries (not recommended).`
+                    );
+                    
+                    if (shouldClose) {
+                        // Auto-close previous open-ended entries
+                        const endDate = new Date(startMonth + '-01');
+                        endDate.setMonth(endDate.getMonth() - 1);
+                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        
+                        for (const value of toClose) {
+                            value.endMonth = suggestedEnd;
+                            await updateBudgetValue(value);
+                        }
+                    } else {
+                        // User chose to create overlapping entries - warn them
+                        const warnConfirm = confirm(
+                            `Warning: Creating overlapping budget entries may lead to unexpected behavior.\n` +
+                            `The system will use the most recent entry when multiple values apply.\n\n` +
+                            `Are you sure you want to continue?`
+                        );
+                        
+                        if (!warnConfirm) {
+                            return; // User cancelled
+                        }
+                    }
+                } else {
+                    // Overlapping but no open-ended entries to auto-close
+                    const overlapMsg = overlapping.map(v => 
+                        `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
+                    ).join('\n');
+                    
+                    const confirmOverlap = confirm(
+                        `Warning: This budget value overlaps with existing entries:\n${overlapMsg}\n\n` +
+                        `The system will use the most recent entry when multiple values apply.\n` +
+                        `Are you sure you want to continue?`
+                    );
+                    
+                    if (!confirmOverlap) {
+                        return; // User cancelled
+                    }
+                }
             }
             
             await addBudgetValue({

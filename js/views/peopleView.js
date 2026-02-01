@@ -1,6 +1,6 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
+import { validateFteValueDeletion, validateFteValue, findOverlappingFteValues, findOpenEndedFteValuesToClose } from '../helpers/validationHelper.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
@@ -276,6 +276,75 @@ export function initPeopleView() {
             if (!personId || !startMonth) {
                 alert("Please select a person and start month");
                 return;
+            }
+            
+            // Validate FTE value
+            const validation = validateFteValue(fte);
+            if (!validation.valid) {
+                alert(validation.message);
+                return;
+            }
+            
+            // Check for overlapping entries
+            const overlapping = await findOverlappingFteValues(personId, startMonth, endMonth);
+            
+            if (overlapping.length > 0) {
+                // Find open-ended entries to auto-close
+                const toClose = await findOpenEndedFteValuesToClose(personId, startMonth);
+                
+                if (toClose.length > 0) {
+                    // Ask user if they want to auto-close previous open-ended entry
+                    const closeMsg = toClose.map(v => {
+                        const endDate = new Date(startMonth + '-01');
+                        endDate.setMonth(endDate.getMonth() - 1);
+                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        return `  - FTE ${v.fte} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
+                    }).join('\n');
+                    
+                    const shouldClose = confirm(
+                        `This FTE value overlaps with existing open-ended entries:\n${closeMsg}\n\n` +
+                        `Do you want to automatically close the previous entries?\n` +
+                        `Click OK to auto-close, or Cancel to create overlapping entries (not recommended).`
+                    );
+                    
+                    if (shouldClose) {
+                        // Auto-close previous open-ended entries
+                        const endDate = new Date(startMonth + '-01');
+                        endDate.setMonth(endDate.getMonth() - 1);
+                        const suggestedEnd = endDate.toISOString().slice(0, 7);
+                        
+                        for (const value of toClose) {
+                            value.endMonth = suggestedEnd;
+                            await updateFteValue(value);
+                        }
+                    } else {
+                        // User chose to create overlapping entries - warn them
+                        const warnConfirm = confirm(
+                            `Warning: Creating overlapping FTE entries may lead to unexpected behavior.\n` +
+                            `The system will use the most recent entry when multiple values apply.\n\n` +
+                            `Are you sure you want to continue?`
+                        );
+                        
+                        if (!warnConfirm) {
+                            return; // User cancelled
+                        }
+                    }
+                } else {
+                    // Overlapping but no open-ended entries to auto-close
+                    const overlapMsg = overlapping.map(v => 
+                        `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
+                    ).join('\n');
+                    
+                    const confirmOverlap = confirm(
+                        `Warning: This FTE value overlaps with existing entries:\n${overlapMsg}\n\n` +
+                        `The system will use the most recent entry when multiple values apply.\n` +
+                        `Are you sure you want to continue?`
+                    );
+                    
+                    if (!confirmOverlap) {
+                        return; // User cancelled
+                    }
+                }
             }
             
             await addFteValue({

@@ -169,7 +169,7 @@ function setupBeforeUnloadWarning() {
 }
 
 // Update auto-backup status display
-function updateAutoBackupStatus() {
+export function updateAutoBackupStatus() {
     if (typeof document === 'undefined') {
         return;
     }

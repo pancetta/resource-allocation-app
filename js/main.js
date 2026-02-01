@@ -6,7 +6,7 @@ import { renderAllocations, initAllocationsView } from './views/allocationsView.
 import { initMonthlyReport } from './views/monthlyReport.js';
 import { initYearlyReport } from './views/yearlyReport.js';
 import { initProjectOverview } from './views/projectOverview.js';
-import { init as initDataManagement, scheduleAutoBackup } from './views/dataManagement.js';
+import { init as initDataManagement, scheduleAutoBackup, updateAutoBackupStatus } from './views/dataManagement.js';
 
 // Application initialization - only run if we're in a browser environment with DOM
 if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.readyState !== undefined) {
@@ -41,6 +41,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         try {
             await createBackup();
             console.log("Initial backup created");
+            
+            // Update auto-backup status after backup is created
+            updateAutoBackupStatus();
         } catch (e) {
             console.error("Failed to create initial backup:", e);
         }

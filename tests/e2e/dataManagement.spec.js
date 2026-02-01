@@ -48,6 +48,47 @@ test.describe('Data Management', () => {
     expect(download.suggestedFilename()).toContain('.json');
   });
 
+  test('should show auto-backup status and enable download button', async ({ page }) => {
+    await page.click('.tab-button[data-tab="data"]');
+    
+    // Verify auto-backup status is displayed (initial backup is created on app load)
+    const statusElement = page.locator('#autoBackupStatus');
+    await expect(statusElement).toBeVisible();
+    
+    // Status should not be "Checking..." or "No automatic backup prepared yet"
+    const statusText = await statusElement.textContent();
+    expect(statusText).not.toContain('Checking...');
+    expect(statusText).toContain('Last prepared:');
+    
+    // Download button should be enabled
+    const downloadBtn = page.locator('#downloadAutoBackupBtn');
+    await expect(downloadBtn).toBeVisible();
+    await expect(downloadBtn).toBeEnabled();
+  });
+
+  test('should download auto-backup file', async ({ page }) => {
+    await page.click('.tab-button[data-tab="data"]');
+    
+    // Verify download button is enabled
+    const downloadBtn = page.locator('#downloadAutoBackupBtn');
+    await expect(downloadBtn).toBeEnabled();
+    
+    // Set up download listener
+    const downloadPromise = page.waitForEvent('download');
+    
+    // Handle the alert dialog
+    page.on('dialog', dialog => dialog.accept());
+    
+    // Click download button
+    await downloadBtn.click();
+    
+    const download = await downloadPromise;
+    
+    // Verify download occurred with correct filename
+    expect(download.suggestedFilename()).toContain('resource-allocation-backup');
+    expect(download.suggestedFilename()).toContain('.json');
+  });
+
   test('should create manual backup', async ({ page }) => {
     await page.click('.tab-button[data-tab="data"]');
     

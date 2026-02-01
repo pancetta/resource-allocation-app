@@ -37,6 +37,11 @@ describe('Allocation Helper - PM Conversion Functions', () => {
       const result = pctToPMPerMonth(1.0, 0);
       expect(result).toBe(0);
     });
+
+    it('should handle fractional FTE and allocation (0.66 FTE at 50%)', () => {
+      const result = pctToPMPerMonth(0.66, 0.5);
+      expect(result).toBeCloseTo(0.33, 5);
+    });
   });
 
   describe('pctToPMPerYear', () => {
@@ -73,6 +78,11 @@ describe('Allocation Helper - PM Conversion Functions', () => {
     it('should return 0 for 0% allocation', () => {
       const result = pctToPMPerYear(1.0, 0);
       expect(result).toBe(0);
+    });
+
+    it('should handle fractional FTE and allocation (0.66 FTE at 50%)', () => {
+      const result = pctToPMPerYear(0.66, 0.5);
+      expect(result).toBeCloseTo(3.96, 5);
     });
   });
 });

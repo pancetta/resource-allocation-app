@@ -23,14 +23,11 @@ test.describe('Bundle.js Fallback', () => {
     const statusElement = page.locator('#autoBackupStatus');
     await expect(statusElement).toBeVisible();
     
-    // Wait a bit for the initial backup to be created
-    await page.waitForTimeout(1000);
+    // Wait for status to update from "Checking..." by waiting for it to not contain that text
+    await expect(statusElement).not.toContainText('Checking...', { timeout: 5000 });
     
-    // Status should not be "Checking..." - it should be updated
+    // Verify status shows either "Last prepared:" or "No automatic backup prepared yet"
     const statusText = await statusElement.textContent();
-    expect(statusText).not.toContain('Checking...');
-    
-    // Should contain either "Last prepared:" or "No automatic backup prepared yet"
     const hasLastPrepared = statusText.includes('Last prepared:');
     const hasNoPrepared = statusText.includes('No automatic backup prepared yet');
     expect(hasLastPrepared || hasNoPrepared).toBe(true);
@@ -45,12 +42,12 @@ test.describe('Bundle.js Fallback', () => {
   test('should enable download button when backup exists with bundle.js', async ({ page }) => {
     await page.click('.tab-button[data-tab="data"]');
     
-    // Wait for initial backup to be created
-    await page.waitForTimeout(1000);
-    
-    // Verify download button is enabled
-    const downloadBtn = page.locator('#downloadAutoBackupBtn');
+    // Wait for auto-backup status to update (not "Checking...")
     const statusElement = page.locator('#autoBackupStatus');
+    await expect(statusElement).not.toContainText('Checking...', { timeout: 5000 });
+    
+    // Verify download button state matches status
+    const downloadBtn = page.locator('#downloadAutoBackupBtn');
     const statusText = await statusElement.textContent();
     
     if (statusText.includes('Last prepared:')) {
@@ -61,44 +58,38 @@ test.describe('Bundle.js Fallback', () => {
   test('should download auto-backup file with bundle.js', async ({ page }) => {
     await page.click('.tab-button[data-tab="data"]');
     
-    // Wait for initial backup
-    await page.waitForTimeout(1000);
-    
-    // Check if button is enabled
+    // Wait for download button to be enabled (indicating backup exists)
     const downloadBtn = page.locator('#downloadAutoBackupBtn');
-    const isEnabled = await downloadBtn.isEnabled();
+    await expect(downloadBtn).toBeEnabled({ timeout: 5000 });
     
-    if (isEnabled) {
-      // Set up download listener
-      const downloadPromise = page.waitForEvent('download');
-      
-      // Handle the alert dialog
-      page.on('dialog', dialog => dialog.accept());
-      
-      // Click download button
-      await downloadBtn.click();
-      
-      const download = await downloadPromise;
-      
-      // Verify download occurred with correct filename
-      expect(download.suggestedFilename()).toContain('resource-allocation-backup');
-      expect(download.suggestedFilename()).toContain('.json');
-    }
+    // Set up download listener
+    const downloadPromise = page.waitForEvent('download');
+    
+    // Handle the alert dialog
+    page.on('dialog', dialog => dialog.accept());
+    
+    // Click download button
+    await downloadBtn.click();
+    
+    const download = await downloadPromise;
+    
+    // Verify download occurred with correct filename
+    expect(download.suggestedFilename()).toContain('resource-allocation-backup');
+    expect(download.suggestedFilename()).toContain('.json');
   });
 
   test('should create manual backup with bundle.js', async ({ page }) => {
     await page.click('.tab-button[data-tab="data"]');
     
+    // Get initial backup count
+    const initialCount = await page.locator('#backupsTable tbody tr').count();
+    
     // Create a manual backup
     page.on('dialog', dialog => dialog.accept());
     await page.click('#createBackupBtn');
     
-    // Wait for backup to be created
-    await page.waitForTimeout(500);
-    
-    // Verify backup appears in the table
-    const backupRows = await page.locator('#backupsTable tbody tr').count();
-    expect(backupRows).toBeGreaterThan(0);
+    // Wait for new backup to appear (count should increase by 1)
+    await expect(page.locator('#backupsTable tbody tr')).toHaveCount(initialCount + 1, { timeout: 2000 });
   });
 
   test('should export data with bundle.js', async ({ page }) => {

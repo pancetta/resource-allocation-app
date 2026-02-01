@@ -85,6 +85,23 @@ GitHub Copilot coding agent can help with various tasks:
 - Addressing technical debt
 - Improving accessibility
 
+### Copilot Test Environment
+
+**Important:** Copilot now runs the same tests as the main CI workflow to ensure consistency and prevent issues where internal tests pass but CI tests fail.
+
+The `copilot-setup-steps.yml` workflow:
+- Runs automatically when Copilot creates or modifies PRs
+- Executes the same unit and integration tests as the main CI (`npm test`)
+- Executes the same E2E tests as the main CI (`npm run test:e2e`)
+- Uses the exact same Node.js version (20) and environment as CI
+- Reports coverage and test results just like the main CI workflow
+
+This means:
+- ✅ No more manual workflow approvals needed
+- ✅ Copilot sees the same test results as your CI
+- ✅ Failures are caught early, before creating PRs
+- ✅ Consistent test environment across all workflows
+
 ### Assigning Issues to Copilot
 
 When creating issues for Copilot to work on, make them clear and well-scoped:
@@ -139,6 +156,30 @@ When Copilot creates a pull request:
 ## Testing
 
 This project has comprehensive test coverage:
+
+### CI/CD Workflows
+
+The project uses GitHub Actions for continuous integration:
+
+**Main CI Workflow** (`.github/workflows/tests.yml`):
+- Triggers on: Push to `main`/`develop` branches, pull requests
+- Two parallel jobs:
+  1. **Unit Tests**: Runs Vitest with coverage reporting
+  2. **E2E Tests**: Runs Playwright browser tests
+- Node.js version: 20
+- Uploads coverage reports and test artifacts
+
+**Copilot Setup Workflow** (`.github/workflows/copilot-setup-steps.yml`):
+- Triggers when Copilot creates/modifies PRs or when the workflow file changes
+- Runs the exact same tests as the main CI workflow
+- Ensures Copilot uses the same environment and catches issues early
+- No manual approval needed for Copilot-created PRs
+
+Both workflows use identical:
+- Node.js version (20)
+- Dependencies (`npm ci`)
+- Test commands (`npm test`, `npm run test:e2e`)
+- Browser setup (Chromium with Playwright)
 
 ### Unit & Integration Tests
 

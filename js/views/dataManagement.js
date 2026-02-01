@@ -110,7 +110,7 @@ export async function init() {
 }
 
 // Helper function to download JSON
-function downloadJSON(data) {
+export function downloadJSON(data) {
     const jsonStr = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -124,7 +124,7 @@ function downloadJSON(data) {
 }
 
 // Show download success message with helpful info
-function showDownloadSuccess(filename) {
+export function showDownloadSuccess(filename) {
     const message = `✅ Download started successfully!\n\n` +
                    `File: ${filename}\n\n` +
                    `The file will be saved to your browser's default Downloads folder.\n\n` +
@@ -133,7 +133,7 @@ function showDownloadSuccess(filename) {
 }
 
 // Set up warning before closing window with unsaved changes
-function setupBeforeUnloadWarning() {
+export function setupBeforeUnloadWarning() {
     if (typeof window === 'undefined') {
         return;
     }
@@ -197,7 +197,7 @@ export function updateAutoBackupStatus() {
 }
 
 // Get human-readable time ago
-function getTimeAgo(date) {
+export function getTimeAgo(date) {
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
     
     if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;

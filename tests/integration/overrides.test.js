@@ -22,7 +22,7 @@ describe('Value Integration Tests', () => {
             
             await addProject({ id: 'proj001', name: 'Project A' });
             await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
-            await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
+            await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: null });
             
             const people = await getPeople();
             const projects = await getProjects();
@@ -75,12 +75,12 @@ describe('Value Integration Tests', () => {
             await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
             
             // Add allocation with 100% (1.0) 
-            await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
+            await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: null });
             const allocations = await getAllocations();
             const allocationId = allocations[0].id;
             
             // Add override: In June, allocation is only 50% (0.5)
-            await addAllocationOverride({ allocationId, month: '2025-06', pct: 0.5 });
+            await addAllocationOverride({ allocationId, month: '2025-06', pm: 0.5 });
             
             const allocationOverrides = await getAllocationOverrides();
             const allocationIndex = buildAllocationIndex(allocations);
@@ -110,13 +110,13 @@ describe('Value Integration Tests', () => {
             
             await addProject({ id: 'proj001', name: 'Project A' });
             await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
-            await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
+            await addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: null });
             
             const allocations = await getAllocations();
             const allocationId = allocations[0].id;
             
             // Allocation override: 0.8 pct in April only
-            await addAllocationOverride({ allocationId, month: '2025-04', pct: 0.8 });
+            await addAllocationOverride({ allocationId, month: '2025-04', pm: 0.8 });
             
             const fteValues = await getFteValues();
             const allocationOverrides = await getAllocationOverrides();

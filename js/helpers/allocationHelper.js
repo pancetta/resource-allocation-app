@@ -49,7 +49,7 @@ export function buildAllocationOverrideIndex(allocationOverrides) {
  * @param {string} personId - Person ID
  * @param {string} projectId - Project ID
  * @param {string} month - Month string in YYYY-MM format
- * @param {number} fte - Person's FTE value
+ * @param {number} fte - Person's FTE value (no longer used but kept for API compatibility)
  * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {number} Calculated person-months
  */
@@ -65,15 +65,15 @@ export function calculatePM(allocationIndex, personId, projectId, month, fte, al
         // Check if allocation is active for this month
         if (isMonthInRange(month, alloc.startMonth, alloc.endMonth)) {
             // Check for allocation override
-            let pct = alloc.pct;
+            let pm = alloc.pm;
             if (allocationOverrideIndex) {
                 const overrideKey = `${alloc.id}:${month}`;
                 const override = allocationOverrideIndex.get(overrideKey);
                 if (override) {
-                    pct = override.pct;
+                    pm = override.pm;
                 }
             }
-            return sum + (pct * fte);
+            return sum + pm;
         }
         return sum;
     }, 0);
@@ -181,35 +181,19 @@ export function sumArray(arr) {
 }
 
 /**
- * Convert percentage allocation to person-months per month
- * @param {number} fte - Person's FTE value (0.0 to 1.0)
- * @param {number} pct - Allocation percentage (0.0 to 1.0)
- * @returns {number} Person-months per month
- */
-export function pctToPMPerMonth(fte, pct) {
-    return fte * pct;
-}
-
-/**
- * Convert percentage allocation to person-months per year
- * @param {number} fte - Person's FTE value (0.0 to 1.0)
- * @param {number} pct - Allocation percentage (0.0 to 1.0)
+ * Calculate person-months per year from person-months per month
+ * @param {number} pmPerMonth - Person-months per month
  * @returns {number} Person-months per year
  */
-export function pctToPMPerYear(fte, pct) {
-    return fte * pct * 12;
+export function pmPerMonthToYear(pmPerMonth) {
+    return pmPerMonth * 12;
 }
 
 /**
- * Format PM and percentage together for display
+ * Format PM value for display
  * @param {number} pm - Person-months value
- * @param {number} fte - Person's FTE value for calculating percentage
- * @returns {string} Formatted string like "0.50 (50%)"
+ * @returns {string} Formatted string
  */
-export function formatPMWithPct(pm, fte) {
-    if (fte === 0) {
-        return `${pm.toFixed(2)} (N/A)`;
-    }
-    const pct = (pm / fte) * 100;
-    return `${pm.toFixed(2)} (${pct.toFixed(0)}%)`;
+export function formatPM(pm) {
+    return pm.toFixed(2);
 }

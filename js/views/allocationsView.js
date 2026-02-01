@@ -1,7 +1,7 @@
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { pctToPMPerMonth, pctToPMPerYear } from '../helpers/allocationHelper.js';
-import { validateAllocationPercentage, findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore } from '../helpers/validationHelper.js';
+import { pmPerMonthToYear } from '../helpers/allocationHelper.js';
+import { findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore } from '../helpers/validationHelper.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -24,16 +24,14 @@ export async function renderAllocations() {
             `<option value="${p.id}" ${p.id === a.projectId ? 'selected' : ''}>${p.name}</option>`
         ).join('');
         
-        // Get person's FTE to calculate PM values
-        const person = people.find(p => p.id === a.personId);
-        const fte = person ? (person.fte ?? 1) : 1;
-        const pmPerMonth = pctToPMPerMonth(fte, a.pct);
-        const pmPerYear = pctToPMPerYear(fte, a.pct);
+        // PM values are stored directly, no calculation needed
+        const pmPerMonth = a.pm;
+        const pmPerYear = pmPerMonthToYear(a.pm);
         
         tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
-            <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
+            <td><input type="number" class="alloc-pm" step="0.01" min="0" value="${a.pm}" data-id="${a.id}"></td>
             <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
             <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
@@ -53,11 +51,8 @@ export async function renderAllocations() {
  * @param {Object} alloc - The allocation object
  */
 async function updateRowPMValues(row, alloc) {
-    const people = await getPeople();
-    const person = people.find(p => p.id === alloc.personId);
-    const fte = person ? (person.fte ?? 1) : 1;
-    const pmPerMonth = pctToPMPerMonth(fte, alloc.pct);
-    const pmPerYear = pctToPMPerYear(fte, alloc.pct);
+    const pmPerMonth = alloc.pm;
+    const pmPerYear = pmPerMonthToYear(alloc.pm);
     
     // Update the PM display cells (4th and 5th cells in the row)
     const cells = row.querySelectorAll('.pm-display');
@@ -94,22 +89,22 @@ function attachAllocationsEventListeners() {
         });
     });
     
-    // Percentage input blur handlers
-    document.querySelectorAll(".alloc-pct").forEach(input => {
+    // PM input blur handlers
+    document.querySelectorAll(".alloc-pm").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
             
-            const validation = validateAllocationPercentage(this.value);
-            if (!validation.valid) {
-                alert(validation.message);
+            const pm = parseFloat(this.value);
+            if (isNaN(pm) || pm < 0) {
+                alert("PM must be a positive number");
                 // Revert to original value
-                this.value = alloc.pct;
+                this.value = alloc.pm;
                 return;
             }
             
-            alloc.pct = parseFloat(this.value);
+            alloc.pm = pm;
             await updateAllocation(alloc);
             scheduleAutoBackup();
             // Update PM values for this row
@@ -142,7 +137,7 @@ function attachAllocationsEventListeners() {
                 const label = `${person ? person.name : alloc.personId} → ${project ? project.name : alloc.projectId}`;
                 
                 const overlapMsg = overlapping.map(a => 
-                    `  - ${a.pct * 100}% from ${a.startMonth} to ${a.endMonth || 'ongoing'}`
+                    `  - ${a.pm.toFixed(2)} PM from ${a.startMonth} to ${a.endMonth || 'ongoing'}`
                 ).join('\n');
                 
                 const confirmOverlap = confirm(
@@ -189,7 +184,7 @@ function attachAllocationsEventListeners() {
                 const label = `${person ? person.name : alloc.personId} → ${project ? project.name : alloc.projectId}`;
                 
                 const overlapMsg = overlapping.map(a => 
-                    `  - ${a.pct * 100}% from ${a.startMonth} to ${a.endMonth || 'ongoing'}`
+                    `  - ${a.pm.toFixed(2)} PM from ${a.startMonth} to ${a.endMonth || 'ongoing'}`
                 ).join('\n');
                 
                 const confirmOverlap = confirm(
@@ -256,7 +251,7 @@ export async function renderAllocationOverrides() {
         tr.innerHTML = `
             <td>${allocationLabel}</td>
             <td><input type="month" class="override-month" value="${override.month}" data-id="${override.id}"></td>
-            <td contenteditable="true" data-id="${override.id}" data-field="pct">${override.pct}</td>
+            <td contenteditable="true" data-id="${override.id}" data-field="pm">${override.pm}</td>
             <td><button class="delete-allocation-override" data-id="${override.id}">Delete</button></td>
         `;
         tbody.appendChild(tr);
@@ -280,15 +275,15 @@ function attachAllocationOverrideEventListeners() {
             const overrides = await getAllocationOverrides();
             const override = overrides.find(o => o.id === id);
             
-            if (field === "pct") {
-                const validation = validateAllocationPercentage(value);
-                if (!validation.valid) {
-                    alert(validation.message);
+            if (field === "pm") {
+                const pm = parseFloat(value);
+                if (isNaN(pm) || pm < 0) {
+                    alert("PM must be a positive number");
                     // Revert to original value
-                    this.textContent = override.pct;
+                    this.textContent = override.pm;
                     return;
                 }
-                override.pct = parseFloat(value);
+                override.pm = pm;
             }
             
             await updateAllocationOverride(override);
@@ -353,7 +348,7 @@ export function initAllocationsView() {
     addAllocationBtn.addEventListener("click", async () => {
         const personId = document.getElementById("personSelect").value;
         const projectId = document.getElementById("projectSelect").value;
-        const pct = parseFloat(document.getElementById("pctInput").value);
+        const pm = parseFloat(document.getElementById("pmInput").value);
         const startMonth = document.getElementById("startMonthInput").value;
         const endMonth = document.getElementById("endMonthInput").value || null;
         
@@ -362,10 +357,9 @@ export function initAllocationsView() {
             return;
         }
         
-        // Validate allocation percentage (pct is in decimal form 0-1, validate as 0-100 percentage)
-        const validation = validateAllocationPercentage(pct * 100);
-        if (!validation.valid) {
-            alert(validation.message);
+        // Validate allocation PM
+        if (isNaN(pm) || pm < 0) {
+            alert("PM must be a positive number");
             return;
         }
         
@@ -386,7 +380,7 @@ export function initAllocationsView() {
                 
                 const closeMsg = toClose.map(a => {
                     const suggestedEnd = getMonthBefore(startMonth);
-                    return `  - ${a.pct * 100}% allocation starting ${a.startMonth} (will set end to ${suggestedEnd})`;
+                    return `  - ${a.pm.toFixed(2)} PM allocation starting ${a.startMonth} (will set end to ${suggestedEnd})`;
                 }).join('\n');
                 
                 const shouldClose = confirm(
@@ -436,7 +430,7 @@ export function initAllocationsView() {
                 const label = `${person ? person.name : personId} → ${project ? project.name : projectId}`;
                 
                 const overlapMsg = overlapping.map(a => 
-                    `  - ${a.pct * 100}% from ${a.startMonth} to ${a.endMonth || 'ongoing'}`
+                    `  - ${a.pm.toFixed(2)} PM from ${a.startMonth} to ${a.endMonth || 'ongoing'}`
                 ).join('\n');
                 
                 const shouldOverwrite = confirm(
@@ -467,7 +461,7 @@ export function initAllocationsView() {
         await addAllocation({
             personId,
             projectId,
-            pct,
+            pm,
             startMonth,
             endMonth
         });
@@ -481,17 +475,22 @@ export function initAllocationsView() {
         addOverrideBtn.addEventListener("click", async () => {
             const allocationId = parseInt(document.getElementById("allocationSelect").value);
             const month = document.getElementById("overrideMonthInput").value;
-            const pct = parseFloat(document.getElementById("overridePctInput").value);
+            const pm = parseFloat(document.getElementById("overridePmInput").value);
             
             if (!allocationId || !month) {
                 alert("Please select an allocation and month");
                 return;
             }
             
+            if (isNaN(pm) || pm < 0) {
+                alert("PM must be a positive number");
+                return;
+            }
+            
             await addAllocationOverride({
                 allocationId,
                 month,
-                pct
+                pm
             });
             scheduleAutoBackup();
             renderAllocationOverrides();

@@ -34,7 +34,7 @@ describe('Allocations View', () => {
       </table>
       <select id="allocationSelect"></select>
       <input type="month" id="overrideMonthInput" value="2025-06">
-      <input type="number" id="overridePctInput" value="0.5">
+      <input type="number" id="overridePmInput" value="0.5">
       <button id="addAllocationOverrideBtn">Add Override</button>
     `;
     
@@ -69,7 +69,7 @@ describe('Allocations View', () => {
       const firstRow = tbody.children[0];
       expect(firstRow.querySelector('.alloc-person')).toBeTruthy();
       expect(firstRow.querySelector('.alloc-project')).toBeTruthy();
-      expect(firstRow.querySelector('.alloc-pct').value).toBe('0.5');
+      expect(firstRow.querySelector('.alloc-pm').value).toBe('0.5');
       expect(firstRow.querySelector('.alloc-start').value).toBe('2024-01');
       expect(firstRow.querySelector('.alloc-end').value).toBe('2024-12');
     });
@@ -198,7 +198,7 @@ describe('Allocations View', () => {
       
       await renderAllocations();
       
-      const pctInput = document.querySelector('.alloc-pct');
+      const pctInput = document.querySelector('.alloc-pm');
       pctInput.value = '75';
       pctInput.dispatchEvent(new Event('blur'));
       
@@ -415,7 +415,7 @@ describe('Allocations View', () => {
       
       document.getElementById('allocationSelect').value = '1';
       document.getElementById('overrideMonthInput').value = '2025-06';
-      document.getElementById('overridePctInput').value = '0.5';
+      document.getElementById('overridePmInput').value = '0.5';
       
       const btn = document.getElementById('addAllocationOverrideBtn');
       btn.click();

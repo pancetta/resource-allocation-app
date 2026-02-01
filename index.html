@@ -78,27 +78,27 @@
 <div id="allocations" class="tab-content">
     <h2>Default / Monthly Allocations</h2>
     <table id="allocationsTable">
-        <thead><tr><th>Person</th><th>Project</th><th>Pct</th><th>PM/month</th><th>PM/year</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Person</th><th>Project</th><th>PM/month</th><th>PM/month</th><th>PM/year</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
         <tbody></tbody>
     </table>
 
     <select id="personSelect"></select>
     <select id="projectSelect"></select>
-    <input type="number" id="pctInput" step="0.01" min="0" max="1" value="1">
+    <input type="number" id="pmInput" step="0.01" min="0" value="1" placeholder="PM per month">
     <input type="month" id="startMonthInput" value="2025-01">
-    <input type="month" id="endMonthInput" value="">
+    <input type="month" id="endMonthInput" value="" placeholder="End (leave empty for ongoing)">
     <button id="addAllocationBtn">Add Allocation</button>
     
     <h3>Allocation Overrides (Month-Specific Exceptions)</h3>
-    <p>Define month-specific exceptions to allocations (e.g., normally 100% but 50% in June 2025).</p>
+    <p>Define month-specific exceptions to allocations (e.g., normally 1.0 PM but 0.5 PM in June 2025).</p>
     <table id="allocationOverridesTable">
-        <thead><tr><th>Allocation</th><th>Month</th><th>Override Pct</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Allocation</th><th>Month</th><th>Override PM</th><th>Actions</th></tr></thead>
         <tbody></tbody>
     </table>
     
     <select id="allocationSelect"></select>
     <input type="month" id="overrideMonthInput" value="2025-01">
-    <input type="number" id="overridePctInput" step="0.01" min="0" max="1" value="0.5">
+    <input type="number" id="overridePmInput" step="0.01" min="0" value="0.5" placeholder="PM">
     <button id="addAllocationOverrideBtn">Add Override</button>
 </div>
 

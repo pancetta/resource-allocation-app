@@ -119,6 +119,19 @@ var App = (() => {
     return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
   }
 
+  // js/config/constants.js
+  var MIGRATION_DEFAULT_START_MONTH = "2020-01";
+  var MONTHS_PER_YEAR = 12;
+  var MIN_FTE = 0;
+  var MAX_FTE = 1;
+  var MIN_ALLOCATION_PCT = 0;
+  var MAX_ALLOCATION_PCT = 100;
+  var MIN_PLANNED_PM = 0;
+  var DECIMAL_PLACES = 2;
+  function formatNumber(value) {
+    return value.toFixed(DECIMAL_PLACES);
+  }
+
   // js/data/database.js
   var DB_NAME = "resource-planning";
   var DB_VERSION = 5;
@@ -218,8 +231,7 @@ var App = (() => {
                 fteValuesStore.add({
                   personId: person.id,
                   fte: person.fte,
-                  startMonth: "2020-01",
-                  // Use a reasonable start date
+                  startMonth: MIGRATION_DEFAULT_START_MONTH,
                   endMonth: null
                   // Open-ended
                 });
@@ -238,8 +250,7 @@ var App = (() => {
                 budgetValuesStore.add({
                   projectId: project.id,
                   plannedPM: project.plannedPM,
-                  startMonth: "2020-01",
-                  // Use a reasonable start date
+                  startMonth: MIGRATION_DEFAULT_START_MONTH,
                   endMonth: null
                   // Open-ended
                 });
@@ -268,7 +279,7 @@ var App = (() => {
                 fteValuesStore.add({
                   personId: person.id,
                   fte: person.fte,
-                  startMonth: "2020-01",
+                  startMonth: MIGRATION_DEFAULT_START_MONTH,
                   endMonth: null
                 });
                 delete person.fte;
@@ -286,7 +297,7 @@ var App = (() => {
                 budgetValuesStore.add({
                   projectId: project.id,
                   plannedPM: project.plannedPM,
-                  startMonth: "2020-01",
+                  startMonth: MIGRATION_DEFAULT_START_MONTH,
                   endMonth: null
                 });
                 delete project.plannedPM;
@@ -624,11 +635,11 @@ var App = (() => {
     if (isNaN(value)) {
       return { valid: false, message: "FTE must be a valid number" };
     }
-    if (value < 0) {
-      return { valid: false, message: "FTE cannot be below 0" };
+    if (value < MIN_FTE) {
+      return { valid: false, message: `FTE cannot be below ${MIN_FTE}` };
     }
-    if (value > 1) {
-      return { valid: false, message: "FTE cannot be above 1" };
+    if (value > MAX_FTE) {
+      return { valid: false, message: `FTE cannot be above ${MAX_FTE}` };
     }
     return { valid: true, message: "" };
   }
@@ -637,7 +648,7 @@ var App = (() => {
     if (isNaN(value)) {
       return { valid: false, message: "Planned PM must be a valid number" };
     }
-    if (value < 0) {
+    if (value < MIN_PLANNED_PM) {
       return { valid: false, message: "Planned PM cannot be negative" };
     }
     return { valid: true, message: "" };
@@ -647,11 +658,11 @@ var App = (() => {
     if (isNaN(value)) {
       return { valid: false, message: "Allocation percentage must be a valid number" };
     }
-    if (value < 0) {
+    if (value < MIN_ALLOCATION_PCT) {
       return { valid: false, message: "Allocation percentage cannot be negative" };
     }
-    if (value > 100) {
-      return { valid: false, message: "Allocation percentage cannot exceed 100" };
+    if (value > MAX_ALLOCATION_PCT) {
+      return { valid: false, message: `Allocation percentage cannot exceed ${MAX_ALLOCATION_PCT}` };
     }
     return { valid: true, message: "" };
   }
@@ -1332,8 +1343,8 @@ var App = (() => {
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
             <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
-            <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
-            <td class="pm-display">${pmPerYear.toFixed(2)}</td>
+            <td class="pm-display">${formatNumber(pmPerMonth)}</td>
+            <td class="pm-display">${formatNumber(pmPerYear)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
             <td><input type="month" class="alloc-end" value="${a.endMonth ?? ""}" data-id="${a.id}"></td>
             <td><button class="delete-allocation" data-id="${a.id}">Delete</button></td>
@@ -1350,8 +1361,8 @@ var App = (() => {
     const pmPerYear = pctToPMPerYear(fte, alloc.pct);
     const cells = row.querySelectorAll(".pm-display");
     if (cells.length >= 2) {
-      cells[0].textContent = pmPerMonth.toFixed(2);
-      cells[1].textContent = pmPerYear.toFixed(2);
+      cells[0].textContent = formatNumber(pmPerMonth);
+      cells[1].textContent = formatNumber(pmPerYear);
     }
   }
   function attachAllocationsEventListeners() {
@@ -1581,14 +1592,14 @@ var App = (() => {
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td><td>${formatNumber(fte)}</td><td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
     sumRow.innerHTML = `<td><strong>Total</strong></td>` + projects.map((proj) => {
       const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
-      return `<td><strong>${sum.toFixed(2)}</strong></td>`;
+      return `<td><strong>${formatNumber(sum)}</strong></td>`;
     }).join("") + `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
     personTable.appendChild(pTbody);
@@ -1603,7 +1614,7 @@ var App = (() => {
       const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
       const delta = total - planned;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${proj.name}</td><td class="${cellClass(total, planned)}">${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${proj.name}</td><td class="${cellClass(total, planned)}">${formatNumber(total)}</td><td>${formatNumber(planned)}</td><td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
       projTbody.appendChild(tr);
     });
     projTable.appendChild(projTbody);
@@ -1646,7 +1657,7 @@ var App = (() => {
         const month = months[idx];
         const monthFte = getEffectiveFte(p.id, month, fteValues);
         return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
-      }).join("") + `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td><td>${expectedFteYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      }).join("") + `<td class="${cellClass(total, expectedFteYearly)}">${formatNumber(total)}</td><td>${formatNumber(expectedFteYearly)}</td><td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
@@ -1668,7 +1679,7 @@ var App = (() => {
       });
     });
     const deltaSum = totalSum - fteSum;
-    sumRow.innerHTML = `<td><strong>Total</strong></td>` + monthlySums.map((sum) => `<td><strong>${sum.toFixed(2)}</strong></td>`).join("") + `<td><strong>${totalSum.toFixed(2)}</strong></td><td><strong>${fteSum.toFixed(2)}</strong></td><td class="${cellClass(deltaSum, 0)}"><strong>${deltaSum.toFixed(2)}</strong></td>`;
+    sumRow.innerHTML = `<td><strong>Total</strong></td>` + monthlySums.map((sum) => `<td><strong>${formatNumber(sum)}</strong></td>`).join("") + `<td><strong>${formatNumber(totalSum)}</strong></td><td><strong>${formatNumber(fteSum)}</strong></td><td class="${cellClass(deltaSum, 0)}"><strong>${formatNumber(deltaSum)}</strong></td>`;
     tfoot.appendChild(sumRow);
     personTable.appendChild(pTbody);
     personTable.appendChild(tfoot);
@@ -1733,7 +1744,7 @@ var App = (() => {
     const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Project \xD7 Month Overview ${year}</h3>`;
-    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
+    const months = Array.from({ length: MONTHS_PER_YEAR }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
     const table = document.createElement("table");
     const header = ["Project", ...months, "Total", "Planned", "Delta"];
     table.innerHTML = `<thead><tr>${header.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
@@ -1747,8 +1758,8 @@ var App = (() => {
       tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
         const month = months[idx];
         const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
-        return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
-      }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td><td>${expectedPlannedYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+        return `<td class="${cellClass(c, monthPlanned)}">${formatNumber(c)}</td>`;
+      }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${formatNumber(total)}</td><td>${formatNumber(expectedPlannedYearly)}</td><td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
       tbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
@@ -1758,7 +1769,7 @@ var App = (() => {
       projects.forEach((p) => {
         monthSum += calculateProjectTotal(allocationIndex, p.id, people, month, fteValues, allocationOverrideIndex);
       });
-      return `<td><strong>${monthSum.toFixed(2)}</strong></td>`;
+      return `<td><strong>${formatNumber(monthSum)}</strong></td>`;
     }).join("") + `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
     table.appendChild(tbody);

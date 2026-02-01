@@ -4,6 +4,7 @@
 
 import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
 import { peopleSchema } from '../config/entitySchemas.js';
+import { MIGRATION_DEFAULT_START_MONTH } from '../config/constants.js';
 
 const DB_NAME = "resource-planning";
 const DB_VERSION = 5;
@@ -148,7 +149,7 @@ export async function openDatabase() {
                             fteValuesStore.add({
                                 personId: person.id,
                                 fte: person.fte,
-                                startMonth: "2020-01", // Use a reasonable start date
+                                startMonth: MIGRATION_DEFAULT_START_MONTH,
                                 endMonth: null // Open-ended
                             });
                             
@@ -173,7 +174,7 @@ export async function openDatabase() {
                             budgetValuesStore.add({
                                 projectId: project.id,
                                 plannedPM: project.plannedPM,
-                                startMonth: "2020-01", // Use a reasonable start date
+                                startMonth: MIGRATION_DEFAULT_START_MONTH,
                                 endMonth: null // Open-ended
                             });
                             
@@ -208,7 +209,7 @@ export async function openDatabase() {
                             fteValuesStore.add({
                                 personId: person.id,
                                 fte: person.fte,
-                                startMonth: "2020-01",
+                                startMonth: MIGRATION_DEFAULT_START_MONTH,
                                 endMonth: null
                             });
                             delete person.fte;
@@ -229,7 +230,7 @@ export async function openDatabase() {
                             budgetValuesStore.add({
                                 projectId: project.id,
                                 plannedPM: project.plannedPM,
-                                startMonth: "2020-01",
+                                startMonth: MIGRATION_DEFAULT_START_MONTH,
                                 endMonth: null
                             });
                             delete project.plannedPM;

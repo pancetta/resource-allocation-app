@@ -2,6 +2,7 @@ import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getP
 import { scheduleAutoBackup } from '../main.js';
 import { pctToPMPerMonth, pctToPMPerYear } from '../helpers/allocationHelper.js';
 import { validateAllocationPercentage } from '../helpers/validationHelper.js';
+import { formatNumber } from '../config/constants.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -34,8 +35,8 @@ export async function renderAllocations() {
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
             <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
-            <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
-            <td class="pm-display">${pmPerYear.toFixed(2)}</td>
+            <td class="pm-display">${formatNumber(pmPerMonth)}</td>
+            <td class="pm-display">${formatNumber(pmPerYear)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
             <td><input type="month" class="alloc-end" value="${a.endMonth ?? ''}" data-id="${a.id}"></td>
             <td><button class="delete-allocation" data-id="${a.id}">Delete</button></td>
@@ -62,8 +63,8 @@ async function updateRowPMValues(row, alloc) {
     // Update the PM display cells (4th and 5th cells in the row)
     const cells = row.querySelectorAll('.pm-display');
     if (cells.length >= 2) {
-        cells[0].textContent = pmPerMonth.toFixed(2);
-        cells[1].textContent = pmPerYear.toFixed(2);
+        cells[0].textContent = formatNumber(pmPerMonth);
+        cells[1].textContent = formatNumber(pmPerYear);
     }
 }
 

@@ -2,6 +2,7 @@ import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, 
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculateProjectMonthlyTotals, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
 import { getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
+import { formatNumber, MONTHS_PER_YEAR } from '../config/constants.js';
 
 // Project × Month Overview
 export async function renderProjectMonthlyOverview(year) {
@@ -19,7 +20,7 @@ export async function renderProjectMonthlyOverview(year) {
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Project × Month Overview ${year}</h3>`;
 
-    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    const months = Array.from({ length: MONTHS_PER_YEAR }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
     const table = document.createElement("table");
     const header = ["Project", ...months, "Total", "Planned", "Delta"];
     table.innerHTML = `<thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
@@ -39,11 +40,11 @@ export async function renderProjectMonthlyOverview(year) {
             cells.map((c, idx) => {
                 const month = months[idx];
                 const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
-                return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
+                return `<td class="${cellClass(c, monthPlanned)}">${formatNumber(c)}</td>`;
             }).join('') +
-            `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>` +
-            `<td>${expectedPlannedYearly.toFixed(2)}</td>` +
-            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+            `<td class="${cellClass(total, expectedPlannedYearly)}">${formatNumber(total)}</td>` +
+            `<td>${formatNumber(expectedPlannedYearly)}</td>` +
+            `<td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
         tbody.appendChild(tr);
     });
 
@@ -56,7 +57,7 @@ export async function renderProjectMonthlyOverview(year) {
             projects.forEach(p => {
                 monthSum += calculateProjectTotal(allocationIndex, p.id, people, month, fteValues, allocationOverrideIndex);
             });
-            return `<td><strong>${monthSum.toFixed(2)}</strong></td>`;
+            return `<td><strong>${formatNumber(monthSum)}</strong></td>`;
         }).join('') +
         `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);

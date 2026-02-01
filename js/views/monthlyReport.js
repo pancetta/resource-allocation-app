@@ -2,6 +2,7 @@ import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, 
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPMWithPct } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
+import { formatNumber } from '../config/constants.js';
 
 // Monthly Report
 export async function calculateMonth(month) {
@@ -37,8 +38,8 @@ export async function calculateMonth(month) {
         tr.innerHTML = `<td>${p.name}</td>` +
             cells.map(c => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join('') +
             `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td>` +
-            `<td>${fte.toFixed(2)}</td>` +
-            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+            `<td>${formatNumber(fte)}</td>` +
+            `<td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
         pTbody.appendChild(tr);
     });
 
@@ -48,7 +49,7 @@ export async function calculateMonth(month) {
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
         projects.map(proj => {
             const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
-            return `<td><strong>${sum.toFixed(2)}</strong></td>`;
+            return `<td><strong>${formatNumber(sum)}</strong></td>`;
         }).join('') +
         `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
@@ -73,9 +74,9 @@ export async function calculateMonth(month) {
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${proj.name}</td>` +
-            `<td class="${cellClass(total, planned)}">${total.toFixed(2)}</td>` +
-            `<td>${planned.toFixed(2)}</td>` +
-            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+            `<td class="${cellClass(total, planned)}">${formatNumber(total)}</td>` +
+            `<td>${formatNumber(planned)}</td>` +
+            `<td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
         projTbody.appendChild(tr);
     });
 

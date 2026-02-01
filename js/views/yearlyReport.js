@@ -3,6 +3,7 @@ import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPMWithPct } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getTotalEffectiveFte, getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 import { getMonthsInYear } from '../helpers/dateHelper.js';
+import { formatNumber } from '../config/constants.js';
 
 // Yearly Overview
 export async function calculateYear(year) {
@@ -44,9 +45,9 @@ export async function calculateYear(year) {
                 const monthFte = getEffectiveFte(p.id, month, fteValues);
                 return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
             }).join('') +
-            `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td>` +
-            `<td>${expectedFteYearly.toFixed(2)}</td>` +
-            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+            `<td class="${cellClass(total, expectedFteYearly)}">${formatNumber(total)}</td>` +
+            `<td>${formatNumber(expectedFteYearly)}</td>` +
+            `<td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
         pTbody.appendChild(tr);
     });
 
@@ -78,10 +79,10 @@ export async function calculateYear(year) {
 
     // Build the total row HTML in one statement
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
-        monthlySums.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
-        `<td><strong>${totalSum.toFixed(2)}</strong></td>` +
-        `<td><strong>${fteSum.toFixed(2)}</strong></td>` +
-        `<td class="${cellClass(deltaSum, 0)}"><strong>${deltaSum.toFixed(2)}</strong></td>`;
+        monthlySums.map(sum => `<td><strong>${formatNumber(sum)}</strong></td>`).join('') +
+        `<td><strong>${formatNumber(totalSum)}</strong></td>` +
+        `<td><strong>${formatNumber(fteSum)}</strong></td>` +
+        `<td class="${cellClass(deltaSum, 0)}"><strong>${formatNumber(deltaSum)}</strong></td>`;
     tfoot.appendChild(sumRow);
     
     personTable.appendChild(pTbody);

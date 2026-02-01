@@ -3,6 +3,7 @@
 **********************/
 
 import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
+import { peopleSchema } from '../config/entitySchemas.js';
 
 const DB_NAME = "resource-planning";
 const DB_VERSION = 5;
@@ -238,95 +239,104 @@ export async function openDatabase() {
                 };
             }
             
-            // Version 5 migration - convert allocations from pct to pm
+            // Version 5 migration - add type field to people AND convert allocations from pct to pm
             if (oldVersion < 5) {
-                const allocationsStore = transaction.objectStore("defaultAllocations");
                 const peopleStore = transaction.objectStore("people");
+                const peopleRequest = peopleStore.getAll();
+                
+                peopleRequest.onsuccess = () => {
+                    const people = peopleRequest.result;
+                    const defaults = peopleSchema.getDefaults();
+                    
+                    people.forEach(person => {
+                        // Add type field if it doesn't exist
+                        if (!person.type) {
+                            person.type = defaults.type;
+                            peopleStore.put(person);
+                        }
+                    });
+                };
+                
+                // Also convert allocations from pct to pm
+                const allocationsStore = transaction.objectStore("defaultAllocations");
                 const fteValuesStore = transaction.objectStore("fteValues");
                 
                 // Get all data needed for conversion
                 const allocationsRequest = allocationsStore.getAll();
-                const peopleRequest = peopleStore.getAll();
                 const fteValuesRequest = fteValuesStore.getAll();
                 
                 allocationsRequest.onsuccess = () => {
-                    peopleRequest.onsuccess = () => {
-                        fteValuesRequest.onsuccess = () => {
-                            const allocations = allocationsRequest.result;
-                            const people = peopleRequest.result;
-                            const fteValues = fteValuesRequest.result;
-                            
-                            allocations.forEach(allocation => {
-                                if (allocation.pct !== undefined && allocation.pct !== null) {
-                                    // Find the person's FTE at allocation start time
-                                    const person = people.find(p => p.id === allocation.personId);
-                                    
-                                    // Find effective FTE for this person at allocation start
-                                    let fte = 1; // default
-                                    const applicableFteValues = fteValues.filter(fv => 
-                                        fv.personId === allocation.personId &&
-                                        fv.startMonth <= allocation.startMonth &&
-                                        (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
-                                    );
-                                    
-                                    if (applicableFteValues.length > 0) {
-                                        // Use the most recent one
-                                        applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                                        fte = applicableFteValues[0].fte;
-                                    }
-                                    
-                                    // Convert pct to pm: pm = pct * fte
-                                    allocation.pm = allocation.pct * fte;
-                                    delete allocation.pct;
-                                    
-                                    allocationsStore.put(allocation);
-                                }
-                            });
-                        };
-                    };
-                };
-                
-                // Also convert allocation overrides
-                if (db.objectStoreNames.contains("allocationOverrides")) {
-                    const overridesStore = transaction.objectStore("allocationOverrides");
-                    const overridesRequest = overridesStore.getAll();
-                    
-                    overridesRequest.onsuccess = () => {
-                        const overrides = overridesRequest.result;
+                    fteValuesRequest.onsuccess = () => {
+                        const allocations = allocationsRequest.result;
+                        const fteValues = fteValuesRequest.result;
                         
-                        overrides.forEach(override => {
-                            if (override.pct !== undefined && override.pct !== null) {
-                                // For overrides, we need to find the allocation to get the person
-                                const allocationId = override.allocationId;
-                                const allocRequest = allocationsStore.get(allocationId);
+                        allocations.forEach(allocation => {
+                            if (allocation.pct !== undefined && allocation.pct !== null) {
+                                // Find effective FTE for this person at allocation start
+                                let fte = 1; // default
+                                const applicableFteValues = fteValues.filter(fv => 
+                                    fv.personId === allocation.personId &&
+                                    fv.startMonth <= allocation.startMonth &&
+                                    (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
+                                );
                                 
-                                allocRequest.onsuccess = () => {
-                                    const allocation = allocRequest.result;
-                                    if (allocation) {
-                                        // Find effective FTE for this person at override month
-                                        let fte = 1;
-                                        const applicableFteValues = fteValues.filter(fv => 
-                                            fv.personId === allocation.personId &&
-                                            fv.startMonth <= override.month &&
-                                            (fv.endMonth === null || fv.endMonth >= override.month)
-                                        );
-                                        
-                                        if (applicableFteValues.length > 0) {
-                                            applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                                            fte = applicableFteValues[0].fte;
-                                        }
-                                        
-                                        // Convert pct to pm
-                                        override.pm = override.pct * fte;
-                                        delete override.pct;
-                                        
-                                        overridesStore.put(override);
-                                    }
-                                };
+                                if (applicableFteValues.length > 0) {
+                                    // Use the most recent one
+                                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                                    fte = applicableFteValues[0].fte;
+                                }
+                                
+                                // Convert pct to pm: pm = pct * fte
+                                allocation.pm = allocation.pct * fte;
+                                delete allocation.pct;
+                                
+                                allocationsStore.put(allocation);
                             }
                         });
+                        
+                        // Also convert allocation overrides
+                        if (db.objectStoreNames.contains("allocationOverrides")) {
+                            const overridesStore = transaction.objectStore("allocationOverrides");
+                            const overridesRequest = overridesStore.getAll();
+                            
+                            overridesRequest.onsuccess = () => {
+                                const overrides = overridesRequest.result;
+                                
+                                overrides.forEach(override => {
+                                    if (override.pct !== undefined && override.pct !== null) {
+                                        // For overrides, find the allocation to get the person
+                                        const allocationId = override.allocationId;
+                                        const allocRequest = allocationsStore.get(allocationId);
+                                        
+                                        allocRequest.onsuccess = () => {
+                                            const allocation = allocRequest.result;
+                                            if (allocation) {
+                                                // Find effective FTE for this person at override month
+                                                let fte = 1;
+                                                const applicableFteValues = fteValues.filter(fv => 
+                                                    fv.personId === allocation.personId &&
+                                                    fv.startMonth <= override.month &&
+                                                    (fv.endMonth === null || fv.endMonth >= override.month)
+                                                );
+                                                
+                                                if (applicableFteValues.length > 0) {
+                                                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                                                    fte = applicableFteValues[0].fte;
+                                                }
+                                                
+                                                // Convert pct to pm
+                                                override.pm = override.pct * fte;
+                                                delete override.pct;
+                                                
+                                                overridesStore.put(override);
+                                            }
+                                        };
+                                    }
+                                });
+                            };
+                        }
                     };
-                }
+                };
             }
         };
         
@@ -456,7 +466,7 @@ export async function getAllocations() {
 
 /**
  * Add a new allocation to the database
- * @param {Object} a - Allocation object with personId, projectId, pm, startMonth, endMonth
+ * @param {Object} a - Allocation object with personId, projectId, pct, startMonth, endMonth
  * @returns {Promise<void>}
  */
 export async function addAllocation(a) {
@@ -795,7 +805,7 @@ export async function getAllocationOverrides() {
 
 /**
  * Add a new allocation override to the database
- * @param {Object} override - Allocation override object with allocationId, pm, month
+ * @param {Object} override - Allocation override object with allocationId, pct, month
  * @returns {Promise<void>}
  */
 export async function addAllocationOverride(override) {
@@ -879,12 +889,12 @@ export function getEffectivePlannedPM(projectId, month, budgetValues) {
 }
 
 /**
- * Get the effective allocation PM, considering overrides
+ * Get the effective allocation percentage, considering overrides
  * @param {number} allocationId - Allocation ID
  * @param {string} month - Month in YYYY-MM format
  * @param {Array} allocations - Array of allocation objects
  * @param {Array} allocationOverrides - Array of allocation override objects
- * @returns {number} Effective allocation PM (person-months)
+ * @returns {number} Effective allocation percentage
  */
 export function getEffectiveAllocationPM(allocationId, month, allocations, allocationOverrides) {
     // Find month-specific override

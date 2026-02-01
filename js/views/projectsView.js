@@ -1,6 +1,6 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateBudgetValueDeletion, validatePlannedPM, findOverlappingBudgetValues, findOpenEndedBudgetValuesToClose, getMonthBefore } from '../helpers/validationHelper.js';
+import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
 
 // Render projects table (basic project info)
 export async function renderProjects() {
@@ -142,35 +142,7 @@ function attachBudgetValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const budgetValues = await getBudgetValues();
             const budgetValue = budgetValues.find(v => v.id === id);
-            const newStartMonth = this.value;
-            
-            // Check for overlaps with the new start date
-            const overlapping = await findOverlappingBudgetValues(
-                budgetValue.projectId, 
-                newStartMonth, 
-                budgetValue.endMonth,
-                id  // Exclude current entry
-            );
-            
-            if (overlapping.length > 0) {
-                const overlapMsg = overlapping.map(v => 
-                    `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
-                ).join('\n');
-                
-                const confirmOverlap = confirm(
-                    `Warning: This change creates overlapping budget entries:\n${overlapMsg}\n\n` +
-                    `The system will use the most recent entry when multiple values apply.\n` +
-                    `Are you sure you want to continue?`
-                );
-                
-                if (!confirmOverlap) {
-                    // Revert to original value
-                    this.value = budgetValue.startMonth;
-                    return;
-                }
-            }
-            
-            budgetValue.startMonth = newStartMonth;
+            budgetValue.startMonth = this.value;
             await updateBudgetValue(budgetValue);
             scheduleAutoBackup();
         });
@@ -182,35 +154,7 @@ function attachBudgetValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const budgetValues = await getBudgetValues();
             const budgetValue = budgetValues.find(v => v.id === id);
-            const newEndMonth = this.value || null;
-            
-            // Check for overlaps with the new end date
-            const overlapping = await findOverlappingBudgetValues(
-                budgetValue.projectId, 
-                budgetValue.startMonth, 
-                newEndMonth,
-                id  // Exclude current entry
-            );
-            
-            if (overlapping.length > 0) {
-                const overlapMsg = overlapping.map(v => 
-                    `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
-                ).join('\n');
-                
-                const confirmOverlap = confirm(
-                    `Warning: This change creates overlapping budget entries:\n${overlapMsg}\n\n` +
-                    `The system will use the most recent entry when multiple values apply.\n` +
-                    `Are you sure you want to continue?`
-                );
-                
-                if (!confirmOverlap) {
-                    // Revert to original value
-                    this.value = budgetValue.endMonth || '';
-                    return;
-                }
-            }
-            
-            budgetValue.endMonth = newEndMonth;
+            budgetValue.endMonth = this.value || null;
             await updateBudgetValue(budgetValue);
             scheduleAutoBackup();
         });
@@ -313,96 +257,6 @@ export function initProjectsView() {
             if (!projectId || !startMonth) {
                 alert("Please select a project and start month");
                 return;
-            }
-            
-            // Validate planned PM value
-            const validation = validatePlannedPM(plannedPM);
-            if (!validation.valid) {
-                alert(validation.message);
-                return;
-            }
-            
-            // Check for overlapping entries
-            const overlapping = await findOverlappingBudgetValues(projectId, startMonth, endMonth);
-            
-            if (overlapping.length > 0) {
-                // Find open-ended entries to auto-close
-                const toClose = await findOpenEndedBudgetValuesToClose(projectId, startMonth);
-                
-                if (toClose.length > 0) {
-                    // Ask user if they want to auto-close previous open-ended entry
-                    const closeMsg = toClose.map(v => {
-                        const suggestedEnd = getMonthBefore(startMonth);
-                        return `  - Planned PM ${v.plannedPM} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
-                    }).join('\n');
-                    
-                    const shouldClose = confirm(
-                        `This budget value overlaps with existing open-ended entries:\n${closeMsg}\n\n` +
-                        `Click OK to AUTO-CLOSE (set end date), or Cancel for more options.`
-                    );
-                    
-                    if (shouldClose) {
-                        // Auto-close previous open-ended entries
-                        const suggestedEnd = getMonthBefore(startMonth);
-                        
-                        for (const value of toClose) {
-                            value.endMonth = suggestedEnd;
-                            await updateBudgetValue(value);
-                        }
-                    } else {
-                        // Ask if user wants to overwrite instead
-                        const shouldOverwrite = confirm(
-                            `Do you want to OVERWRITE (delete) the conflicting entries instead?\n` +
-                            `Click OK to delete conflicting entries, or Cancel to keep overlapping entries.`
-                        );
-                        
-                        if (shouldOverwrite) {
-                            // Delete all overlapping entries
-                            for (const value of overlapping) {
-                                await deleteBudgetValue(value.id);
-                            }
-                        } else {
-                            // User chose to create overlapping entries - warn them
-                            const warnConfirm = confirm(
-                                `Warning: Creating overlapping budget entries may lead to unexpected behavior.\n` +
-                                `The system will use the most recent entry when multiple values apply.\n\n` +
-                                `Are you sure you want to continue?`
-                            );
-                            
-                            if (!warnConfirm) {
-                                return; // User cancelled
-                            }
-                        }
-                    }
-                } else {
-                    // Overlapping but no open-ended entries to auto-close
-                    const overlapMsg = overlapping.map(v => 
-                        `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
-                    ).join('\n');
-                    
-                    const shouldOverwrite = confirm(
-                        `Warning: This budget value overlaps with existing entries:\n${overlapMsg}\n\n` +
-                        `Click OK to OVERWRITE (delete conflicting entries), or Cancel for more options.`
-                    );
-                    
-                    if (shouldOverwrite) {
-                        // Delete all overlapping entries
-                        for (const value of overlapping) {
-                            await deleteBudgetValue(value.id);
-                        }
-                    } else {
-                        // Ask if user wants to keep overlapping entries
-                        const confirmOverlap = confirm(
-                            `Do you want to keep the overlapping entries?\n` +
-                            `The system will use the most recent entry when multiple values apply.\n\n` +
-                            `Click OK to proceed with overlap, or Cancel to abort.`
-                        );
-                        
-                        if (!confirmOverlap) {
-                            return; // User cancelled
-                        }
-                    }
-                }
             }
             
             await addBudgetValue({

@@ -1,24 +1,48 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateFteValueDeletion, validateFteValue, findOverlappingFteValues, findOpenEndedFteValuesToClose, getMonthBefore } from '../helpers/validationHelper.js';
+import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
+import { peopleSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
     if (typeof document === 'undefined') return;
     
-    const tbody = document.querySelector("#peopleTable tbody");
+    const table = document.querySelector("#peopleTable");
+    if (!table) return;
+    
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    
+    const thead = table.querySelector("thead");
+    
+    // Render headers from schema if thead exists
+    if (thead) {
+        const headers = getTableHeaders(peopleSchema);
+        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Actions</th></tr>`;
+    }
     
     tbody.innerHTML = "";
     const people = await getPeople();
     
     people.forEach(p => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td><input type="checkbox" ${p.active ? "checked" : ""} data-id="${p.id}" data-field="active"></td>
-            <td><button class="delete-person" data-id="${p.id}">Delete</button></td>
-        `;
+        const fields = getEditableFields(peopleSchema);
+        
+        // Build cells based on schema
+        const cells = fields.map(field => {
+            if (field.type === 'checkbox') {
+                return `<td><input type="checkbox" ${p[field.key] ? "checked" : ""} data-id="${p.id}" data-field="${field.key}"></td>`;
+            } else if (field.type === 'select') {
+                const options = field.options.map(opt => 
+                    `<option value="${opt.value}" ${p[field.key] === opt.value ? 'selected' : ''}>${opt.label}</option>`
+                ).join('');
+                return `<td><select data-id="${p.id}" data-field="${field.key}">${options}</select></td>`;
+            } else {
+                return `<td contenteditable="true" data-id="${p.id}" data-field="${field.key}">${p[field.key] || ''}</td>`;
+            }
+        }).join('');
+        
+        tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
         tbody.appendChild(tr);
     });
     
@@ -79,8 +103,9 @@ function attachPeopleEventListeners() {
             const people = await getPeople();
             const person = people.find(p => p.id === id);
             
+            person[field] = value;
+            
             if (field === "name") {
-                person.name = value;
                 populatePersonSelect();
                 renderFteValues(); // Update FTE table in case person name changed
             }
@@ -90,19 +115,51 @@ function attachPeopleEventListeners() {
         });
     });
     
+    // Select dropdown handlers
+    document.querySelectorAll("#peopleTable select").forEach(select => {
+        select.addEventListener("change", async function() {
+            const id = this.dataset.id;
+            const field = this.dataset.field;
+            const value = this.value;
+            
+            const people = await getPeople();
+            const person = people.find(p => p.id === id);
+            
+            // Find field definition for validation
+            const fieldDef = peopleSchema.fields.find(f => f.key === field);
+            if (fieldDef && fieldDef.validate) {
+                const validation = fieldDef.validate(value);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    // Revert to original value
+                    this.value = person[field];
+                    return;
+                }
+            }
+            
+            person[field] = value;
+            await updatePerson(person);
+            scheduleAutoBackup();
+        });
+    });
+    
     // Checkbox handlers
     document.querySelectorAll("#peopleTable input[type=checkbox]").forEach(checkbox => {
         checkbox.addEventListener("change", async function() {
             const id = this.dataset.id;
+            const field = this.dataset.field;
             const checked = this.checked;
             
             const people = await getPeople();
             const person = people.find(p => p.id === id);
-            person.active = checked;
+            person[field] = checked;
             
             await updatePerson(person);
             scheduleAutoBackup();
-            populatePersonSelect();
+            
+            if (field === "active") {
+                populatePersonSelect();
+            }
         });
     });
     
@@ -161,35 +218,7 @@ function attachFteValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const fteValues = await getFteValues();
             const fteValue = fteValues.find(v => v.id === id);
-            const newStartMonth = this.value;
-            
-            // Check for overlaps with the new start date
-            const overlapping = await findOverlappingFteValues(
-                fteValue.personId, 
-                newStartMonth, 
-                fteValue.endMonth,
-                id  // Exclude current entry
-            );
-            
-            if (overlapping.length > 0) {
-                const overlapMsg = overlapping.map(v => 
-                    `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
-                ).join('\n');
-                
-                const confirmOverlap = confirm(
-                    `Warning: This change creates overlapping FTE entries:\n${overlapMsg}\n\n` +
-                    `The system will use the most recent entry when multiple values apply.\n` +
-                    `Are you sure you want to continue?`
-                );
-                
-                if (!confirmOverlap) {
-                    // Revert to original value
-                    this.value = fteValue.startMonth;
-                    return;
-                }
-            }
-            
-            fteValue.startMonth = newStartMonth;
+            fteValue.startMonth = this.value;
             await updateFteValue(fteValue);
             scheduleAutoBackup();
         });
@@ -201,35 +230,7 @@ function attachFteValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const fteValues = await getFteValues();
             const fteValue = fteValues.find(v => v.id === id);
-            const newEndMonth = this.value || null;
-            
-            // Check for overlaps with the new end date
-            const overlapping = await findOverlappingFteValues(
-                fteValue.personId, 
-                fteValue.startMonth, 
-                newEndMonth,
-                id  // Exclude current entry
-            );
-            
-            if (overlapping.length > 0) {
-                const overlapMsg = overlapping.map(v => 
-                    `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
-                ).join('\n');
-                
-                const confirmOverlap = confirm(
-                    `Warning: This change creates overlapping FTE entries:\n${overlapMsg}\n\n` +
-                    `The system will use the most recent entry when multiple values apply.\n` +
-                    `Are you sure you want to continue?`
-                );
-                
-                if (!confirmOverlap) {
-                    // Revert to original value
-                    this.value = fteValue.endMonth || '';
-                    return;
-                }
-            }
-            
-            fteValue.endMonth = newEndMonth;
+            fteValue.endMonth = this.value || null;
             await updateFteValue(fteValue);
             scheduleAutoBackup();
         });
@@ -293,7 +294,13 @@ export async function populateFtePersonSelect() {
 // Add person with auto-generated ID and initial FTE value
 export async function addPersonAuto(name) {
     const id = await generatePersonId();
-    await addPerson({ id, name, active: true });
+    const defaults = peopleSchema.getDefaults();
+    await addPerson({ 
+        id, 
+        name: name || defaults.name, 
+        type: defaults.type,
+        active: defaults.active 
+    });
     
     // Create initial FTE value for the person
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
@@ -332,96 +339,6 @@ export function initPeopleView() {
             if (!personId || !startMonth) {
                 alert("Please select a person and start month");
                 return;
-            }
-            
-            // Validate FTE value
-            const validation = validateFteValue(fte);
-            if (!validation.valid) {
-                alert(validation.message);
-                return;
-            }
-            
-            // Check for overlapping entries
-            const overlapping = await findOverlappingFteValues(personId, startMonth, endMonth);
-            
-            if (overlapping.length > 0) {
-                // Find open-ended entries to auto-close
-                const toClose = await findOpenEndedFteValuesToClose(personId, startMonth);
-                
-                if (toClose.length > 0) {
-                    // Ask user if they want to auto-close previous open-ended entry
-                    const closeMsg = toClose.map(v => {
-                        const suggestedEnd = getMonthBefore(startMonth);
-                        return `  - FTE ${v.fte} starting ${v.startMonth} (will set end to ${suggestedEnd})`;
-                    }).join('\n');
-                    
-                    const shouldClose = confirm(
-                        `This FTE value overlaps with existing open-ended entries:\n${closeMsg}\n\n` +
-                        `Click OK to AUTO-CLOSE (set end date), or Cancel for more options.`
-                    );
-                    
-                    if (shouldClose) {
-                        // Auto-close previous open-ended entries
-                        const suggestedEnd = getMonthBefore(startMonth);
-                        
-                        for (const value of toClose) {
-                            value.endMonth = suggestedEnd;
-                            await updateFteValue(value);
-                        }
-                    } else {
-                        // Ask if user wants to overwrite instead
-                        const shouldOverwrite = confirm(
-                            `Do you want to OVERWRITE (delete) the conflicting entries instead?\n` +
-                            `Click OK to delete conflicting entries, or Cancel to keep overlapping entries.`
-                        );
-                        
-                        if (shouldOverwrite) {
-                            // Delete all overlapping entries
-                            for (const value of overlapping) {
-                                await deleteFteValue(value.id);
-                            }
-                        } else {
-                            // User chose to create overlapping entries - warn them
-                            const warnConfirm = confirm(
-                                `Warning: Creating overlapping FTE entries may lead to unexpected behavior.\n` +
-                                `The system will use the most recent entry when multiple values apply.\n\n` +
-                                `Are you sure you want to continue?`
-                            );
-                            
-                            if (!warnConfirm) {
-                                return; // User cancelled
-                            }
-                        }
-                    }
-                } else {
-                    // Overlapping but no open-ended entries to auto-close
-                    const overlapMsg = overlapping.map(v => 
-                        `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
-                    ).join('\n');
-                    
-                    const shouldOverwrite = confirm(
-                        `Warning: This FTE value overlaps with existing entries:\n${overlapMsg}\n\n` +
-                        `Click OK to OVERWRITE (delete conflicting entries), or Cancel for more options.`
-                    );
-                    
-                    if (shouldOverwrite) {
-                        // Delete all overlapping entries
-                        for (const value of overlapping) {
-                            await deleteFteValue(value.id);
-                        }
-                    } else {
-                        // Ask if user wants to keep overlapping entries
-                        const confirmOverlap = confirm(
-                            `Do you want to keep the overlapping entries?\n` +
-                            `The system will use the most recent entry when multiple values apply.\n\n` +
-                            `Click OK to proceed with overlap, or Cancel to abort.`
-                        );
-                        
-                        if (!confirmOverlap) {
-                            return; // User cancelled
-                        }
-                    }
-                }
             }
             
             await addFteValue({

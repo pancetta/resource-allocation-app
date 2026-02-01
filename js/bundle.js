@@ -23,24 +23,120 @@ var App = (() => {
     scheduleAutoBackup: () => scheduleAutoBackup
   });
 
+  // js/data/crudHelper.js
+  function performTransaction(db2, storeName, operation, data, invalidateCache2) {
+    return new Promise((resolve, reject) => {
+      try {
+        const tx = db2.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        if (operation === "add") {
+          store.add(data);
+        } else if (operation === "put") {
+          store.put(data);
+        } else if (operation === "delete") {
+          store.delete(data);
+        } else {
+          throw new Error(`Unknown operation: ${operation}`);
+        }
+        tx.oncomplete = () => {
+          invalidateCache2();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+  function addRecord(db2, storeName, data, invalidateCache2) {
+    return performTransaction(db2, storeName, "add", data, invalidateCache2);
+  }
+  function updateRecord(db2, storeName, data, invalidateCache2) {
+    return performTransaction(db2, storeName, "put", data, invalidateCache2);
+  }
+  function deleteRecord(db2, storeName, id, invalidateCache2) {
+    return performTransaction(db2, storeName, "delete", id, invalidateCache2);
+  }
+
+  // js/config/entitySchemas.js
+  var peopleSchema = {
+    fields: [
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 1
+      },
+      {
+        key: "type",
+        label: "Type",
+        type: "select",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 2,
+        options: [
+          { value: "210", label: "210" },
+          { value: "220", label: "220" },
+          { value: "230", label: "230" },
+          { value: "240", label: "240" },
+          { value: "250", label: "250" }
+        ],
+        defaultValue: "210",
+        validate: (value) => {
+          const validValues = ["210", "220", "230", "240", "250"];
+          if (!validValues.includes(value)) {
+            return { valid: false, message: `Type must be one of: ${validValues.join(", ")}` };
+          }
+          return { valid: true, message: "" };
+        }
+      },
+      {
+        key: "active",
+        label: "Active",
+        type: "checkbox",
+        required: false,
+        editable: true,
+        showInTable: true,
+        order: 3,
+        defaultValue: true
+      }
+    ],
+    // Default values for new person
+    getDefaults: () => ({
+      name: "",
+      type: "210",
+      active: true
+    })
+  };
+  function getTableHeaders(schema) {
+    return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order).map((f) => f.label);
+  }
+  function getEditableFields(schema) {
+    return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
+  }
+
   // js/data/database.js
   var DB_NAME = "resource-planning";
-  var DB_VERSION = 3;
+  var DB_VERSION = 5;
   var db;
   var cache = {
     people: null,
     projects: null,
     defaultAllocations: null,
-    fteOverrides: null,
-    projectBudgetOverrides: null,
+    fteValues: null,
+    budgetValues: null,
     allocationOverrides: null
   };
   var cacheValid = {
     people: false,
     projects: false,
     defaultAllocations: false,
-    fteOverrides: false,
-    projectBudgetOverrides: false,
+    fteValues: false,
+    budgetValues: false,
     allocationOverrides: false
   };
   function invalidateCache(storeName) {
@@ -51,14 +147,14 @@ var App = (() => {
       cacheValid.people = false;
       cacheValid.projects = false;
       cacheValid.defaultAllocations = false;
-      cacheValid.fteOverrides = false;
-      cacheValid.projectBudgetOverrides = false;
+      cacheValid.fteValues = false;
+      cacheValid.budgetValues = false;
       cacheValid.allocationOverrides = false;
       cache.people = null;
       cache.projects = null;
       cache.defaultAllocations = null;
-      cache.fteOverrides = null;
-      cache.projectBudgetOverrides = null;
+      cache.fteValues = null;
+      cache.budgetValues = null;
       cache.allocationOverrides = null;
     }
   }
@@ -68,6 +164,7 @@ var App = (() => {
       request.onupgradeneeded = (e) => {
         const db2 = e.target.result;
         const oldVersion = e.oldVersion;
+        const transaction = e.target.transaction;
         if (!db2.objectStoreNames.contains("people")) {
           db2.createObjectStore("people", { keyPath: "id" });
         }
@@ -87,6 +184,130 @@ var App = (() => {
           if (!db2.objectStoreNames.contains("allocationOverrides")) {
             db2.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
           }
+        }
+        if (oldVersion < 4 && oldVersion >= 3) {
+          if (db2.objectStoreNames.contains("fteOverrides")) {
+            const fteValuesStore = db2.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
+            const oldFteStore = transaction.objectStore("fteOverrides");
+            const fteRequest = oldFteStore.getAll();
+            fteRequest.onsuccess = () => {
+              const records = fteRequest.result;
+              records.forEach((record) => {
+                fteValuesStore.add(record);
+              });
+            };
+          }
+          if (db2.objectStoreNames.contains("projectBudgetOverrides")) {
+            const budgetValuesStore = db2.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
+            const oldBudgetStore = transaction.objectStore("projectBudgetOverrides");
+            const budgetRequest = oldBudgetStore.getAll();
+            budgetRequest.onsuccess = () => {
+              const records = budgetRequest.result;
+              records.forEach((record) => {
+                budgetValuesStore.add(record);
+              });
+            };
+          }
+          const peopleStore = transaction.objectStore("people");
+          const peopleRequest = peopleStore.getAll();
+          peopleRequest.onsuccess = () => {
+            const people = peopleRequest.result;
+            const fteValuesStore = transaction.objectStore("fteValues");
+            people.forEach((person) => {
+              if (person.fte !== void 0 && person.fte !== null) {
+                fteValuesStore.add({
+                  personId: person.id,
+                  fte: person.fte,
+                  startMonth: "2020-01",
+                  // Use a reasonable start date
+                  endMonth: null
+                  // Open-ended
+                });
+                delete person.fte;
+                peopleStore.put(person);
+              }
+            });
+          };
+          const projectsStore = transaction.objectStore("projects");
+          const projectsRequest = projectsStore.getAll();
+          projectsRequest.onsuccess = () => {
+            const projects = projectsRequest.result;
+            const budgetValuesStore = transaction.objectStore("budgetValues");
+            projects.forEach((project) => {
+              if (project.plannedPM !== void 0 && project.plannedPM !== null) {
+                budgetValuesStore.add({
+                  projectId: project.id,
+                  plannedPM: project.plannedPM,
+                  startMonth: "2020-01",
+                  // Use a reasonable start date
+                  endMonth: null
+                  // Open-ended
+                });
+                delete project.plannedPM;
+                projectsStore.put(project);
+              }
+            });
+          };
+        } else if (oldVersion < 4 && oldVersion < 3) {
+          if (!db2.objectStoreNames.contains("fteValues")) {
+            db2.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
+          }
+          if (!db2.objectStoreNames.contains("budgetValues")) {
+            db2.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
+          }
+          if (!db2.objectStoreNames.contains("allocationOverrides")) {
+            db2.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
+          }
+          const peopleStore = transaction.objectStore("people");
+          const peopleRequest = peopleStore.getAll();
+          peopleRequest.onsuccess = () => {
+            const people = peopleRequest.result;
+            const fteValuesStore = transaction.objectStore("fteValues");
+            people.forEach((person) => {
+              if (person.fte !== void 0 && person.fte !== null) {
+                fteValuesStore.add({
+                  personId: person.id,
+                  fte: person.fte,
+                  startMonth: "2020-01",
+                  endMonth: null
+                });
+                delete person.fte;
+                peopleStore.put(person);
+              }
+            });
+          };
+          const projectsStore = transaction.objectStore("projects");
+          const projectsRequest = projectsStore.getAll();
+          projectsRequest.onsuccess = () => {
+            const projects = projectsRequest.result;
+            const budgetValuesStore = transaction.objectStore("budgetValues");
+            projects.forEach((project) => {
+              if (project.plannedPM !== void 0 && project.plannedPM !== null) {
+                budgetValuesStore.add({
+                  projectId: project.id,
+                  plannedPM: project.plannedPM,
+                  startMonth: "2020-01",
+                  endMonth: null
+                });
+                delete project.plannedPM;
+                projectsStore.put(project);
+              }
+            });
+          };
+        }
+        if (oldVersion < 5) {
+          const peopleStore = transaction.objectStore("people");
+          const peopleRequest = peopleStore.getAll();
+          peopleRequest.onsuccess = () => {
+            const people = peopleRequest.result;
+            const defaults = peopleSchema.getDefaults();
+            people.forEach((person) => {
+              if (!person.type) {
+                person.type = defaults.type;
+                peopleStore.put(person);
+              }
+            });
+          };
         }
       };
       request.onsuccess = (e) => {
@@ -123,145 +344,37 @@ var App = (() => {
     return getAll("people");
   }
   async function addPerson(p) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("people", "readwrite");
-        tx.objectStore("people").add(p);
-        tx.oncomplete = () => {
-          invalidateCache("people");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return addRecord(db, "people", p, () => invalidateCache("people"));
   }
   async function updatePerson(p) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("people", "readwrite");
-        tx.objectStore("people").put(p);
-        tx.oncomplete = () => {
-          invalidateCache("people");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return updateRecord(db, "people", p, () => invalidateCache("people"));
   }
   async function deletePerson(id) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("people", "readwrite");
-        tx.objectStore("people").delete(id);
-        tx.oncomplete = () => {
-          invalidateCache("people");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return deleteRecord(db, "people", id, () => invalidateCache("people"));
   }
   async function getProjects() {
     return getAll("projects");
   }
   async function addProject(p) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("projects", "readwrite");
-        tx.objectStore("projects").add(p);
-        tx.oncomplete = () => {
-          invalidateCache("projects");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return addRecord(db, "projects", p, () => invalidateCache("projects"));
   }
   async function updateProject(p) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("projects", "readwrite");
-        tx.objectStore("projects").put(p);
-        tx.oncomplete = () => {
-          invalidateCache("projects");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return updateRecord(db, "projects", p, () => invalidateCache("projects"));
   }
   async function deleteProject(id) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("projects", "readwrite");
-        tx.objectStore("projects").delete(id);
-        tx.oncomplete = () => {
-          invalidateCache("projects");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return deleteRecord(db, "projects", id, () => invalidateCache("projects"));
   }
   async function getAllocations() {
     return getAll("defaultAllocations");
   }
   async function addAllocation(a) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("defaultAllocations", "readwrite");
-        tx.objectStore("defaultAllocations").add(a);
-        tx.oncomplete = () => {
-          invalidateCache("defaultAllocations");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return addRecord(db, "defaultAllocations", a, () => invalidateCache("defaultAllocations"));
   }
   async function updateAllocation(a) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("defaultAllocations", "readwrite");
-        tx.objectStore("defaultAllocations").put(a);
-        tx.oncomplete = () => {
-          invalidateCache("defaultAllocations");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return updateRecord(db, "defaultAllocations", a, () => invalidateCache("defaultAllocations"));
   }
   async function deleteAllocation(id) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("defaultAllocations", "readwrite");
-        tx.objectStore("defaultAllocations").delete(id);
-        tx.oncomplete = () => {
-          invalidateCache("defaultAllocations");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return deleteRecord(db, "defaultAllocations", id, () => invalidateCache("defaultAllocations"));
   }
   async function generatePersonId() {
     const people = await getPeople();
@@ -289,18 +402,18 @@ var App = (() => {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     return {
-      version: "2.0",
+      version: "3.0",
       exportDate: (/* @__PURE__ */ new Date()).toISOString(),
       data: {
         people,
         projects,
         allocations,
-        fteOverrides,
-        projectBudgetOverrides,
+        fteValues,
+        budgetValues,
         allocationOverrides
       }
     };
@@ -313,23 +426,26 @@ var App = (() => {
       people,
       projects,
       allocations,
+      fteValues = [],
+      budgetValues = [],
+      allocationOverrides = [],
+      // Support old format for backward compatibility
       fteOverrides = [],
-      projectBudgetOverrides = [],
-      allocationOverrides = []
+      projectBudgetOverrides = []
     } = importedData.data;
     const tx = db.transaction([
       "people",
       "projects",
       "defaultAllocations",
-      "fteOverrides",
-      "projectBudgetOverrides",
+      "fteValues",
+      "budgetValues",
       "allocationOverrides"
     ], "readwrite");
     await tx.objectStore("people").clear();
     await tx.objectStore("projects").clear();
     await tx.objectStore("defaultAllocations").clear();
-    await tx.objectStore("fteOverrides").clear();
-    await tx.objectStore("projectBudgetOverrides").clear();
+    await tx.objectStore("fteValues").clear();
+    await tx.objectStore("budgetValues").clear();
     await tx.objectStore("allocationOverrides").clear();
     if (people && Array.isArray(people)) {
       for (const person of people) {
@@ -346,14 +462,16 @@ var App = (() => {
         await addAllocation(allocation);
       }
     }
-    if (fteOverrides && Array.isArray(fteOverrides)) {
-      for (const override of fteOverrides) {
-        await addFteOverride(override);
+    const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
+    if (fteData && Array.isArray(fteData)) {
+      for (const value of fteData) {
+        await addFteValue(value);
       }
     }
-    if (projectBudgetOverrides && Array.isArray(projectBudgetOverrides)) {
-      for (const override of projectBudgetOverrides) {
-        await addProjectBudgetOverride(override);
+    const budgetData = budgetValues.length > 0 ? budgetValues : projectBudgetOverrides;
+    if (budgetData && Array.isArray(budgetData)) {
+      for (const value of budgetData) {
+        await addBudgetValue(value);
       }
     }
     if (allocationOverrides && Array.isArray(allocationOverrides)) {
@@ -431,149 +549,41 @@ var App = (() => {
       return null;
     }
   }
-  async function getFteOverrides() {
-    return getAll("fteOverrides");
+  async function getFteValues() {
+    return getAll("fteValues");
   }
-  async function addFteOverride(override) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("fteOverrides", "readwrite");
-        tx.objectStore("fteOverrides").add(override);
-        tx.oncomplete = () => {
-          invalidateCache("fteOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async function addFteValue(value) {
+    return addRecord(db, "fteValues", value, () => invalidateCache("fteValues"));
   }
-  async function updateFteOverride(override) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("fteOverrides", "readwrite");
-        tx.objectStore("fteOverrides").put(override);
-        tx.oncomplete = () => {
-          invalidateCache("fteOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async function updateFteValue(value) {
+    return updateRecord(db, "fteValues", value, () => invalidateCache("fteValues"));
   }
-  async function deleteFteOverride(id) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("fteOverrides", "readwrite");
-        tx.objectStore("fteOverrides").delete(id);
-        tx.oncomplete = () => {
-          invalidateCache("fteOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async function deleteFteValue(id) {
+    return deleteRecord(db, "fteValues", id, () => invalidateCache("fteValues"));
   }
-  async function getProjectBudgetOverrides() {
-    return getAll("projectBudgetOverrides");
+  async function getBudgetValues() {
+    return getAll("budgetValues");
   }
-  async function addProjectBudgetOverride(override) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("projectBudgetOverrides", "readwrite");
-        tx.objectStore("projectBudgetOverrides").add(override);
-        tx.oncomplete = () => {
-          invalidateCache("projectBudgetOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async function addBudgetValue(value) {
+    return addRecord(db, "budgetValues", value, () => invalidateCache("budgetValues"));
   }
-  async function updateProjectBudgetOverride(override) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("projectBudgetOverrides", "readwrite");
-        tx.objectStore("projectBudgetOverrides").put(override);
-        tx.oncomplete = () => {
-          invalidateCache("projectBudgetOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async function updateBudgetValue(value) {
+    return updateRecord(db, "budgetValues", value, () => invalidateCache("budgetValues"));
   }
-  async function deleteProjectBudgetOverride(id) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("projectBudgetOverrides", "readwrite");
-        tx.objectStore("projectBudgetOverrides").delete(id);
-        tx.oncomplete = () => {
-          invalidateCache("projectBudgetOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async function deleteBudgetValue(id) {
+    return deleteRecord(db, "budgetValues", id, () => invalidateCache("budgetValues"));
   }
   async function getAllocationOverrides() {
     return getAll("allocationOverrides");
   }
   async function addAllocationOverride(override) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("allocationOverrides", "readwrite");
-        tx.objectStore("allocationOverrides").add(override);
-        tx.oncomplete = () => {
-          invalidateCache("allocationOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return addRecord(db, "allocationOverrides", override, () => invalidateCache("allocationOverrides"));
   }
   async function updateAllocationOverride(override) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("allocationOverrides", "readwrite");
-        tx.objectStore("allocationOverrides").put(override);
-        tx.oncomplete = () => {
-          invalidateCache("allocationOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return updateRecord(db, "allocationOverrides", override, () => invalidateCache("allocationOverrides"));
   }
   async function deleteAllocationOverride(id) {
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction("allocationOverrides", "readwrite");
-        tx.objectStore("allocationOverrides").delete(id);
-        tx.oncomplete = () => {
-          invalidateCache("allocationOverrides");
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return deleteRecord(db, "allocationOverrides", id, () => invalidateCache("allocationOverrides"));
   }
 
   // js/ui/tabs.js
@@ -608,25 +618,137 @@ var App = (() => {
     }
   }
 
+  // js/helpers/validationHelper.js
+  function validateFteValue(fte) {
+    const value = parseFloat(fte);
+    if (isNaN(value)) {
+      return { valid: false, message: "FTE must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "FTE cannot be below 0" };
+    }
+    if (value > 1) {
+      return { valid: false, message: "FTE cannot be above 1" };
+    }
+    return { valid: true, message: "" };
+  }
+  function validatePlannedPM(plannedPM) {
+    const value = parseFloat(plannedPM);
+    if (isNaN(value)) {
+      return { valid: false, message: "Planned PM must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "Planned PM cannot be negative" };
+    }
+    return { valid: true, message: "" };
+  }
+  function validateAllocationPercentage(pct) {
+    const value = parseFloat(pct);
+    if (isNaN(value)) {
+      return { valid: false, message: "Allocation percentage must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "Allocation percentage cannot be negative" };
+    }
+    if (value > 100) {
+      return { valid: false, message: "Allocation percentage cannot exceed 100" };
+    }
+    return { valid: true, message: "" };
+  }
+  async function validateFteValueDeletion(fteValueId) {
+    const fteValues = await getFteValues();
+    const value = fteValues.find((v) => v.id === fteValueId);
+    if (!value) {
+      return { valid: false, message: "FTE value not found" };
+    }
+    const count = fteValues.filter((v) => v.personId === value.personId).length;
+    if (count <= 1) {
+      return {
+        valid: false,
+        message: "Cannot delete the last FTE value for a person. Add another FTE value first."
+      };
+    }
+    return { valid: true, message: "" };
+  }
+  async function validateBudgetValueDeletion(budgetValueId) {
+    const budgetValues = await getBudgetValues();
+    const value = budgetValues.find((v) => v.id === budgetValueId);
+    if (!value) {
+      return { valid: false, message: "Budget value not found" };
+    }
+    const count = budgetValues.filter((v) => v.projectId === value.projectId).length;
+    if (count <= 1) {
+      return {
+        valid: false,
+        message: "Cannot delete the last budget value for a project. Add another budget value first."
+      };
+    }
+    return { valid: true, message: "" };
+  }
+
   // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#peopleTable tbody");
+    const table = document.querySelector("#peopleTable");
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    const thead = table.querySelector("thead");
+    if (thead) {
+      const headers = getTableHeaders(peopleSchema);
+      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}<th>Actions</th></tr>`;
+    }
     tbody.innerHTML = "";
     const people = await getPeople();
     people.forEach((p) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-            <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td contenteditable="true" data-id="${p.id}" data-field="fte">${p.fte ?? 1}</td>
-            <td><input type="checkbox" ${p.active ? "checked" : ""} data-id="${p.id}" data-field="active"></td>
-            <td><button class="delete-person" data-id="${p.id}">Delete</button></td>
-        `;
+      const fields = getEditableFields(peopleSchema);
+      const cells = fields.map((field) => {
+        if (field.type === "checkbox") {
+          return `<td><input type="checkbox" ${p[field.key] ? "checked" : ""} data-id="${p.id}" data-field="${field.key}"></td>`;
+        } else if (field.type === "select") {
+          const options = field.options.map(
+            (opt) => `<option value="${opt.value}" ${p[field.key] === opt.value ? "selected" : ""}>${opt.label}</option>`
+          ).join("");
+          return `<td><select data-id="${p.id}" data-field="${field.key}">${options}</select></td>`;
+        } else {
+          return `<td contenteditable="true" data-id="${p.id}" data-field="${field.key}">${p[field.key] || ""}</td>`;
+        }
+      }).join("");
+      tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
       tbody.appendChild(tr);
     });
     attachPeopleEventListeners();
     populatePersonSelect();
+  }
+  async function renderFteValues() {
+    if (typeof document === "undefined") return;
+    const tbody = document.querySelector("#fteValuesTable tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const fteValues = await getFteValues();
+    const people = await getPeople();
+    const sortedValues = fteValues.sort((a, b) => {
+      if (a.personId !== b.personId) {
+        return a.personId.localeCompare(b.personId);
+      }
+      return a.startMonth.localeCompare(b.startMonth);
+    });
+    sortedValues.forEach((value) => {
+      const person = people.find((p) => p.id === value.personId);
+      const personName = person ? person.name : value.personId;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+            <td>${personName}</td>
+            <td contenteditable="true" data-id="${value.id}" data-field="fte">${value.fte}</td>
+            <td><input type="month" class="fte-start" value="${value.startMonth}" data-id="${value.id}"></td>
+            <td><input type="month" class="fte-end" value="${value.endMonth || ""}" data-id="${value.id}"></td>
+            <td><button class="delete-fte-value" data-id="${value.id}">Delete</button></td>
+        `;
+      tbody.appendChild(tr);
+    });
+    attachFteValueEventListeners();
+    populateFtePersonSelect();
   }
   function attachPeopleEventListeners() {
     if (typeof document === "undefined") return;
@@ -637,12 +759,32 @@ var App = (() => {
         const value = this.textContent;
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
+        person[field] = value;
         if (field === "name") {
-          person.name = value;
           populatePersonSelect();
-        } else if (field === "fte") {
-          person.fte = parseFloat(value);
+          renderFteValues();
         }
+        await updatePerson(person);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll("#peopleTable select").forEach((select) => {
+      select.addEventListener("change", async function() {
+        const id = this.dataset.id;
+        const field = this.dataset.field;
+        const value = this.value;
+        const people = await getPeople();
+        const person = people.find((p) => p.id === id);
+        const fieldDef = peopleSchema.fields.find((f) => f.key === field);
+        if (fieldDef && fieldDef.validate) {
+          const validation = fieldDef.validate(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.value = person[field];
+            return;
+          }
+        }
+        person[field] = value;
         await updatePerson(person);
         scheduleAutoBackup();
       });
@@ -650,21 +792,86 @@ var App = (() => {
     document.querySelectorAll("#peopleTable input[type=checkbox]").forEach((checkbox) => {
       checkbox.addEventListener("change", async function() {
         const id = this.dataset.id;
+        const field = this.dataset.field;
         const checked = this.checked;
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
-        person.active = checked;
+        person[field] = checked;
         await updatePerson(person);
         scheduleAutoBackup();
-        populatePersonSelect();
+        if (field === "active") {
+          populatePersonSelect();
+        }
       });
     });
     document.querySelectorAll(".delete-person").forEach((btn) => {
       btn.addEventListener("click", async function() {
         const id = this.dataset.id;
+        const fteValues = await getFteValues();
+        const personFteValues = fteValues.filter((v) => v.personId === id);
+        for (const value of personFteValues) {
+          await deleteFteValue(value.id);
+        }
         await deletePerson(id);
         scheduleAutoBackup();
         renderPeople();
+        renderFteValues();
+      });
+    });
+  }
+  function attachFteValueEventListeners() {
+    if (typeof document === "undefined") return;
+    document.querySelectorAll("#fteValuesTable td[contenteditable]").forEach((td) => {
+      td.addEventListener("blur", async function() {
+        const id = parseInt(this.dataset.id);
+        const field = this.dataset.field;
+        const value = this.textContent;
+        const fteValues = await getFteValues();
+        const fteValue = fteValues.find((v) => v.id === id);
+        if (field === "fte") {
+          const validation = validateFteValue(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = fteValue.fte;
+            return;
+          }
+          fteValue.fte = parseFloat(value);
+        }
+        await updateFteValue(fteValue);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll(".fte-start").forEach((input) => {
+      input.addEventListener("blur", async function() {
+        const id = parseInt(this.dataset.id);
+        const fteValues = await getFteValues();
+        const fteValue = fteValues.find((v) => v.id === id);
+        fteValue.startMonth = this.value;
+        await updateFteValue(fteValue);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll(".fte-end").forEach((input) => {
+      input.addEventListener("blur", async function() {
+        const id = parseInt(this.dataset.id);
+        const fteValues = await getFteValues();
+        const fteValue = fteValues.find((v) => v.id === id);
+        fteValue.endMonth = this.value || null;
+        await updateFteValue(fteValue);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll(".delete-fte-value").forEach((btn) => {
+      btn.addEventListener("click", async function() {
+        const id = parseInt(this.dataset.id);
+        const validation = await validateFteValueDeletion(id);
+        if (!validation.valid) {
+          alert(validation.message);
+          return;
+        }
+        await deleteFteValue(id);
+        scheduleAutoBackup();
+        renderFteValues();
       });
     });
   }
@@ -681,20 +888,70 @@ var App = (() => {
       select.appendChild(option);
     });
   }
+  async function populateFtePersonSelect() {
+    if (typeof document === "undefined") return;
+    const select = document.getElementById("ftePersonSelect");
+    if (!select) return;
+    select.innerHTML = "";
+    const people = await getPeople();
+    people.filter((p) => p.active).forEach((p) => {
+      const option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = p.name;
+      select.appendChild(option);
+    });
+  }
   async function addPersonAuto(name) {
     const id = await generatePersonId();
-    await addPerson({ id, name, active: true, fte: 1 });
+    const defaults = peopleSchema.getDefaults();
+    await addPerson({
+      id,
+      name: name || defaults.name,
+      type: defaults.type,
+      active: defaults.active
+    });
+    const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
+    await addFteValue({
+      personId: id,
+      fte: 1,
+      startMonth: currentMonth,
+      endMonth: null
+      // Open-ended
+    });
     scheduleAutoBackup();
     renderPeople();
+    renderFteValues();
   }
   function initPeopleView() {
     if (typeof document === "undefined") return;
     const addPersonBtn = document.getElementById("addPersonBtn");
-    if (!addPersonBtn) return;
-    addPersonBtn.addEventListener("click", async () => {
-      const name = prompt("Person name");
-      if (name) await addPersonAuto(name);
-    });
+    if (addPersonBtn) {
+      addPersonBtn.addEventListener("click", async () => {
+        const name = prompt("Person name");
+        if (name) await addPersonAuto(name);
+      });
+    }
+    const addFteValueBtn = document.getElementById("addFteValueBtn");
+    if (addFteValueBtn) {
+      addFteValueBtn.addEventListener("click", async () => {
+        const personId = document.getElementById("ftePersonSelect").value;
+        const fte = parseFloat(document.getElementById("fteValueInput").value);
+        const startMonth = document.getElementById("fteStartMonthInput").value;
+        const endMonth = document.getElementById("fteEndMonthInput").value || null;
+        if (!personId || !startMonth) {
+          alert("Please select a person and start month");
+          return;
+        }
+        await addFteValue({
+          personId,
+          fte,
+          startMonth,
+          endMonth
+        });
+        scheduleAutoBackup();
+        renderFteValues();
+      });
+    }
   }
 
   // js/views/projectsView.js
@@ -708,13 +965,41 @@ var App = (() => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
             <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td contenteditable="true" data-id="${p.id}" data-field="plannedPM">${p.plannedPM ?? 0}</td>
             <td><button class="delete-project" data-id="${p.id}">Delete</button></td>
         `;
       tbody.appendChild(tr);
     });
     attachProjectsEventListeners();
     populateProjectSelect();
+  }
+  async function renderBudgetValues() {
+    if (typeof document === "undefined") return;
+    const tbody = document.querySelector("#budgetValuesTable tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const budgetValues = await getBudgetValues();
+    const projects = await getProjects();
+    const sortedValues = budgetValues.sort((a, b) => {
+      if (a.projectId !== b.projectId) {
+        return a.projectId.localeCompare(b.projectId);
+      }
+      return a.startMonth.localeCompare(b.startMonth);
+    });
+    sortedValues.forEach((value) => {
+      const project = projects.find((p) => p.id === value.projectId);
+      const projectName = project ? project.name : value.projectId;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+            <td>${projectName}</td>
+            <td contenteditable="true" data-id="${value.id}" data-field="plannedPM">${value.plannedPM}</td>
+            <td><input type="month" class="budget-start" value="${value.startMonth}" data-id="${value.id}"></td>
+            <td><input type="month" class="budget-end" value="${value.endMonth || ""}" data-id="${value.id}"></td>
+            <td><button class="delete-budget-value" data-id="${value.id}">Delete</button></td>
+        `;
+      tbody.appendChild(tr);
+    });
+    attachBudgetValueEventListeners();
+    populateBudgetProjectSelect();
   }
   function attachProjectsEventListeners() {
     document.querySelectorAll("#projectsTable td[contenteditable]").forEach((td) => {
@@ -727,8 +1012,7 @@ var App = (() => {
         if (field === "name") {
           project.name = value;
           populateProjectSelect();
-        } else if (field === "plannedPM") {
-          project.plannedPM = parseFloat(value);
+          renderBudgetValues();
         }
         await updateProject(project);
         scheduleAutoBackup();
@@ -737,9 +1021,71 @@ var App = (() => {
     document.querySelectorAll(".delete-project").forEach((btn) => {
       btn.addEventListener("click", async function() {
         const id = this.dataset.id;
+        const budgetValues = await getBudgetValues();
+        const projectBudgetValues = budgetValues.filter((v) => v.projectId === id);
+        for (const value of projectBudgetValues) {
+          await deleteBudgetValue(value.id);
+        }
         await deleteProject(id);
         scheduleAutoBackup();
         renderProjects();
+        renderBudgetValues();
+      });
+    });
+  }
+  function attachBudgetValueEventListeners() {
+    if (typeof document === "undefined") return;
+    document.querySelectorAll("#budgetValuesTable td[contenteditable]").forEach((td) => {
+      td.addEventListener("blur", async function() {
+        const id = parseInt(this.dataset.id);
+        const field = this.dataset.field;
+        const value = this.textContent;
+        const budgetValues = await getBudgetValues();
+        const budgetValue = budgetValues.find((v) => v.id === id);
+        if (field === "plannedPM") {
+          const validation = validatePlannedPM(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = budgetValue.plannedPM;
+            return;
+          }
+          budgetValue.plannedPM = parseFloat(value);
+        }
+        await updateBudgetValue(budgetValue);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll(".budget-start").forEach((input) => {
+      input.addEventListener("blur", async function() {
+        const id = parseInt(this.dataset.id);
+        const budgetValues = await getBudgetValues();
+        const budgetValue = budgetValues.find((v) => v.id === id);
+        budgetValue.startMonth = this.value;
+        await updateBudgetValue(budgetValue);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll(".budget-end").forEach((input) => {
+      input.addEventListener("blur", async function() {
+        const id = parseInt(this.dataset.id);
+        const budgetValues = await getBudgetValues();
+        const budgetValue = budgetValues.find((v) => v.id === id);
+        budgetValue.endMonth = this.value || null;
+        await updateBudgetValue(budgetValue);
+        scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll(".delete-budget-value").forEach((btn) => {
+      btn.addEventListener("click", async function() {
+        const id = parseInt(this.dataset.id);
+        const validation = await validateBudgetValueDeletion(id);
+        if (!validation.valid) {
+          alert(validation.message);
+          return;
+        }
+        await deleteBudgetValue(id);
+        scheduleAutoBackup();
+        renderBudgetValues();
       });
     });
   }
@@ -756,20 +1102,116 @@ var App = (() => {
       select.appendChild(option);
     });
   }
+  async function populateBudgetProjectSelect() {
+    if (typeof document === "undefined") return;
+    const select = document.getElementById("budgetProjectSelect");
+    if (!select) return;
+    select.innerHTML = "";
+    const projects = await getProjects();
+    projects.forEach((p) => {
+      const option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = p.name;
+      select.appendChild(option);
+    });
+  }
   async function addProjectAuto(name) {
     const id = await generateProjectId();
-    await addProject({ id, name, plannedPM: 0 });
+    await addProject({ id, name });
+    const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
+    await addBudgetValue({
+      projectId: id,
+      plannedPM: 0,
+      startMonth: currentMonth,
+      endMonth: null
+      // Open-ended
+    });
     scheduleAutoBackup();
     renderProjects();
+    renderBudgetValues();
   }
   function initProjectsView() {
     if (typeof document === "undefined") return;
     const addProjectBtn = document.getElementById("addProjectBtn");
-    if (!addProjectBtn) return;
-    addProjectBtn.addEventListener("click", async () => {
-      const name = prompt("Project name");
-      if (name) await addProjectAuto(name);
-    });
+    if (addProjectBtn) {
+      addProjectBtn.addEventListener("click", async () => {
+        const name = prompt("Project name");
+        if (name) await addProjectAuto(name);
+      });
+    }
+    const addBudgetValueBtn = document.getElementById("addBudgetValueBtn");
+    if (addBudgetValueBtn) {
+      addBudgetValueBtn.addEventListener("click", async () => {
+        const projectId = document.getElementById("budgetProjectSelect").value;
+        const plannedPM = parseFloat(document.getElementById("budgetValueInput").value);
+        const startMonth = document.getElementById("budgetStartMonthInput").value;
+        const endMonth = document.getElementById("budgetEndMonthInput").value || null;
+        if (!projectId || !startMonth) {
+          alert("Please select a project and start month");
+          return;
+        }
+        await addBudgetValue({
+          projectId,
+          plannedPM,
+          startMonth,
+          endMonth
+        });
+        scheduleAutoBackup();
+        renderBudgetValues();
+      });
+    }
+  }
+
+  // js/helpers/dateHelper.js
+  function getMonthsInYear(year) {
+    return Array.from(
+      { length: 12 },
+      (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`
+    );
+  }
+  function isMonthInRange(month, startMonth, endMonth) {
+    return month >= startMonth && (!endMonth || month <= endMonth);
+  }
+  function compareMonths(month1, month2) {
+    return month1.localeCompare(month2);
+  }
+
+  // js/helpers/overrideHelper.js
+  function getEffectiveFte(personId, month, fteValues) {
+    const applicableValues = fteValues.filter(
+      (value) => value.personId === personId && isMonthInRange(month, value.startMonth, value.endMonth)
+    );
+    if (applicableValues.length === 0) {
+      return 1;
+    }
+    const sortedValues = applicableValues.sort(
+      (a, b) => compareMonths(b.startMonth, a.startMonth)
+    );
+    return sortedValues[0].fte;
+  }
+  function getEffectiveProjectBudget(projectId, month, budgetValues) {
+    const applicableValues = budgetValues.filter(
+      (value) => value.projectId === projectId && isMonthInRange(month, value.startMonth, value.endMonth)
+    );
+    if (applicableValues.length === 0) {
+      return 0;
+    }
+    const sortedValues = applicableValues.sort(
+      (a, b) => compareMonths(b.startMonth, a.startMonth)
+    );
+    return sortedValues[0].plannedPM;
+  }
+  function getTotalEffectiveFte(personId, months, fteValues) {
+    return months.reduce((sum, month) => {
+      const monthFte = getEffectiveFte(personId, month, fteValues);
+      return sum + monthFte;
+    }, 0);
+  }
+  function getTotalEffectiveProjectBudget(projectId, months, budgetValues) {
+    return months.reduce((sum, month) => {
+      const monthPlanned = getEffectiveProjectBudget(projectId, month, budgetValues);
+      return sum + monthPlanned;
+    }, 0);
   }
 
   // js/helpers/allocationHelper.js
@@ -799,7 +1241,7 @@ var App = (() => {
       return 0;
     }
     return allocations.reduce((sum, alloc) => {
-      if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
+      if (isMonthInRange(month, alloc.startMonth, alloc.endMonth)) {
         let pct = alloc.pct;
         if (allocationOverrideIndex) {
           const overrideKey = `${alloc.id}:${month}`;
@@ -820,21 +1262,10 @@ var App = (() => {
     }
     return total;
   }
-  function calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides = null, allocationOverrideIndex = null) {
+  function calculateProjectTotal(allocationIndex, projectId, people, month, fteValues = null, allocationOverrideIndex = null) {
     let total = 0;
     for (const person of people) {
-      let fte = person.fte ?? 1;
-      if (fteOverrides) {
-        const applicableOverrides = fteOverrides.filter(
-          (override) => override.personId === person.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableOverrides.length > 0) {
-          const sortedOverrides = applicableOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          fte = sortedOverrides[0].fte;
-        }
-      }
+      const fte = fteValues ? getEffectiveFte(person.id, month, fteValues) : 1;
       total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
     }
     return total;
@@ -950,6 +1381,12 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        const validation = validateAllocationPercentage(this.value);
+        if (!validation.valid) {
+          alert(validation.message);
+          this.value = alloc.pct;
+          return;
+        }
         alloc.pct = parseFloat(this.value);
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1030,6 +1467,12 @@ var App = (() => {
         const overrides = await getAllocationOverrides();
         const override = overrides.find((o) => o.id === id);
         if (field === "pct") {
+          const validation = validateAllocationPercentage(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = override.pct;
+            return;
+          }
           override.pct = parseFloat(value);
         }
         await updateAllocationOverride(override);
@@ -1110,230 +1553,6 @@ var App = (() => {
     }
   }
 
-  // js/views/fteHistoryView.js
-  async function renderFteOverrides() {
-    if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#fteOverridesTable tbody");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    const overrides = await getFteOverrides();
-    const people = await getPeople();
-    const sortedOverrides = overrides.sort((a, b) => {
-      if (a.personId !== b.personId) {
-        return a.personId.localeCompare(b.personId);
-      }
-      return a.startMonth.localeCompare(b.startMonth);
-    });
-    sortedOverrides.forEach((override) => {
-      const person = people.find((p) => p.id === override.personId);
-      const personName = person ? person.name : override.personId;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-            <td>${personName}</td>
-            <td contenteditable="true" data-id="${override.id}" data-field="fte">${override.fte}</td>
-            <td><input type="month" class="fte-start" value="${override.startMonth}" data-id="${override.id}"></td>
-            <td><input type="month" class="fte-end" value="${override.endMonth || ""}" data-id="${override.id}"></td>
-            <td><button class="delete-fte-override" data-id="${override.id}">Delete</button></td>
-        `;
-      tbody.appendChild(tr);
-    });
-    attachFteOverrideEventListeners();
-    populateFtePersonSelect();
-  }
-  function attachFteOverrideEventListeners() {
-    if (typeof document === "undefined") return;
-    document.querySelectorAll("#fteOverridesTable td[contenteditable]").forEach((td) => {
-      td.addEventListener("blur", async function() {
-        const id = parseInt(this.dataset.id);
-        const field = this.dataset.field;
-        const value = this.textContent;
-        const overrides = await getFteOverrides();
-        const override = overrides.find((o) => o.id === id);
-        if (field === "fte") {
-          override.fte = parseFloat(value);
-        }
-        await updateFteOverride(override);
-        scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".fte-start").forEach((input) => {
-      input.addEventListener("blur", async function() {
-        const id = parseInt(this.dataset.id);
-        const overrides = await getFteOverrides();
-        const override = overrides.find((o) => o.id === id);
-        override.startMonth = this.value;
-        await updateFteOverride(override);
-        scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".fte-end").forEach((input) => {
-      input.addEventListener("blur", async function() {
-        const id = parseInt(this.dataset.id);
-        const overrides = await getFteOverrides();
-        const override = overrides.find((o) => o.id === id);
-        override.endMonth = this.value || null;
-        await updateFteOverride(override);
-        scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".delete-fte-override").forEach((btn) => {
-      btn.addEventListener("click", async function() {
-        const id = parseInt(this.dataset.id);
-        await deleteFteOverride(id);
-        scheduleAutoBackup();
-        renderFteOverrides();
-      });
-    });
-  }
-  async function populateFtePersonSelect() {
-    if (typeof document === "undefined") return;
-    const select = document.getElementById("ftePersonSelect");
-    if (!select) return;
-    select.innerHTML = "";
-    const people = await getPeople();
-    people.filter((p) => p.active).forEach((p) => {
-      const option = document.createElement("option");
-      option.value = p.id;
-      option.textContent = p.name;
-      select.appendChild(option);
-    });
-  }
-  function initFteHistoryView() {
-    if (typeof document === "undefined") return;
-    const addBtn = document.getElementById("addFteOverrideBtn");
-    if (!addBtn) return;
-    addBtn.addEventListener("click", async () => {
-      const personId = document.getElementById("ftePersonSelect").value;
-      const fte = parseFloat(document.getElementById("fteValueInput").value);
-      const startMonth = document.getElementById("fteStartMonthInput").value;
-      const endMonth = document.getElementById("fteEndMonthInput").value || null;
-      if (!personId || !startMonth) {
-        alert("Please select a person and start month");
-        return;
-      }
-      await addFteOverride({
-        personId,
-        fte,
-        startMonth,
-        endMonth
-      });
-      scheduleAutoBackup();
-      renderFteOverrides();
-    });
-  }
-
-  // js/views/budgetHistoryView.js
-  async function renderBudgetOverrides() {
-    if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#budgetOverridesTable tbody");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    const overrides = await getProjectBudgetOverrides();
-    const projects = await getProjects();
-    const sortedOverrides = overrides.sort((a, b) => {
-      if (a.projectId !== b.projectId) {
-        return a.projectId.localeCompare(b.projectId);
-      }
-      return a.startMonth.localeCompare(b.startMonth);
-    });
-    sortedOverrides.forEach((override) => {
-      const project = projects.find((p) => p.id === override.projectId);
-      const projectName = project ? project.name : override.projectId;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-            <td>${projectName}</td>
-            <td contenteditable="true" data-id="${override.id}" data-field="plannedPM">${override.plannedPM}</td>
-            <td><input type="month" class="budget-start" value="${override.startMonth}" data-id="${override.id}"></td>
-            <td><input type="month" class="budget-end" value="${override.endMonth || ""}" data-id="${override.id}"></td>
-            <td><button class="delete-budget-override" data-id="${override.id}">Delete</button></td>
-        `;
-      tbody.appendChild(tr);
-    });
-    attachBudgetOverrideEventListeners();
-    populateBudgetProjectSelect();
-  }
-  function attachBudgetOverrideEventListeners() {
-    if (typeof document === "undefined") return;
-    document.querySelectorAll("#budgetOverridesTable td[contenteditable]").forEach((td) => {
-      td.addEventListener("blur", async function() {
-        const id = parseInt(this.dataset.id);
-        const field = this.dataset.field;
-        const value = this.textContent;
-        const overrides = await getProjectBudgetOverrides();
-        const override = overrides.find((o) => o.id === id);
-        if (field === "plannedPM") {
-          override.plannedPM = parseFloat(value);
-        }
-        await updateProjectBudgetOverride(override);
-        scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".budget-start").forEach((input) => {
-      input.addEventListener("blur", async function() {
-        const id = parseInt(this.dataset.id);
-        const overrides = await getProjectBudgetOverrides();
-        const override = overrides.find((o) => o.id === id);
-        override.startMonth = this.value;
-        await updateProjectBudgetOverride(override);
-        scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".budget-end").forEach((input) => {
-      input.addEventListener("blur", async function() {
-        const id = parseInt(this.dataset.id);
-        const overrides = await getProjectBudgetOverrides();
-        const override = overrides.find((o) => o.id === id);
-        override.endMonth = this.value || null;
-        await updateProjectBudgetOverride(override);
-        scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".delete-budget-override").forEach((btn) => {
-      btn.addEventListener("click", async function() {
-        const id = parseInt(this.dataset.id);
-        await deleteProjectBudgetOverride(id);
-        scheduleAutoBackup();
-        renderBudgetOverrides();
-      });
-    });
-  }
-  async function populateBudgetProjectSelect() {
-    if (typeof document === "undefined") return;
-    const select = document.getElementById("budgetProjectSelect");
-    if (!select) return;
-    select.innerHTML = "";
-    const projects = await getProjects();
-    projects.forEach((p) => {
-      const option = document.createElement("option");
-      option.value = p.id;
-      option.textContent = p.name;
-      select.appendChild(option);
-    });
-  }
-  function initBudgetHistoryView() {
-    if (typeof document === "undefined") return;
-    const addBtn = document.getElementById("addBudgetOverrideBtn");
-    if (!addBtn) return;
-    addBtn.addEventListener("click", async () => {
-      const projectId = document.getElementById("budgetProjectSelect").value;
-      const plannedPM = parseFloat(document.getElementById("budgetValueInput").value);
-      const startMonth = document.getElementById("budgetStartMonthInput").value;
-      const endMonth = document.getElementById("budgetEndMonthInput").value || null;
-      if (!projectId || !startMonth) {
-        alert("Please select a project and start month");
-        return;
-      }
-      await addProjectBudgetOverride({
-        projectId,
-        plannedPM,
-        startMonth,
-        endMonth
-      });
-      scheduleAutoBackup();
-      renderBudgetOverrides();
-    });
-  }
-
   // js/helpers/classUtil.js
   function cellClass(actual, expected) {
     if (actual === expected) return "correct";
@@ -1345,8 +1564,8 @@ var App = (() => {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     const allocationIndex = buildAllocationIndex(allocations);
     const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
@@ -1357,16 +1576,7 @@ var App = (() => {
     personTable.innerHTML = `<thead><tr>${pHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const pTbody = document.createElement("tbody");
     people.forEach((p) => {
-      let fte = p.fte ?? 1;
-      const applicableFteOverrides = fteOverrides.filter(
-        (override) => override.personId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-      );
-      if (applicableFteOverrides.length > 0) {
-        const sortedOverrides = applicableFteOverrides.sort(
-          (a, b) => b.startMonth.localeCompare(a.startMonth)
-        );
-        fte = sortedOverrides[0].fte;
-      }
+      const fte = getEffectiveFte(p.id, month, fteValues);
       const cells = projects.map((proj) => calculatePM(allocationIndex, p.id, proj.id, month, fte, allocationOverrideIndex));
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
@@ -1377,7 +1587,7 @@ var App = (() => {
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
     sumRow.innerHTML = `<td><strong>Total</strong></td>` + projects.map((proj) => {
-      const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
+      const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
       return `<td><strong>${sum.toFixed(2)}</strong></td>`;
     }).join("") + `<td colspan="3"></td>`;
     tfoot.appendChild(sumRow);
@@ -1389,17 +1599,8 @@ var App = (() => {
     projTable.innerHTML = `<thead><tr>${projHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const projTbody = document.createElement("tbody");
     projects.forEach((proj) => {
-      const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
-      let planned = proj.plannedPM ?? 0;
-      const applicableBudgetOverrides = projectBudgetOverrides.filter(
-        (override) => override.projectId === proj.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-      );
-      if (applicableBudgetOverrides.length > 0) {
-        const sortedOverrides = applicableBudgetOverrides.sort(
-          (a, b) => b.startMonth.localeCompare(a.startMonth)
-        );
-        planned = sortedOverrides[0].plannedPM;
-      }
+      const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
+      const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
       const delta = total - planned;
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${proj.name}</td><td class="${cellClass(total, planned)}">${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
@@ -1423,50 +1624,27 @@ var App = (() => {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     const allocationIndex = buildAllocationIndex(allocations);
     const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Yearly Overview ${year}</h3>`;
-    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
+    const months = getMonthsInYear(year);
     const personTable = document.createElement("table");
     const pHeader = ["Person", ...months, "Total", "FTE", "Delta"];
     personTable.innerHTML = `<thead><tr>${pHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const pTbody = document.createElement("tbody");
     people.forEach((p) => {
-      const fte = p.fte ?? 1;
-      const cells = calculatePersonMonthlyTotals(allocationIndex, p.id, projects, months, fte, fteOverrides, allocationOverrideIndex);
+      const cells = calculatePersonMonthlyTotals(allocationIndex, p.id, projects, months, 1, fteValues, allocationOverrideIndex);
       const total = sumArray(cells);
-      let expectedFteYearly = 0;
-      months.forEach((month) => {
-        let monthFte = fte;
-        const applicableFteOverrides = fteOverrides.filter(
-          (override) => override.personId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableFteOverrides.length > 0) {
-          const sortedOverrides = applicableFteOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthFte = sortedOverrides[0].fte;
-        }
-        expectedFteYearly += monthFte;
-      });
+      const expectedFteYearly = getTotalEffectiveFte(p.id, months, fteValues);
       const delta = total - expectedFteYearly;
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
         const month = months[idx];
-        let monthFte = fte;
-        const applicableFteOverrides = fteOverrides.filter(
-          (override) => override.personId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableFteOverrides.length > 0) {
-          const sortedOverrides = applicableFteOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthFte = sortedOverrides[0].fte;
-        }
+        const monthFte = getEffectiveFte(p.id, month, fteValues);
         return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td><td>${expectedFteYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
@@ -1476,17 +1654,8 @@ var App = (() => {
     const monthlySums = months.map((m) => {
       let sum = 0;
       people.forEach((p) => {
-        let fte = p.fte ?? 1;
-        const applicableFteOverrides = fteOverrides.filter(
-          (override) => override.personId === p.id && override.startMonth <= m && (!override.endMonth || override.endMonth >= m)
-        );
-        if (applicableFteOverrides.length > 0) {
-          const sortedOverrides = applicableFteOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          fte = sortedOverrides[0].fte;
-        }
-        sum += calculatePersonTotal(allocationIndex, p.id, projects, m, fte, allocationOverrideIndex);
+        const monthFte = getEffectiveFte(p.id, m, fteValues);
+        sum += calculatePersonTotal(allocationIndex, p.id, projects, m, monthFte, allocationOverrideIndex);
       });
       return sum;
     });
@@ -1494,16 +1663,7 @@ var App = (() => {
     let fteSum = 0;
     people.forEach((p) => {
       months.forEach((month) => {
-        let monthFte = p.fte ?? 1;
-        const applicableFteOverrides = fteOverrides.filter(
-          (override) => override.personId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableFteOverrides.length > 0) {
-          const sortedOverrides = applicableFteOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthFte = sortedOverrides[0].fte;
-        }
+        const monthFte = getEffectiveFte(p.id, month, fteValues);
         fteSum += monthFte;
       });
     });
@@ -1518,36 +1678,14 @@ var App = (() => {
     projTable.innerHTML = `<thead><tr>${projHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const projTbody = document.createElement("tbody");
     projects.forEach((p) => {
-      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteOverrides, allocationOverrideIndex);
+      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex);
       const total = sumArray(cells);
-      let expectedPlannedYearly = 0;
-      months.forEach((month) => {
-        let monthPlanned = p.plannedPM ?? 0;
-        const applicableBudgetOverrides = projectBudgetOverrides.filter(
-          (override) => override.projectId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableBudgetOverrides.length > 0) {
-          const sortedOverrides = applicableBudgetOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthPlanned = sortedOverrides[0].plannedPM;
-        }
-        expectedPlannedYearly += monthPlanned;
-      });
+      const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, months, budgetValues);
       const delta = total - expectedPlannedYearly;
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
         const month = months[idx];
-        let monthPlanned = p.plannedPM ?? 0;
-        const applicableBudgetOverrides = projectBudgetOverrides.filter(
-          (override) => override.projectId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableBudgetOverrides.length > 0) {
-          const sortedOverrides = applicableBudgetOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthPlanned = sortedOverrides[0].plannedPM;
-        }
+        const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
         return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td><td>${expectedPlannedYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       projTbody.appendChild(tr);
@@ -1557,26 +1695,14 @@ var App = (() => {
     const monthlySumsProj = months.map((m) => {
       let sum = 0;
       projects.forEach((p) => {
-        sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteOverrides, allocationOverrideIndex);
+        sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteValues, allocationOverrideIndex);
       });
       return sum;
     });
     const totalSumProj = sumArray(monthlySumsProj);
     let plannedSumProj = 0;
     projects.forEach((p) => {
-      months.forEach((month) => {
-        let monthPlanned = p.plannedPM ?? 0;
-        const applicableBudgetOverrides = projectBudgetOverrides.filter(
-          (override) => override.projectId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableBudgetOverrides.length > 0) {
-          const sortedOverrides = applicableBudgetOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthPlanned = sortedOverrides[0].plannedPM;
-        }
-        plannedSumProj += monthPlanned;
-      });
+      plannedSumProj += getTotalEffectiveProjectBudget(p.id, months, budgetValues);
     });
     const deltaSumProj = totalSumProj - plannedSumProj;
     sumRowProj.innerHTML = `<td><strong>Total</strong></td>` + monthlySumsProj.map((sum) => `<td><strong>${sum.toFixed(2)}</strong></td>`).join("") + `<td><strong>${totalSumProj.toFixed(2)}</strong></td><td><strong>${plannedSumProj.toFixed(2)}</strong></td><td class="${cellClass(deltaSumProj, 0)}"><strong>${deltaSumProj.toFixed(2)}</strong></td>`;
@@ -1600,8 +1726,8 @@ var App = (() => {
     const projects = await getProjects();
     const people = await getPeople();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     const allocationIndex = buildAllocationIndex(allocations);
     const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
@@ -1613,36 +1739,14 @@ var App = (() => {
     table.innerHTML = `<thead><tr>${header.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const tbody = document.createElement("tbody");
     projects.forEach((p) => {
-      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteOverrides, allocationOverrideIndex);
+      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex);
       const total = sumArray(cells);
-      let expectedPlannedYearly = 0;
-      months.forEach((month) => {
-        let monthPlanned = p.plannedPM ?? 0;
-        const applicableBudgetOverrides = projectBudgetOverrides.filter(
-          (override) => override.projectId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableBudgetOverrides.length > 0) {
-          const sortedOverrides = applicableBudgetOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthPlanned = sortedOverrides[0].plannedPM;
-        }
-        expectedPlannedYearly += monthPlanned;
-      });
+      const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, months, budgetValues);
       const delta = total - expectedPlannedYearly;
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
         const month = months[idx];
-        let monthPlanned = p.plannedPM ?? 0;
-        const applicableBudgetOverrides = projectBudgetOverrides.filter(
-          (override) => override.projectId === p.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableBudgetOverrides.length > 0) {
-          const sortedOverrides = applicableBudgetOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          monthPlanned = sortedOverrides[0].plannedPM;
-        }
+        const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
         return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td><td>${expectedPlannedYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       tbody.appendChild(tr);
@@ -1652,7 +1756,7 @@ var App = (() => {
     sumRow.innerHTML = `<td><strong>Total</strong></td>` + months.map((month) => {
       let monthSum = 0;
       projects.forEach((p) => {
-        monthSum += calculateProjectTotal(allocationIndex, p.id, people, month, fteOverrides, allocationOverrideIndex);
+        monthSum += calculateProjectTotal(allocationIndex, p.id, people, month, fteValues, allocationOverrideIndex);
       });
       return `<td><strong>${monthSum.toFixed(2)}</strong></td>`;
     }).join("") + `<td colspan="3"></td>`;
@@ -1902,23 +2006,21 @@ The file will be saved to your browser's default Downloads folder.
       initPeopleView();
       initProjectsView();
       initAllocationsView();
-      initFteHistoryView();
-      initBudgetHistoryView();
       init();
       initMonthlyReport();
       initYearlyReport();
       initProjectOverview();
       await renderPeople();
+      await renderFteValues();
       await renderProjects();
+      await renderBudgetValues();
       await renderAllocations();
       await renderAllocationOverrides();
-      await renderFteOverrides();
-      await renderBudgetOverrides();
       await populatePersonSelect();
-      await populateProjectSelect();
-      await populateAllocationSelect();
       await populateFtePersonSelect();
+      await populateProjectSelect();
       await populateBudgetProjectSelect();
+      await populateAllocationSelect();
       try {
         await createBackup();
         console.log("Initial backup created");

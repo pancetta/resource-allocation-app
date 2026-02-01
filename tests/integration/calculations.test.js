@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openDatabase, addPerson, addProject, addAllocation } from '../../js/data/database.js';
+import { openDatabase, addPerson, addProject, addAllocation, addFteValue, addBudgetValue } from '../../js/data/database.js';
 import { calculateMonth } from '../../js/views/monthlyReport.js';
 import { calculateYear } from '../../js/views/yearlyReport.js';
 
@@ -11,12 +11,18 @@ describe('Calculation Integration Tests', () => {
     // Open database
     await openDatabase();
     
-    // Add test data
-    await addPerson({ id: 'p001', name: 'Alice', fte: 1, active: true });
-    await addPerson({ id: 'p002', name: 'Bob', fte: 0.8, active: true });
+    // Add test data - now with separate FTE and budget values
+    await addPerson({ id: 'p001', name: 'Alice', active: true });
+    await addFteValue({ personId: 'p001', fte: 1, startMonth: '2025-01', endMonth: null });
     
-    await addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 1.5 });
-    await addProject({ id: 'proj002', name: 'Project Beta', plannedPM: 0.8 });
+    await addPerson({ id: 'p002', name: 'Bob', active: true });
+    await addFteValue({ personId: 'p002', fte: 0.8, startMonth: '2025-01', endMonth: null });
+    
+    await addProject({ id: 'proj001', name: 'Project Alpha' });
+    await addBudgetValue({ projectId: 'proj001', plannedPM: 1.5, startMonth: '2025-01', endMonth: null });
+    
+    await addProject({ id: 'proj002', name: 'Project Beta' });
+    await addBudgetValue({ projectId: 'proj002', plannedPM: 0.8, startMonth: '2025-01', endMonth: null });
   });
 
   describe('Monthly Calculations', () => {

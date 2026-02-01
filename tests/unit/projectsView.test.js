@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderProjects, populateProjectSelect, addProjectAuto, initProjectsView } from '../../js/views/projectsView.js';
+import { renderProjects, renderBudgetValues, populateProjectSelect, addProjectAuto, initProjectsView } from '../../js/views/projectsView.js';
 import * as db from '../../js/data/database.js';
 
 describe('Projects View', () => {
@@ -8,13 +8,21 @@ describe('Projects View', () => {
     await db.openDatabase();
     db.clearCache();
     
-    // Setup DOM
+    // Setup DOM - now includes both projects table and budget values table
     document.body.innerHTML = `
       <table id="projectsTable">
         <tbody></tbody>
       </table>
+      <table id="budgetValuesTable">
+        <tbody></tbody>
+      </table>
       <select id="projectSelect"></select>
+      <select id="budgetProjectSelect"></select>
       <button id="addProjectBtn">Add Project</button>
+      <input type="number" id="budgetValueInput" value="5">
+      <input type="month" id="budgetStartMonthInput" value="2025-01">
+      <input type="month" id="budgetEndMonthInput" value="">
+      <button id="addBudgetValueBtn">Add Budget Value</button>
     `;
   });
 
@@ -27,8 +35,8 @@ describe('Projects View', () => {
     });
 
     it('should render projects in table', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
-      await db.addProject({ id: 'proj002', name: 'Project Beta', plannedPM: 6 });
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
+      await db.addProject({ id: 'proj002', name: 'Project Beta' });
       
       await renderProjects();
       
@@ -37,20 +45,20 @@ describe('Projects View', () => {
       
       const firstRow = tbody.children[0];
       expect(firstRow.querySelector('[data-field="name"]').textContent).toBe('Project Alpha');
-      expect(firstRow.querySelector('[data-field="plannedPM"]').textContent).toBe('12');
     });
 
-    it('should render project with default plannedPM of 0 when plannedPM is null', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Gamma', plannedPM: null });
+    it('should render projects without plannedPM column (budget is now in separate table)', async () => {
+      await db.addProject({ id: 'proj001', name: 'Project Gamma' });
       
       await renderProjects();
       
+      // plannedPM column should not exist in projects table anymore
       const plannedCell = document.querySelector('[data-field="plannedPM"]');
-      expect(plannedCell.textContent).toBe('0');
+      expect(plannedCell).toBeNull();
     });
 
     it('should call populateProjectSelect after rendering', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
       
       await renderProjects();
       
@@ -63,9 +71,9 @@ describe('Projects View', () => {
 
   describe('populateProjectSelect', () => {
     it('should populate select with all projects', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
-      await db.addProject({ id: 'proj002', name: 'Project Beta', plannedPM: 6 });
-      await db.addProject({ id: 'proj003', name: 'Project Gamma', plannedPM: 8 });
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
+      await db.addProject({ id: 'proj002', name: 'Project Beta' });
+      await db.addProject({ id: 'proj003', name: 'Project Gamma' });
       
       await populateProjectSelect();
       
@@ -80,7 +88,7 @@ describe('Projects View', () => {
       const select = document.getElementById('projectSelect');
       select.innerHTML = '<option>Old Option</option>';
       
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
       await populateProjectSelect();
       
       expect(select.children.length).toBe(1);
@@ -96,14 +104,20 @@ describe('Projects View', () => {
   });
 
   describe('addProjectAuto', () => {
-    it('should add project with auto-generated ID', async () => {
+    it('should add project with auto-generated ID and initial budget value', async () => {
       await addProjectAuto('Project Alpha');
       
       const projects = await db.getProjects();
       expect(projects.length).toBe(1);
       expect(projects[0].id).toBe('proj001');
       expect(projects[0].name).toBe('Project Alpha');
-      expect(projects[0].plannedPM).toBe(0);
+      
+      // Should also create an initial budget value
+      const budgetValues = await db.getBudgetValues();
+      expect(budgetValues.length).toBe(1);
+      expect(budgetValues[0].projectId).toBe('proj001');
+      expect(budgetValues[0].plannedPM).toBe(0);
+      expect(budgetValues[0].endMonth).toBeNull(); // Open-ended
     });
 
     it('should generate sequential IDs', async () => {
@@ -143,7 +157,7 @@ describe('Projects View', () => {
 
   describe('event handlers', () => {
     it('should update project name on blur', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
       await renderProjects();
       
       const nameCell = document.querySelector('[data-field="name"]');
@@ -157,23 +171,9 @@ describe('Projects View', () => {
       expect(projects[0].name).toBe('Project Alpha Updated');
     });
 
-    it('should update project plannedPM on blur', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
-      await renderProjects();
-      
-      const plannedCell = document.querySelector('[data-field="plannedPM"]');
-      plannedCell.textContent = '18';
-      plannedCell.dispatchEvent(new Event('blur'));
-      
-      // Wait for async update
-      await new Promise(resolve => setTimeout(resolve, 10));
-      
-      const projects = await db.getProjects();
-      expect(projects[0].plannedPM).toBe(18);
-    });
-
-    it('should delete project on delete button click', async () => {
-      await db.addProject({ id: 'proj001', name: 'Project Alpha', plannedPM: 12 });
+    it('should delete project and associated budget values on delete button click', async () => {
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
+      await db.addBudgetValue({ projectId: 'proj001', plannedPM: 12, startMonth: '2025-01', endMonth: null });
       await renderProjects();
       
       const deleteBtn = document.querySelector('.delete-project');
@@ -184,6 +184,10 @@ describe('Projects View', () => {
       
       const projects = await db.getProjects();
       expect(projects.length).toBe(0);
+      
+      // Budget values should also be deleted
+      const budgetValues = await db.getBudgetValues();
+      expect(budgetValues.length).toBe(0);
     });
   });
 });

@@ -178,7 +178,7 @@ The project uses GitHub Actions for continuous integration:
   - Automatically when Copilot creates/modifies PRs
 - Runs the exact same tests as the main CI workflow
 - Ensures Copilot uses the same environment and catches issues early
-- **Uses `pull_request_target` trigger**: This runs workflows in the context of the base branch, avoiding GitHub's security restrictions that require manual approval for PRs from GitHub Apps. The workflow explicitly checks out the PR code using `ref: ${{ github.event.pull_request.head.sha }}` to test the actual changes while maintaining security.
+- **Uses `pull_request_target` trigger**: This runs workflows in the context of the base branch, avoiding GitHub's security restrictions that require manual approval for PRs from GitHub Apps. The workflow explicitly checks out the PR code using `ref: ${{ github.event.pull_request.head.sha || github.sha }}` to test the actual changes (with a fallback to `github.sha` for push events) while maintaining security.
 
 Both workflows use identical:
 - Node.js version (20)

@@ -25,15 +25,32 @@ export function buildAllocationIndex(allocations) {
 }
 
 /**
+ * Build an index map for fast allocation override lookups
+ * @param {Array} allocationOverrides - Array of allocation override objects
+ * @returns {Map} Map with composite keys "allocationId:month" pointing to override objects
+ */
+export function buildAllocationOverrideIndex(allocationOverrides) {
+    const index = new Map();
+    
+    for (const override of allocationOverrides) {
+        const key = `${override.allocationId}:${override.month}`;
+        index.set(key, override);
+    }
+    
+    return index;
+}
+
+/**
  * Calculate person-months for a specific person/project/month combination
  * @param {Map} allocationIndex - Pre-built allocation index
  * @param {string} personId - Person ID
  * @param {string} projectId - Project ID
  * @param {string} month - Month string in YYYY-MM format
  * @param {number} fte - Person's FTE value
+ * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {number} Calculated person-months
  */
-export function calculatePM(allocationIndex, personId, projectId, month, fte) {
+export function calculatePM(allocationIndex, personId, projectId, month, fte, allocationOverrideIndex = null) {
     const key = `${personId}:${projectId}`;
     const allocations = allocationIndex.get(key);
     
@@ -44,7 +61,16 @@ export function calculatePM(allocationIndex, personId, projectId, month, fte) {
     return allocations.reduce((sum, alloc) => {
         // Check if allocation is active for this month
         if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
-            return sum + (alloc.pct * fte);
+            // Check for allocation override
+            let pct = alloc.pct;
+            if (allocationOverrideIndex) {
+                const overrideKey = `${alloc.id}:${month}`;
+                const override = allocationOverrideIndex.get(overrideKey);
+                if (override) {
+                    pct = override.pct;
+                }
+            }
+            return sum + (pct * fte);
         }
         return sum;
     }, 0);
@@ -57,13 +83,14 @@ export function calculatePM(allocationIndex, personId, projectId, month, fte) {
  * @param {Array} projects - Array of project objects
  * @param {string} month - Month string in YYYY-MM format
  * @param {number} fte - Person's FTE value
+ * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {number} Total person-months
  */
-export function calculatePersonTotal(allocationIndex, personId, projects, month, fte) {
+export function calculatePersonTotal(allocationIndex, personId, projects, month, fte, allocationOverrideIndex = null) {
     let total = 0;
     
     for (const project of projects) {
-        total += calculatePM(allocationIndex, personId, project.id, month, fte);
+        total += calculatePM(allocationIndex, personId, project.id, month, fte, allocationOverrideIndex);
     }
     
     return total;
@@ -75,14 +102,34 @@ export function calculatePersonTotal(allocationIndex, personId, projects, month,
  * @param {string} projectId - Project ID
  * @param {Array} people - Array of person objects
  * @param {string} month - Month string in YYYY-MM format
+ * @param {Array} [fteOverrides] - Optional array of FTE override objects
+ * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {number} Total person-months
  */
-export function calculateProjectTotal(allocationIndex, projectId, people, month) {
+export function calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides = null, allocationOverrideIndex = null) {
     let total = 0;
     
     for (const person of people) {
-        const fte = person.fte ?? 1;
-        total += calculatePM(allocationIndex, person.id, projectId, month, fte);
+        let fte = person.fte ?? 1;
+        
+        // Check for FTE override
+        if (fteOverrides) {
+            const applicableOverrides = fteOverrides.filter(override => 
+                override.personId === person.id &&
+                override.startMonth <= month &&
+                (!override.endMonth || override.endMonth >= month)
+            );
+            
+            if (applicableOverrides.length > 0) {
+                // Use the most recent override
+                const sortedOverrides = applicableOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                fte = sortedOverrides[0].fte;
+            }
+        }
+        
+        total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
     }
     
     return total;
@@ -94,11 +141,33 @@ export function calculateProjectTotal(allocationIndex, projectId, people, month)
  * @param {string} personId - Person ID
  * @param {Array} projects - Array of project objects
  * @param {Array} months - Array of month strings in YYYY-MM format
- * @param {number} fte - Person's FTE value
+ * @param {number} fte - Person's FTE value (base value, overrides handled per-month)
+ * @param {Array} [fteOverrides] - Optional array of FTE override objects
+ * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {Array} Array of monthly totals
  */
-export function calculatePersonMonthlyTotals(allocationIndex, personId, projects, months, fte) {
-    return months.map(month => calculatePersonTotal(allocationIndex, personId, projects, month, fte));
+export function calculatePersonMonthlyTotals(allocationIndex, personId, projects, months, fte, fteOverrides = null, allocationOverrideIndex = null) {
+    return months.map(month => {
+        let effectiveFte = fte;
+        
+        // Check for FTE override for this specific month
+        if (fteOverrides) {
+            const applicableOverrides = fteOverrides.filter(override => 
+                override.personId === personId &&
+                override.startMonth <= month &&
+                (!override.endMonth || override.endMonth >= month)
+            );
+            
+            if (applicableOverrides.length > 0) {
+                const sortedOverrides = applicableOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                effectiveFte = sortedOverrides[0].fte;
+            }
+        }
+        
+        return calculatePersonTotal(allocationIndex, personId, projects, month, effectiveFte, allocationOverrideIndex);
+    });
 }
 
 /**
@@ -107,10 +176,12 @@ export function calculatePersonMonthlyTotals(allocationIndex, personId, projects
  * @param {string} projectId - Project ID
  * @param {Array} people - Array of person objects
  * @param {Array} months - Array of month strings in YYYY-MM format
+ * @param {Array} [fteOverrides] - Optional array of FTE override objects
+ * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {Array} Array of monthly totals
  */
-export function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months) {
-    return months.map(month => calculateProjectTotal(allocationIndex, projectId, people, month));
+export function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null) {
+    return months.map(month => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex));
 }
 
 /**

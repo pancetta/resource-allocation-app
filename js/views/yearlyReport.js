@@ -1,15 +1,19 @@
-import { getPeople, getProjects, getAllocations } from '../data/database.js';
+import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
 
 // Yearly Overview
 export async function calculateYear(year) {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
+    const fteOverrides = await getFteOverrides();
+    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const allocationOverrides = await getAllocationOverrides();
     
-    // Build index once for performance
+    // Build indices once for performance
     const allocationIndex = buildAllocationIndex(allocations);
+    const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
     
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Yearly Overview ${year}</h3>`;
@@ -24,15 +28,49 @@ export async function calculateYear(year) {
 
     people.forEach(p => {
         const fte = p.fte ?? 1;
-        const cells = calculatePersonMonthlyTotals(allocationIndex, p.id, projects, months, fte);
+        const cells = calculatePersonMonthlyTotals(allocationIndex, p.id, projects, months, fte, fteOverrides, allocationOverrideIndex);
         const total = sumArray(cells);
-        const delta = total - (fte * 12);
+        
+        // Calculate expected FTE for the year considering overrides
+        let expectedFteYearly = 0;
+        months.forEach(month => {
+            let monthFte = fte;
+            const applicableFteOverrides = fteOverrides.filter(override => 
+                override.personId === p.id &&
+                override.startMonth <= month &&
+                (!override.endMonth || override.endMonth >= month)
+            );
+            if (applicableFteOverrides.length > 0) {
+                const sortedOverrides = applicableFteOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                monthFte = sortedOverrides[0].fte;
+            }
+            expectedFteYearly += monthFte;
+        });
+        
+        const delta = total - expectedFteYearly;
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
-            cells.map(c => `<td class="${cellClass(c, fte)}">${c.toFixed(2)}</td>`).join('') +
-            `<td class="${cellClass(total, fte * 12)}">${total.toFixed(2)}</td>` +
-            `<td>${(fte * 12).toFixed(2)}</td>` +
+            cells.map((c, idx) => {
+                const month = months[idx];
+                let monthFte = fte;
+                const applicableFteOverrides = fteOverrides.filter(override => 
+                    override.personId === p.id &&
+                    override.startMonth <= month &&
+                    (!override.endMonth || override.endMonth >= month)
+                );
+                if (applicableFteOverrides.length > 0) {
+                    const sortedOverrides = applicableFteOverrides.sort((a, b) => 
+                        b.startMonth.localeCompare(a.startMonth)
+                    );
+                    monthFte = sortedOverrides[0].fte;
+                }
+                return `<td class="${cellClass(c, monthFte)}">${c.toFixed(2)}</td>`;
+            }).join('') +
+            `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td>` +
+            `<td>${expectedFteYearly.toFixed(2)}</td>` +
             `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
         pTbody.appendChild(tr);
     });
@@ -46,15 +84,43 @@ export async function calculateYear(year) {
     const monthlySums = months.map(m => {
         let sum = 0;
         people.forEach(p => {
-            const fte = p.fte ?? 1;
-            sum += calculatePersonTotal(allocationIndex, p.id, projects, m, fte);
+            let fte = p.fte ?? 1;
+            const applicableFteOverrides = fteOverrides.filter(override => 
+                override.personId === p.id &&
+                override.startMonth <= m &&
+                (!override.endMonth || override.endMonth >= m)
+            );
+            if (applicableFteOverrides.length > 0) {
+                const sortedOverrides = applicableFteOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                fte = sortedOverrides[0].fte;
+            }
+            sum += calculatePersonTotal(allocationIndex, p.id, projects, m, fte, allocationOverrideIndex);
         });
         return sum;
     });
 
-    // Calculate total sum
+    // Calculate total sum considering FTE overrides
     const totalSum = sumArray(monthlySums);
-    const fteSum = people.reduce((sum, p) => sum + (p.fte ?? 1) * 12, 0);
+    let fteSum = 0;
+    people.forEach(p => {
+        months.forEach(month => {
+            let monthFte = p.fte ?? 1;
+            const applicableFteOverrides = fteOverrides.filter(override => 
+                override.personId === p.id &&
+                override.startMonth <= month &&
+                (!override.endMonth || override.endMonth >= month)
+            );
+            if (applicableFteOverrides.length > 0) {
+                const sortedOverrides = applicableFteOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                monthFte = sortedOverrides[0].fte;
+            }
+            fteSum += monthFte;
+        });
+    });
     const deltaSum = totalSum - fteSum;
 
     // Build the total row HTML in one statement
@@ -76,16 +142,49 @@ export async function calculateYear(year) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(p => {
-        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months);
+        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteOverrides, allocationOverrideIndex);
         const total = sumArray(cells);
-        const plannedTotal = (p.plannedPM ?? 0) * 12;
-        const delta = total - plannedTotal;
+        
+        // Calculate expected planned PM for the year considering overrides
+        let expectedPlannedYearly = 0;
+        months.forEach(month => {
+            let monthPlanned = p.plannedPM ?? 0;
+            const applicableBudgetOverrides = projectBudgetOverrides.filter(override => 
+                override.projectId === p.id &&
+                override.startMonth <= month &&
+                (!override.endMonth || override.endMonth >= month)
+            );
+            if (applicableBudgetOverrides.length > 0) {
+                const sortedOverrides = applicableBudgetOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                monthPlanned = sortedOverrides[0].plannedPM;
+            }
+            expectedPlannedYearly += monthPlanned;
+        });
+        
+        const delta = total - expectedPlannedYearly;
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
-            cells.map(c => `<td class="${cellClass(c, p.plannedPM ?? 0)}">${c.toFixed(2)}</td>`).join('') +
-            `<td class="${cellClass(total, plannedTotal)}">${total.toFixed(2)}</td>` +
-            `<td>${plannedTotal.toFixed(2)}</td>` +
+            cells.map((c, idx) => {
+                const month = months[idx];
+                let monthPlanned = p.plannedPM ?? 0;
+                const applicableBudgetOverrides = projectBudgetOverrides.filter(override => 
+                    override.projectId === p.id &&
+                    override.startMonth <= month &&
+                    (!override.endMonth || override.endMonth >= month)
+                );
+                if (applicableBudgetOverrides.length > 0) {
+                    const sortedOverrides = applicableBudgetOverrides.sort((a, b) => 
+                        b.startMonth.localeCompare(a.startMonth)
+                    );
+                    monthPlanned = sortedOverrides[0].plannedPM;
+                }
+                return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
+            }).join('') +
+            `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>` +
+            `<td>${expectedPlannedYearly.toFixed(2)}</td>` +
             `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
         projTbody.appendChild(tr);
     });
@@ -98,14 +197,31 @@ export async function calculateYear(year) {
     const monthlySumsProj = months.map(m => {
         let sum = 0;
         projects.forEach(p => {
-            sum += calculateProjectTotal(allocationIndex, p.id, people, m);
+            sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteOverrides, allocationOverrideIndex);
         });
         return sum;
     });
 
-    // Calculate total sum
+    // Calculate total sum considering budget overrides
     const totalSumProj = sumArray(monthlySumsProj);
-    const plannedSumProj = projects.reduce((sum, p) => (sum + (p.plannedPM ?? 0) * 12), 0);
+    let plannedSumProj = 0;
+    projects.forEach(p => {
+        months.forEach(month => {
+            let monthPlanned = p.plannedPM ?? 0;
+            const applicableBudgetOverrides = projectBudgetOverrides.filter(override => 
+                override.projectId === p.id &&
+                override.startMonth <= month &&
+                (!override.endMonth || override.endMonth >= month)
+            );
+            if (applicableBudgetOverrides.length > 0) {
+                const sortedOverrides = applicableBudgetOverrides.sort((a, b) => 
+                    b.startMonth.localeCompare(a.startMonth)
+                );
+                monthPlanned = sortedOverrides[0].plannedPM;
+            }
+            plannedSumProj += monthPlanned;
+        });
+    });
     const deltaSumProj = totalSumProj - plannedSumProj;
 
     // Build the total row HTML in one statement

@@ -48,6 +48,32 @@ describe('Budget History View', () => {
             expect(row.textContent).toContain('5');
         });
 
+        it('should display projectId when project is not found', async () => {
+            // Add override without corresponding project
+            await addProjectBudgetOverride({ projectId: 'proj999', plannedPM: 5, startMonth: '2025-03', endMonth: null });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            expect(tbody.children.length).toBe(1);
+            
+            const row = tbody.children[0];
+            expect(row.textContent).toContain('proj999');
+        });
+
+        it('should handle empty end month', async () => {
+            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-03', endMonth: null });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            const row = tbody.children[0];
+            const endMonthInput = row.querySelector('.budget-end');
+            
+            expect(endMonthInput.value).toBe('');
+        });
+
         it('should sort overrides by project and start month', async () => {
             await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
             await addProject({ id: 'proj002', name: 'Project B', plannedPM: 8 });
@@ -68,6 +94,113 @@ describe('Budget History View', () => {
             expect(rows[1].textContent).toContain('Project A');
             expect(rows[1].textContent).toContain('5'); // June
             expect(rows[2].textContent).toContain('Project B');
+        });
+
+        it('should update plannedPM when contenteditable cell loses focus', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-03', endMonth: null });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            const editableCell = tbody.querySelector('td[contenteditable]');
+            editableCell.textContent = '10.5';
+            
+            // Trigger blur event
+            editableCell.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getProjectBudgetOverrides();
+            expect(overrides[0].plannedPM).toBe(10.5);
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should update startMonth when budget-start input loses focus', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-03', endMonth: null });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            const startInput = tbody.querySelector('.budget-start');
+            startInput.value = '2025-05';
+            
+            // Trigger blur event
+            startInput.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getProjectBudgetOverrides();
+            expect(overrides[0].startMonth).toBe('2025-05');
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should update endMonth when budget-end input loses focus', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-03', endMonth: null });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            const endInput = tbody.querySelector('.budget-end');
+            endInput.value = '2025-07';
+            
+            // Trigger blur event
+            endInput.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getProjectBudgetOverrides();
+            expect(overrides[0].endMonth).toBe('2025-07');
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should clear endMonth when budget-end input is emptied', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-03', endMonth: '2025-06' });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            const endInput = tbody.querySelector('.budget-end');
+            endInput.value = '';
+            
+            // Trigger blur event
+            endInput.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getProjectBudgetOverrides();
+            expect(overrides[0].endMonth).toBeNull();
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should delete override when delete button is clicked', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-03', endMonth: null });
+            
+            await renderBudgetOverrides();
+            
+            const tbody = document.querySelector('#budgetOverridesTable tbody');
+            const deleteBtn = tbody.querySelector('.delete-budget-override');
+            deleteBtn.click();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getProjectBudgetOverrides();
+            expect(overrides.length).toBe(0);
+            expect(scheduleAutoBackup).toHaveBeenCalled();
         });
     });
 

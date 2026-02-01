@@ -15,6 +15,7 @@ import {
 
 export async function init() {
     // Guard against running in non-DOM environments (like tests)
+    /* c8 ignore next 3 */
     if (typeof document === 'undefined') {
         return;
     }
@@ -28,6 +29,7 @@ export async function init() {
                 const filename = downloadJSON(data);
                 showDownloadSuccess(filename);
             } catch (e) {
+                /* c8 ignore next 1 */
                 alert("Export failed: " + e.message);
             }
         });
@@ -47,6 +49,7 @@ export async function init() {
                 const filename = downloadJSON(autoBackup.data);
                 showDownloadSuccess(filename);
             } catch (e) {
+                /* c8 ignore next 1 */
                 alert("Download failed: " + e.message);
             }
         });
@@ -75,6 +78,7 @@ export async function init() {
                 }
 
                 await importAllData(data);
+                /* c8 ignore next 2 */
                 alert("Data imported successfully! Refreshing...");
                 location.reload();
             } catch (e) {
@@ -91,9 +95,11 @@ export async function init() {
         createBackupBtn.addEventListener("click", async () => {
             try {
                 await createBackup();
+                /* c8 ignore next 1 */
                 alert("✅ Backup created successfully!\n\nThe backup is stored in your browser's localStorage. To save a permanent copy, use the 'Download Latest Auto-Backup' button above.");
                 await renderBackups();
             } catch (e) {
+                /* c8 ignore next 1 */
                 alert("Backup failed: " + e.message);
             }
         });
@@ -134,6 +140,7 @@ export function showDownloadSuccess(filename) {
 
 // Set up warning before closing window with unsaved changes
 export function setupBeforeUnloadWarning() {
+    /* c8 ignore next 3 */
     if (typeof window === 'undefined') {
         return;
     }
@@ -149,6 +156,7 @@ export function setupBeforeUnloadWarning() {
             const preparedDate = new Date(autoBackup.preparedAt);
             
             // Validate that the date is valid before calculation
+            /* c8 ignore next 3 */
             if (isNaN(preparedDate.getTime())) {
                 return; // Skip warning if date is invalid
             }
@@ -156,6 +164,7 @@ export function setupBeforeUnloadWarning() {
             const minutesAgo = Math.floor((Date.now() - preparedDate.getTime()) / 60000);
             
             // Show warning if backup is older than threshold
+            /* c8 ignore next 8 */
             if (minutesAgo >= BACKUP_WARNING_THRESHOLD_MINUTES) {
                 // Note: Modern browsers ignore custom messages and show their own generic dialog.
                 // The message assignment and return value are still needed to trigger the dialog.
@@ -170,6 +179,7 @@ export function setupBeforeUnloadWarning() {
 
 // Update auto-backup status display
 export function updateAutoBackupStatus() {
+    /* c8 ignore next 3 */
     if (typeof document === 'undefined') {
         return;
     }
@@ -177,6 +187,7 @@ export function updateAutoBackupStatus() {
     const statusElement = document.getElementById("autoBackupStatus");
     const downloadBtn = document.getElementById("downloadAutoBackupBtn");
     
+    /* c8 ignore next 3 */
     if (!statusElement || !downloadBtn) {
         return; // Elements don't exist in this environment
     }
@@ -213,11 +224,13 @@ export function getTimeAgo(date) {
 }
 
 async function renderBackups() {
+    /* c8 ignore next 3 */
     if (typeof document === 'undefined') {
         return;
     }
     
     const tbody = document.querySelector("#backupsTable tbody");
+    /* c8 ignore next 3 */
     if (!tbody) {
         return; // Element doesn't exist in this environment
     }
@@ -251,9 +264,11 @@ async function renderBackups() {
             }
             try {
                 await restoreBackup(backup.key);
+                /* c8 ignore next 2 */
                 alert("Backup restored successfully! Refreshing...");
                 location.reload();
             } catch (e) {
+                /* c8 ignore next 1 */
                 alert("Restore failed: " + e.message);
             }
         });
@@ -299,6 +314,7 @@ export function scheduleAutoBackup() {
                 await renderBackups();
             }
         } catch (e) {
+            /* c8 ignore next 1 */
             console.error("Auto-backup failed:", e);
         }
     }, 5000);

@@ -48,6 +48,32 @@ describe('FTE History View', () => {
             expect(row.textContent).toContain('0.5');
         });
 
+        it('should display personId when person is not found', async () => {
+            // Add override without corresponding person
+            await addFteOverride({ personId: 'p999', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            expect(tbody.children.length).toBe(1);
+            
+            const row = tbody.children[0];
+            expect(row.textContent).toContain('p999');
+        });
+
+        it('should handle empty end month', async () => {
+            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
+            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            const row = tbody.children[0];
+            const endMonthInput = row.querySelector('.fte-end');
+            
+            expect(endMonthInput.value).toBe('');
+        });
+
         it('should sort overrides by person and start month', async () => {
             await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
             await addPerson({ id: 'p002', name: 'Bob', fte: 1.0, active: true });
@@ -68,6 +94,113 @@ describe('FTE History View', () => {
             expect(rows[1].textContent).toContain('Alice');
             expect(rows[1].textContent).toContain('0.5'); // June
             expect(rows[2].textContent).toContain('Bob');
+        });
+
+        it('should update FTE when contenteditable cell loses focus', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
+            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            const editableCell = tbody.querySelector('td[contenteditable]');
+            editableCell.textContent = '0.75';
+            
+            // Trigger blur event
+            editableCell.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getFteOverrides();
+            expect(overrides[0].fte).toBe(0.75);
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should update startMonth when fte-start input loses focus', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
+            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            const startInput = tbody.querySelector('.fte-start');
+            startInput.value = '2025-05';
+            
+            // Trigger blur event
+            startInput.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getFteOverrides();
+            expect(overrides[0].startMonth).toBe('2025-05');
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should update endMonth when fte-end input loses focus', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
+            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            const endInput = tbody.querySelector('.fte-end');
+            endInput.value = '2025-07';
+            
+            // Trigger blur event
+            endInput.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getFteOverrides();
+            expect(overrides[0].endMonth).toBe('2025-07');
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should clear endMonth when fte-end input is emptied', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
+            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: '2025-06' });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            const endInput = tbody.querySelector('.fte-end');
+            endInput.value = '';
+            
+            // Trigger blur event
+            endInput.dispatchEvent(new Event('blur'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getFteOverrides();
+            expect(overrides[0].endMonth).toBeNull();
+            expect(scheduleAutoBackup).toHaveBeenCalled();
+        });
+
+        it('should delete override when delete button is clicked', async () => {
+            const { scheduleAutoBackup } = await import('../../js/main.js');
+            
+            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
+            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await renderFteOverrides();
+            
+            const tbody = document.querySelector('#fteOverridesTable tbody');
+            const deleteBtn = tbody.querySelector('.delete-fte-override');
+            deleteBtn.click();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const overrides = await getFteOverrides();
+            expect(overrides.length).toBe(0);
+            expect(scheduleAutoBackup).toHaveBeenCalled();
         });
     });
 

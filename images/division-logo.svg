@@ -1,22 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- Division Logo - Circular design with blue and green segments based on FZJ design -->
+  <!-- Division Logo - Circular design matching FZJ division logo -->
   
   <!-- Outer circle background -->
-  <circle cx="100" cy="100" r="98" fill="white" stroke="#E0E0E0" stroke-width="2"/>
+  <circle cx="100" cy="100" r="98" fill="#f0f0f0"/>
   
-  <!-- Blue segment (left half) -->
-  <path d="M 100 100 L 100 2 A 98 98 0 0 1 100 198 Z" fill="#005AA0"/>
+  <!-- Large blue segment (approximately 5/8 of circle, left and bottom) -->
+  <path d="M 100 100 L 100 2 A 98 98 0 0 1 198 100 L 100 100 A 98 98 0 0 1 31.7 168.3 Z" fill="#005AA0"/>
   
-  <!-- Green segment (top right quarter) -->
-  <path d="M 100 100 L 100 2 A 98 98 0 0 1 198 100 Z" fill="#8CB903"/>
+  <!-- Large green segment (approximately 3/8 of circle, top right) -->
+  <path d="M 100 100 L 198 100 A 98 98 0 0 1 100 198 L 100 100 A 98 98 0 0 0 31.7 31.7 Z" fill="#8CB903"/>
   
-  <!-- White center circle with border -->
-  <circle cx="100" cy="100" r="38" fill="white" stroke="#E0E0E0" stroke-width="2"/>
+  <!-- White ring -->
+  <circle cx="100" cy="100" r="50" fill="white"/>
   
-  <!-- Inner colored segments -->
-  <path d="M 100 100 L 100 62 A 38 38 0 0 0 62 100 Z" fill="#005AA0"/>
-  <path d="M 100 100 L 138 100 A 38 38 0 0 0 100 62 Z" fill="#8CB903"/>
+  <!-- Inner blue segment (smaller, mirroring outer pattern) -->
+  <path d="M 100 100 L 100 50 A 50 50 0 0 1 150 100 L 100 100 A 50 50 0 0 1 64.6 135.4 Z" fill="#005AA0"/>
+  
+  <!-- Inner green segment (smaller, mirroring outer pattern) -->
+  <path d="M 100 100 L 150 100 A 50 50 0 0 1 100 150 L 100 100 A 50 50 0 0 0 64.6 64.6 Z" fill="#8CB903"/>
   
   <!-- Center white circle -->
-  <circle cx="100" cy="100" r="18" fill="white"/>
+  <circle cx="100" cy="100" r="25" fill="white"/>
 </svg>

@@ -1,4 +1,13 @@
 /* Component styles - tables, tabs, buttons */
+/* FZJ Corporate Design Colors:
+   Primary Blue: #005AA0
+   Secondary Green: #8CB903
+*/
+
+/* Main content area */
+.tab-content {
+    padding: 0 30px 30px 30px;
+}
 
 /* Tables */
 table {
@@ -9,6 +18,7 @@ table {
     border-radius: 8px;
     overflow: hidden;
     font-size: 14px;
+    background-color: white;
 }
 
 th, td {
@@ -18,7 +28,7 @@ th, td {
 }
 
 th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #005AA0 0%, #003D73 100%);
     color: white;
     font-weight: 600;
     text-transform: uppercase;
@@ -31,7 +41,7 @@ td {
 }
 
 tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: #f0f8ff;
     transition: background-color 0.2s ease;
 }
 
@@ -40,7 +50,7 @@ tbody tr:nth-child(even) td {
 }
 
 tbody tr:nth-child(even):hover td {
-    background-color: #f8f9fa;
+    background-color: #f0f8ff;
 }
 
 tfoot td {
@@ -70,29 +80,35 @@ td:first-child {
 
 /* Tabs */
 .tabs {
-    margin-bottom: 20px;
+    margin-bottom: 0;
+    padding: 0 30px;
+    background: white;
+    border-bottom: 2px solid #005AA0;
 }
 
 .tab-button {
-    padding: 10px 20px;
-    margin-right: 5px;
+    padding: 12px 24px;
+    margin-right: 2px;
     cursor: pointer;
-    border: 2px solid #e0e0e0;
-    background: #fff;
-    border-radius: 8px 8px 0 0;
+    border: none;
+    background: #f5f5f5;
+    border-radius: 0;
     font-weight: 500;
     transition: all 0.3s ease;
+    color: #333333;
+    position: relative;
+    bottom: -2px;
 }
 
 .tab-button:hover {
-    background: #f8f9fa;
-    border-color: #667eea;
+    background: #E8E8E8;
+    color: #005AA0;
 }
 
 .tab-button.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #005AA0;
     color: white;
-    border-color: #667eea;
+    border-bottom: 2px solid #005AA0;
 }
 
 .tab-content {
@@ -110,14 +126,14 @@ button {
     margin: 2px;
     border: 1px solid #d0d7de;
     background: #fff;
-    border-radius: 6px;
+    border-radius: 4px;
     font-weight: 500;
     transition: all 0.2s ease;
 }
 
 button:hover {
     background: #f6f8fa;
-    border-color: #667eea;
+    border-color: #005AA0;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -132,8 +148,11 @@ button:active {
 #projectMonthlyBtn,
 #addPersonBtn,
 #addProjectBtn,
-#addAllocationBtn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+#addAllocationBtn,
+#addAllocationOverrideBtn,
+#addFteOverrideBtn,
+#addBudgetOverrideBtn {
+    background: #005AA0;
     color: white;
     border: none;
 }
@@ -143,8 +162,36 @@ button:active {
 #projectMonthlyBtn:hover,
 #addPersonBtn:hover,
 #addProjectBtn:hover,
-#addAllocationBtn:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+#addAllocationBtn:hover,
+#addAllocationOverrideBtn:hover,
+#addFteOverrideBtn:hover,
+#addBudgetOverrideBtn:hover {
+    background: #004080;
+}
+
+/* Export/Import buttons with green accent */
+#exportDataBtn,
+#downloadAutoBackupBtn {
+    background: #8CB903;
+    color: white;
+    border: none;
+}
+
+#exportDataBtn:hover,
+#downloadAutoBackupBtn:hover {
+    background: #7AA602;
+}
+
+#importDataBtn,
+#createBackupBtn {
+    background: #005AA0;
+    color: white;
+    border: none;
+}
+
+#importDataBtn:hover,
+#createBackupBtn:hover {
+    background: #004080;
 }
 
 /* Auto-backup status indicator */

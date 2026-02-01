@@ -2,6 +2,8 @@
 * IndexedDB and Data Access Layer
 **********************/
 
+import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
+
 const DB_NAME = "resource-planning";
 const DB_VERSION = 3;
 let db;
@@ -153,19 +155,7 @@ export async function getPeople() {
  * @returns {Promise<void>}
  */
 export async function addPerson(p) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("people", "readwrite");
-            tx.objectStore("people").add(p);
-            tx.oncomplete = () => {
-                invalidateCache("people");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return addRecord(db, "people", p, () => invalidateCache("people"));
 }
 
 /**
@@ -174,19 +164,7 @@ export async function addPerson(p) {
  * @returns {Promise<void>}
  */
 export async function updatePerson(p) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("people", "readwrite");
-            tx.objectStore("people").put(p);
-            tx.oncomplete = () => {
-                invalidateCache("people");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return updateRecord(db, "people", p, () => invalidateCache("people"));
 }
 
 /**
@@ -195,19 +173,7 @@ export async function updatePerson(p) {
  * @returns {Promise<void>}
  */
 export async function deletePerson(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("people", "readwrite");
-            tx.objectStore("people").delete(id);
-            tx.oncomplete = () => {
-                invalidateCache("people");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return deleteRecord(db, "people", id, () => invalidateCache("people"));
 }
 
 // Projects CRUD
@@ -225,19 +191,7 @@ export async function getProjects() {
  * @returns {Promise<void>}
  */
 export async function addProject(p) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("projects", "readwrite");
-            tx.objectStore("projects").add(p);
-            tx.oncomplete = () => {
-                invalidateCache("projects");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return addRecord(db, "projects", p, () => invalidateCache("projects"));
 }
 
 /**
@@ -246,19 +200,7 @@ export async function addProject(p) {
  * @returns {Promise<void>}
  */
 export async function updateProject(p) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("projects", "readwrite");
-            tx.objectStore("projects").put(p);
-            tx.oncomplete = () => {
-                invalidateCache("projects");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return updateRecord(db, "projects", p, () => invalidateCache("projects"));
 }
 
 /**
@@ -267,19 +209,7 @@ export async function updateProject(p) {
  * @returns {Promise<void>}
  */
 export async function deleteProject(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("projects", "readwrite");
-            tx.objectStore("projects").delete(id);
-            tx.oncomplete = () => {
-                invalidateCache("projects");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return deleteRecord(db, "projects", id, () => invalidateCache("projects"));
 }
 
 // Allocations CRUD
@@ -297,19 +227,7 @@ export async function getAllocations() {
  * @returns {Promise<void>}
  */
 export async function addAllocation(a) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("defaultAllocations", "readwrite");
-            tx.objectStore("defaultAllocations").add(a);
-            tx.oncomplete = () => {
-                invalidateCache("defaultAllocations");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return addRecord(db, "defaultAllocations", a, () => invalidateCache("defaultAllocations"));
 }
 
 /**
@@ -318,19 +236,7 @@ export async function addAllocation(a) {
  * @returns {Promise<void>}
  */
 export async function updateAllocation(a) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("defaultAllocations", "readwrite");
-            tx.objectStore("defaultAllocations").put(a);
-            tx.oncomplete = () => {
-                invalidateCache("defaultAllocations");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return updateRecord(db, "defaultAllocations", a, () => invalidateCache("defaultAllocations"));
 }
 
 /**
@@ -339,19 +245,7 @@ export async function updateAllocation(a) {
  * @returns {Promise<void>}
  */
 export async function deleteAllocation(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("defaultAllocations", "readwrite");
-            tx.objectStore("defaultAllocations").delete(id);
-            tx.oncomplete = () => {
-                invalidateCache("defaultAllocations");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return deleteRecord(db, "defaultAllocations", id, () => invalidateCache("defaultAllocations"));
 }
 
 // Auto-generate IDs
@@ -589,19 +483,7 @@ export async function getFteOverrides() {
  * @returns {Promise<void>}
  */
 export async function addFteOverride(override) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("fteOverrides", "readwrite");
-            tx.objectStore("fteOverrides").add(override);
-            tx.oncomplete = () => {
-                invalidateCache("fteOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return addRecord(db, "fteOverrides", override, () => invalidateCache("fteOverrides"));
 }
 
 /**
@@ -610,19 +492,7 @@ export async function addFteOverride(override) {
  * @returns {Promise<void>}
  */
 export async function updateFteOverride(override) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("fteOverrides", "readwrite");
-            tx.objectStore("fteOverrides").put(override);
-            tx.oncomplete = () => {
-                invalidateCache("fteOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return updateRecord(db, "fteOverrides", override, () => invalidateCache("fteOverrides"));
 }
 
 /**
@@ -631,19 +501,7 @@ export async function updateFteOverride(override) {
  * @returns {Promise<void>}
  */
 export async function deleteFteOverride(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("fteOverrides", "readwrite");
-            tx.objectStore("fteOverrides").delete(id);
-            tx.oncomplete = () => {
-                invalidateCache("fteOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return deleteRecord(db, "fteOverrides", id, () => invalidateCache("fteOverrides"));
 }
 
 /**********************
@@ -664,19 +522,7 @@ export async function getProjectBudgetOverrides() {
  * @returns {Promise<void>}
  */
 export async function addProjectBudgetOverride(override) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("projectBudgetOverrides", "readwrite");
-            tx.objectStore("projectBudgetOverrides").add(override);
-            tx.oncomplete = () => {
-                invalidateCache("projectBudgetOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return addRecord(db, "projectBudgetOverrides", override, () => invalidateCache("projectBudgetOverrides"));
 }
 
 /**
@@ -685,19 +531,7 @@ export async function addProjectBudgetOverride(override) {
  * @returns {Promise<void>}
  */
 export async function updateProjectBudgetOverride(override) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("projectBudgetOverrides", "readwrite");
-            tx.objectStore("projectBudgetOverrides").put(override);
-            tx.oncomplete = () => {
-                invalidateCache("projectBudgetOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return updateRecord(db, "projectBudgetOverrides", override, () => invalidateCache("projectBudgetOverrides"));
 }
 
 /**
@@ -706,19 +540,7 @@ export async function updateProjectBudgetOverride(override) {
  * @returns {Promise<void>}
  */
 export async function deleteProjectBudgetOverride(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("projectBudgetOverrides", "readwrite");
-            tx.objectStore("projectBudgetOverrides").delete(id);
-            tx.oncomplete = () => {
-                invalidateCache("projectBudgetOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return deleteRecord(db, "projectBudgetOverrides", id, () => invalidateCache("projectBudgetOverrides"));
 }
 
 /**********************
@@ -739,19 +561,7 @@ export async function getAllocationOverrides() {
  * @returns {Promise<void>}
  */
 export async function addAllocationOverride(override) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("allocationOverrides", "readwrite");
-            tx.objectStore("allocationOverrides").add(override);
-            tx.oncomplete = () => {
-                invalidateCache("allocationOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return addRecord(db, "allocationOverrides", override, () => invalidateCache("allocationOverrides"));
 }
 
 /**
@@ -760,19 +570,7 @@ export async function addAllocationOverride(override) {
  * @returns {Promise<void>}
  */
 export async function updateAllocationOverride(override) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("allocationOverrides", "readwrite");
-            tx.objectStore("allocationOverrides").put(override);
-            tx.oncomplete = () => {
-                invalidateCache("allocationOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return updateRecord(db, "allocationOverrides", override, () => invalidateCache("allocationOverrides"));
 }
 
 /**
@@ -781,19 +579,7 @@ export async function updateAllocationOverride(override) {
  * @returns {Promise<void>}
  */
 export async function deleteAllocationOverride(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("allocationOverrides", "readwrite");
-            tx.objectStore("allocationOverrides").delete(id);
-            tx.oncomplete = () => {
-                invalidateCache("allocationOverrides");
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        } catch (error) {
-            reject(error);
-        }
-    });
+    return deleteRecord(db, "allocationOverrides", id, () => invalidateCache("allocationOverrides"));
 }
 
 /**********************

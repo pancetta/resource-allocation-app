@@ -1,10 +1,8 @@
 import { openDatabase, createBackup } from './data/database.js';
 import { initTabs } from './ui/tabs.js';
-import { renderPeople, populatePersonSelect, initPeopleView } from './views/peopleView.js';
-import { renderProjects, populateProjectSelect, initProjectsView } from './views/projectsView.js';
+import { renderPeople, renderFteValues, populatePersonSelect, populateFtePersonSelect, initPeopleView } from './views/peopleView.js';
+import { renderProjects, renderBudgetValues, populateProjectSelect, populateBudgetProjectSelect, initProjectsView } from './views/projectsView.js';
 import { renderAllocations, renderAllocationOverrides, populateAllocationSelect, initAllocationsView } from './views/allocationsView.js';
-import { renderFteOverrides, populateFtePersonSelect, initFteHistoryView } from './views/fteHistoryView.js';
-import { renderBudgetOverrides, populateBudgetProjectSelect, initBudgetHistoryView } from './views/budgetHistoryView.js';
 import { initMonthlyReport } from './views/monthlyReport.js';
 import { initYearlyReport } from './views/yearlyReport.js';
 import { initProjectOverview } from './views/projectOverview.js';
@@ -23,8 +21,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         initPeopleView();
         initProjectsView();
         initAllocationsView();
-        initFteHistoryView();
-        initBudgetHistoryView();
         initDataManagement();
         
         // Initialize reports
@@ -34,18 +30,18 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         
         // Render initial data
         await renderPeople();
+        await renderFteValues();
         await renderProjects();
+        await renderBudgetValues();
         await renderAllocations();
         await renderAllocationOverrides();
-        await renderFteOverrides();
-        await renderBudgetOverrides();
         
         // Populate selects
         await populatePersonSelect();
-        await populateProjectSelect();
-        await populateAllocationSelect();
         await populateFtePersonSelect();
+        await populateProjectSelect();
         await populateBudgetProjectSelect();
+        await populateAllocationSelect();
         
         // Create initial backup if none exists
         try {

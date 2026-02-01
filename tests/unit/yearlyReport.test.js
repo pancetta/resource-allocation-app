@@ -54,7 +54,7 @@ describe('Yearly Report', () => {
 
     it('should handle FTE overrides across months', async () => {
       await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
-      await db.addFteOverride({ personId: 'p001', fte: 0.8, startMonth: '2025-03', endMonth: '2025-06' });
+      await db.addFteValue({ personId: 'p001', fte: 0.8, startMonth: '2025-03', endMonth: '2025-06' });
       
       await calculateYear(2025);
       
@@ -95,7 +95,7 @@ describe('Yearly Report', () => {
 
     it('should handle project budget overrides', async () => {
       await db.addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: '' });
-      await db.addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 2.0, startMonth: '2025-03', endMonth: '2025-06' });
+      await db.addBudgetValue({ projectId: 'proj001', plannedPM: 2.0, startMonth: '2025-03', endMonth: '2025-06' });
       
       await calculateYear(2025);
       

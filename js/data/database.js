@@ -5,7 +5,7 @@
 import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
 
 const DB_NAME = "resource-planning";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 let db;
 
 // Simple cache to reduce IndexedDB calls
@@ -13,8 +13,8 @@ const cache = {
     people: null,
     projects: null,
     defaultAllocations: null,
-    fteOverrides: null,
-    projectBudgetOverrides: null,
+    fteValues: null,
+    budgetValues: null,
     allocationOverrides: null
 };
 
@@ -23,8 +23,8 @@ let cacheValid = {
     people: false,
     projects: false,
     defaultAllocations: false,
-    fteOverrides: false,
-    projectBudgetOverrides: false,
+    fteValues: false,
+    budgetValues: false,
     allocationOverrides: false
 };
 
@@ -40,14 +40,14 @@ function invalidateCache(storeName) {
         cacheValid.people = false;
         cacheValid.projects = false;
         cacheValid.defaultAllocations = false;
-        cacheValid.fteOverrides = false;
-        cacheValid.projectBudgetOverrides = false;
+        cacheValid.fteValues = false;
+        cacheValid.budgetValues = false;
         cacheValid.allocationOverrides = false;
         cache.people = null;
         cache.projects = null;
         cache.defaultAllocations = null;
-        cache.fteOverrides = null;
-        cache.projectBudgetOverrides = null;
+        cache.fteValues = null;
+        cache.budgetValues = null;
         cache.allocationOverrides = null;
     }
 }
@@ -71,6 +71,7 @@ export async function openDatabase() {
         request.onupgradeneeded = (e) => {
             const db = e.target.result;
             const oldVersion = e.oldVersion;
+            const transaction = e.target.transaction;
             
             // Version 1 stores
             if (!db.objectStoreNames.contains("people")) {
@@ -83,7 +84,7 @@ export async function openDatabase() {
                 db.createObjectStore("defaultAllocations", { keyPath: "id", autoIncrement: true });
             }
             
-            // Version 3 stores - override tables
+            // Version 3 stores - override tables (created if upgrading from v1 or v2)
             if (oldVersion < 3) {
                 if (!db.objectStoreNames.contains("fteOverrides")) {
                     db.createObjectStore("fteOverrides", { keyPath: "id", autoIncrement: true });
@@ -94,6 +95,147 @@ export async function openDatabase() {
                 if (!db.objectStoreNames.contains("allocationOverrides")) {
                     db.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
                 }
+            }
+            
+            // Version 4 migration - rename override tables and migrate default values
+            if (oldVersion < 4 && oldVersion >= 3) {
+                // Rename fteOverrides to fteValues
+                if (db.objectStoreNames.contains("fteOverrides")) {
+                    // Create new store
+                    const fteValuesStore = db.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
+                    
+                    // Copy data from old store
+                    const oldFteStore = transaction.objectStore("fteOverrides");
+                    const fteRequest = oldFteStore.getAll();
+                    
+                    fteRequest.onsuccess = () => {
+                        const records = fteRequest.result;
+                        records.forEach(record => {
+                            fteValuesStore.add(record);
+                        });
+                    };
+                }
+                
+                // Rename projectBudgetOverrides to budgetValues
+                if (db.objectStoreNames.contains("projectBudgetOverrides")) {
+                    // Create new store
+                    const budgetValuesStore = db.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
+                    
+                    // Copy data from old store
+                    const oldBudgetStore = transaction.objectStore("projectBudgetOverrides");
+                    const budgetRequest = oldBudgetStore.getAll();
+                    
+                    budgetRequest.onsuccess = () => {
+                        const records = budgetRequest.result;
+                        records.forEach(record => {
+                            budgetValuesStore.add(record);
+                        });
+                    };
+                }
+                
+                // Migrate default FTE values from people table to fteValues
+                const peopleStore = transaction.objectStore("people");
+                const peopleRequest = peopleStore.getAll();
+                
+                peopleRequest.onsuccess = () => {
+                    const people = peopleRequest.result;
+                    const fteValuesStore = transaction.objectStore("fteValues");
+                    
+                    people.forEach(person => {
+                        if (person.fte !== undefined && person.fte !== null) {
+                            // Create an initial FTE value entry
+                            fteValuesStore.add({
+                                personId: person.id,
+                                fte: person.fte,
+                                startMonth: "2020-01", // Use a reasonable start date
+                                endMonth: null // Open-ended
+                            });
+                            
+                            // Remove fte field from person
+                            delete person.fte;
+                            peopleStore.put(person);
+                        }
+                    });
+                };
+                
+                // Migrate default plannedPM values from projects table to budgetValues
+                const projectsStore = transaction.objectStore("projects");
+                const projectsRequest = projectsStore.getAll();
+                
+                projectsRequest.onsuccess = () => {
+                    const projects = projectsRequest.result;
+                    const budgetValuesStore = transaction.objectStore("budgetValues");
+                    
+                    projects.forEach(project => {
+                        if (project.plannedPM !== undefined && project.plannedPM !== null) {
+                            // Create an initial budget value entry
+                            budgetValuesStore.add({
+                                projectId: project.id,
+                                plannedPM: project.plannedPM,
+                                startMonth: "2020-01", // Use a reasonable start date
+                                endMonth: null // Open-ended
+                            });
+                            
+                            // Remove plannedPM field from project
+                            delete project.plannedPM;
+                            projectsStore.put(project);
+                        }
+                    });
+                };
+            } else if (oldVersion < 4 && oldVersion < 3) {
+                // Direct upgrade from v1/v2 to v4 - create new stores directly
+                if (!db.objectStoreNames.contains("fteValues")) {
+                    db.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains("budgetValues")) {
+                    db.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains("allocationOverrides")) {
+                    db.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
+                }
+                
+                // Migrate default values even when upgrading from v1/v2
+                const peopleStore = transaction.objectStore("people");
+                const peopleRequest = peopleStore.getAll();
+                
+                peopleRequest.onsuccess = () => {
+                    const people = peopleRequest.result;
+                    const fteValuesStore = transaction.objectStore("fteValues");
+                    
+                    people.forEach(person => {
+                        if (person.fte !== undefined && person.fte !== null) {
+                            fteValuesStore.add({
+                                personId: person.id,
+                                fte: person.fte,
+                                startMonth: "2020-01",
+                                endMonth: null
+                            });
+                            delete person.fte;
+                            peopleStore.put(person);
+                        }
+                    });
+                };
+                
+                const projectsStore = transaction.objectStore("projects");
+                const projectsRequest = projectsStore.getAll();
+                
+                projectsRequest.onsuccess = () => {
+                    const projects = projectsRequest.result;
+                    const budgetValuesStore = transaction.objectStore("budgetValues");
+                    
+                    projects.forEach(project => {
+                        if (project.plannedPM !== undefined && project.plannedPM !== null) {
+                            budgetValuesStore.add({
+                                projectId: project.id,
+                                plannedPM: project.plannedPM,
+                                startMonth: "2020-01",
+                                endMonth: null
+                            });
+                            delete project.plannedPM;
+                            projectsStore.put(project);
+                        }
+                    });
+                };
             }
         };
         
@@ -286,19 +428,19 @@ export async function exportAllData() {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     
     return {
-        version: "2.0",
+        version: "3.0",
         exportDate: new Date().toISOString(),
         data: {
             people,
             projects,
             allocations,
-            fteOverrides,
-            projectBudgetOverrides,
+            fteValues,
+            budgetValues,
             allocationOverrides
         }
     };
@@ -314,9 +456,12 @@ export async function importAllData(importedData) {
         people, 
         projects, 
         allocations,
+        fteValues = [],
+        budgetValues = [],
+        allocationOverrides = [],
+        // Support old format for backward compatibility
         fteOverrides = [],
-        projectBudgetOverrides = [],
-        allocationOverrides = []
+        projectBudgetOverrides = []
     } = importedData.data;
     
     // Clear existing data
@@ -324,15 +469,15 @@ export async function importAllData(importedData) {
         "people", 
         "projects", 
         "defaultAllocations",
-        "fteOverrides",
-        "projectBudgetOverrides",
+        "fteValues",
+        "budgetValues",
         "allocationOverrides"
     ], "readwrite");
     await tx.objectStore("people").clear();
     await tx.objectStore("projects").clear();
     await tx.objectStore("defaultAllocations").clear();
-    await tx.objectStore("fteOverrides").clear();
-    await tx.objectStore("projectBudgetOverrides").clear();
+    await tx.objectStore("fteValues").clear();
+    await tx.objectStore("budgetValues").clear();
     await tx.objectStore("allocationOverrides").clear();
     
     // Import people
@@ -356,17 +501,19 @@ export async function importAllData(importedData) {
         }
     }
     
-    // Import FTE overrides
-    if (fteOverrides && Array.isArray(fteOverrides)) {
-        for (const override of fteOverrides) {
-            await addFteOverride(override);
+    // Import FTE values (support both new and old format)
+    const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
+    if (fteData && Array.isArray(fteData)) {
+        for (const value of fteData) {
+            await addFteValue(value);
         }
     }
     
-    // Import project budget overrides
-    if (projectBudgetOverrides && Array.isArray(projectBudgetOverrides)) {
-        for (const override of projectBudgetOverrides) {
-            await addProjectBudgetOverride(override);
+    // Import budget values (support both new and old format)
+    const budgetData = budgetValues.length > 0 ? budgetValues : projectBudgetOverrides;
+    if (budgetData && Array.isArray(budgetData)) {
+        for (const value of budgetData) {
+            await addBudgetValue(value);
         }
     }
     
@@ -466,81 +613,81 @@ export function getAutoPreparedBackup() {
 }
 
 /**********************
- * FTE Overrides CRUD
+ * FTE Values CRUD
  **********************/
 
 /**
- * Get all FTE overrides from the database
- * @returns {Promise<Array>} Array of FTE override objects
+ * Get all FTE values from the database
+ * @returns {Promise<Array>} Array of FTE value objects
  */
-export async function getFteOverrides() {
-    return getAll("fteOverrides");
+export async function getFteValues() {
+    return getAll("fteValues");
 }
 
 /**
- * Add a new FTE override to the database
- * @param {Object} override - FTE override object with personId, fte, startMonth, endMonth
+ * Add a new FTE value to the database
+ * @param {Object} value - FTE value object with personId, fte, startMonth, endMonth
  * @returns {Promise<void>}
  */
-export async function addFteOverride(override) {
-    return addRecord(db, "fteOverrides", override, () => invalidateCache("fteOverrides"));
+export async function addFteValue(value) {
+    return addRecord(db, "fteValues", value, () => invalidateCache("fteValues"));
 }
 
 /**
- * Update an existing FTE override in the database
- * @param {Object} override - FTE override object with updated properties
+ * Update an existing FTE value in the database
+ * @param {Object} value - FTE value object with updated properties
  * @returns {Promise<void>}
  */
-export async function updateFteOverride(override) {
-    return updateRecord(db, "fteOverrides", override, () => invalidateCache("fteOverrides"));
+export async function updateFteValue(value) {
+    return updateRecord(db, "fteValues", value, () => invalidateCache("fteValues"));
 }
 
 /**
- * Delete an FTE override from the database
- * @param {number} id - FTE override ID
+ * Delete an FTE value from the database
+ * @param {number} id - FTE value ID
  * @returns {Promise<void>}
  */
-export async function deleteFteOverride(id) {
-    return deleteRecord(db, "fteOverrides", id, () => invalidateCache("fteOverrides"));
+export async function deleteFteValue(id) {
+    return deleteRecord(db, "fteValues", id, () => invalidateCache("fteValues"));
 }
 
 /**********************
- * Project Budget Overrides CRUD
+ * Budget Values CRUD
  **********************/
 
 /**
- * Get all project budget overrides from the database
- * @returns {Promise<Array>} Array of project budget override objects
+ * Get all budget values from the database
+ * @returns {Promise<Array>} Array of budget value objects
  */
-export async function getProjectBudgetOverrides() {
-    return getAll("projectBudgetOverrides");
+export async function getBudgetValues() {
+    return getAll("budgetValues");
 }
 
 /**
- * Add a new project budget override to the database
- * @param {Object} override - Project budget override object with projectId, plannedPM, startMonth, endMonth
+ * Add a new budget value to the database
+ * @param {Object} value - Budget value object with projectId, plannedPM, startMonth, endMonth
  * @returns {Promise<void>}
  */
-export async function addProjectBudgetOverride(override) {
-    return addRecord(db, "projectBudgetOverrides", override, () => invalidateCache("projectBudgetOverrides"));
+export async function addBudgetValue(value) {
+    return addRecord(db, "budgetValues", value, () => invalidateCache("budgetValues"));
 }
 
 /**
- * Update an existing project budget override in the database
- * @param {Object} override - Project budget override object with updated properties
+ * Update an existing budget value in the database
+ * @param {Object} value - Budget value object with updated properties
  * @returns {Promise<void>}
  */
-export async function updateProjectBudgetOverride(override) {
-    return updateRecord(db, "projectBudgetOverrides", override, () => invalidateCache("projectBudgetOverrides"));
+export async function updateBudgetValue(value) {
+    return updateRecord(db, "budgetValues", value, () => invalidateCache("budgetValues"));
 }
 
 /**
- * Delete a project budget override from the database
- * @param {number} id - Project budget override ID
+ * Delete a budget value from the database
+ * @param {number} id - Budget value ID
  * @returns {Promise<void>}
  */
-export async function deleteProjectBudgetOverride(id) {
-    return deleteRecord(db, "projectBudgetOverrides", id, () => invalidateCache("projectBudgetOverrides"));
+export async function deleteBudgetValue(id) {
+    return deleteRecord(db, "budgetValues", id, () => invalidateCache("budgetValues"));
 }
 
 /**********************
@@ -583,65 +730,61 @@ export async function deleteAllocationOverride(id) {
 }
 
 /**********************
- * Override Resolution Helpers
+ * Value Resolution Helpers
  **********************/
 
 /**
- * Get the effective FTE for a person in a specific month, considering overrides
+ * Get the effective FTE for a person in a specific month
  * @param {string} personId - Person ID
  * @param {string} month - Month in YYYY-MM format
- * @param {Array} people - Array of person objects
- * @param {Array} fteOverrides - Array of FTE override objects
+ * @param {Array} fteValues - Array of FTE value objects
  * @returns {number} Effective FTE value
  */
-export function getEffectiveFte(personId, month, people, fteOverrides) {
-    // Find applicable override (most recent one that covers this month)
-    const applicableOverrides = fteOverrides.filter(override => 
-        override.personId === personId &&
-        override.startMonth <= month &&
-        (!override.endMonth || override.endMonth >= month)
+export function getEffectiveFte(personId, month, fteValues) {
+    // Find applicable FTE value (most recent one that covers this month)
+    const applicableValues = fteValues.filter(value => 
+        value.personId === personId &&
+        value.startMonth <= month &&
+        (!value.endMonth || value.endMonth >= month)
     );
     
-    if (applicableOverrides.length > 0) {
-        // If multiple overrides match (shouldn't happen but handle gracefully), use the most recent
-        const sortedOverrides = applicableOverrides.sort((a, b) => 
+    if (applicableValues.length > 0) {
+        // If multiple values match (shouldn't happen but handle gracefully), use the most recent
+        const sortedValues = applicableValues.sort((a, b) => 
             b.startMonth.localeCompare(a.startMonth)
         );
-        return sortedOverrides[0].fte;
+        return sortedValues[0].fte;
     }
     
-    // Fall back to base FTE
-    const person = people.find(p => p.id === personId);
-    return person ? (person.fte ?? 1) : 1;
+    // Default to 1.0 if no FTE value is found
+    return 1;
 }
 
 /**
- * Get the effective planned PM for a project in a specific month, considering overrides
+ * Get the effective planned PM for a project in a specific month
  * @param {string} projectId - Project ID
  * @param {string} month - Month in YYYY-MM format
- * @param {Array} projects - Array of project objects
- * @param {Array} projectBudgetOverrides - Array of project budget override objects
+ * @param {Array} budgetValues - Array of budget value objects
  * @returns {number} Effective planned PM value
  */
-export function getEffectivePlannedPM(projectId, month, projects, projectBudgetOverrides) {
-    // Find applicable override (most recent one that covers this month)
-    const applicableOverrides = projectBudgetOverrides.filter(override => 
-        override.projectId === projectId &&
-        override.startMonth <= month &&
-        (!override.endMonth || override.endMonth >= month)
+export function getEffectivePlannedPM(projectId, month, budgetValues) {
+    // Find applicable budget value (most recent one that covers this month)
+    const applicableValues = budgetValues.filter(value => 
+        value.projectId === projectId &&
+        value.startMonth <= month &&
+        (!value.endMonth || value.endMonth >= month)
     );
     
-    if (applicableOverrides.length > 0) {
-        // If multiple overrides match (shouldn't happen but handle gracefully), use the most recent
-        const sortedOverrides = applicableOverrides.sort((a, b) => 
+    if (applicableValues.length > 0) {
+        // If multiple values match (shouldn't happen but handle gracefully), use the most recent
+        const sortedValues = applicableValues.sort((a, b) => 
             b.startMonth.localeCompare(a.startMonth)
         );
-        return sortedOverrides[0].plannedPM;
+        return sortedValues[0].plannedPM;
     }
     
-    // Fall back to base planned PM
-    const project = projects.find(p => p.id === projectId);
-    return project ? (project.plannedPM ?? 0) : 0;
+    // Default to 0 if no budget value is found
+    return 0;
 }
 
 /**

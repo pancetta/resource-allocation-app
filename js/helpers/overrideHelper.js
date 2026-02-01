@@ -1,71 +1,68 @@
 /**
- * Override Helper - Centralized logic for handling FTE and Budget overrides
+ * Value Helper - Centralized logic for handling time-based FTE and Budget values
  * Eliminates duplication in report calculations
  */
 
 import { isMonthInRange, compareMonths } from './dateHelper.js';
 
 /**
- * Get the effective FTE for a person in a given month, considering FTE overrides
+ * Get the effective FTE for a person in a given month
  * @param {string} personId - The person's ID
  * @param {string} month - Month in YYYY-MM format
- * @param {number} defaultFte - Default FTE value from person record
- * @param {Array} fteOverrides - Array of FTE override objects
+ * @param {Array} fteValues - Array of FTE value objects
  * @returns {number} Effective FTE for the month
  */
-export function getEffectiveFte(personId, month, defaultFte, fteOverrides) {
-    const applicableOverrides = fteOverrides.filter(override =>
-        override.personId === personId &&
-        isMonthInRange(month, override.startMonth, override.endMonth)
+export function getEffectiveFte(personId, month, fteValues) {
+    const applicableValues = fteValues.filter(value =>
+        value.personId === personId &&
+        isMonthInRange(month, value.startMonth, value.endMonth)
     );
     
-    if (applicableOverrides.length === 0) {
-        return defaultFte;
+    if (applicableValues.length === 0) {
+        return 1; // Default FTE if no value found
     }
     
-    // Use the most recent override (latest startMonth)
-    const sortedOverrides = applicableOverrides.sort((a, b) =>
+    // Use the most recent value (latest startMonth)
+    const sortedValues = applicableValues.sort((a, b) =>
         compareMonths(b.startMonth, a.startMonth)
     );
-    return sortedOverrides[0].fte;
+    return sortedValues[0].fte;
 }
 
 /**
- * Get the effective planned PM for a project in a given month, considering budget overrides
+ * Get the effective planned PM for a project in a given month
  * @param {string} projectId - The project's ID
  * @param {string} month - Month in YYYY-MM format
- * @param {number} defaultPlannedPM - Default planned PM from project record
- * @param {Array} projectBudgetOverrides - Array of budget override objects
+ * @param {Array} budgetValues - Array of budget value objects
  * @returns {number} Effective planned PM for the month
  */
-export function getEffectiveProjectBudget(projectId, month, defaultPlannedPM, projectBudgetOverrides) {
-    const applicableOverrides = projectBudgetOverrides.filter(override =>
-        override.projectId === projectId &&
-        isMonthInRange(month, override.startMonth, override.endMonth)
+export function getEffectiveProjectBudget(projectId, month, budgetValues) {
+    const applicableValues = budgetValues.filter(value =>
+        value.projectId === projectId &&
+        isMonthInRange(month, value.startMonth, value.endMonth)
     );
     
-    if (applicableOverrides.length === 0) {
-        return defaultPlannedPM;
+    if (applicableValues.length === 0) {
+        return 0; // Default planned PM if no value found
     }
     
-    // Use the most recent override (latest startMonth)
-    const sortedOverrides = applicableOverrides.sort((a, b) =>
+    // Use the most recent value (latest startMonth)
+    const sortedValues = applicableValues.sort((a, b) =>
         compareMonths(b.startMonth, a.startMonth)
     );
-    return sortedOverrides[0].plannedPM;
+    return sortedValues[0].plannedPM;
 }
 
 /**
  * Calculate total effective FTE for a person across multiple months
  * @param {string} personId - The person's ID
- * @param {number} defaultFte - Default FTE value from person record
  * @param {Array} months - Array of month strings in YYYY-MM format
- * @param {Array} fteOverrides - Array of FTE override objects
+ * @param {Array} fteValues - Array of FTE value objects
  * @returns {number} Sum of effective FTE across all months
  */
-export function getTotalEffectiveFte(personId, defaultFte, months, fteOverrides) {
+export function getTotalEffectiveFte(personId, months, fteValues) {
     return months.reduce((sum, month) => {
-        const monthFte = getEffectiveFte(personId, month, defaultFte, fteOverrides);
+        const monthFte = getEffectiveFte(personId, month, fteValues);
         return sum + monthFte;
     }, 0);
 }
@@ -73,14 +70,13 @@ export function getTotalEffectiveFte(personId, defaultFte, months, fteOverrides)
 /**
  * Calculate total effective planned PM for a project across multiple months
  * @param {string} projectId - The project's ID
- * @param {number} defaultPlannedPM - Default planned PM from project record
  * @param {Array} months - Array of month strings in YYYY-MM format
- * @param {Array} projectBudgetOverrides - Array of budget override objects
+ * @param {Array} budgetValues - Array of budget value objects
  * @returns {number} Sum of effective planned PM across all months
  */
-export function getTotalEffectiveProjectBudget(projectId, defaultPlannedPM, months, projectBudgetOverrides) {
+export function getTotalEffectiveProjectBudget(projectId, months, budgetValues) {
     return months.reduce((sum, month) => {
-        const monthPlanned = getEffectiveProjectBudget(projectId, month, defaultPlannedPM, projectBudgetOverrides);
+        const monthPlanned = getEffectiveProjectBudget(projectId, month, budgetValues);
         return sum + monthPlanned;
     }, 0);
 }

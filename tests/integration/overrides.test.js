@@ -1,75 +1,78 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openDatabase, clearCache, getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides, addPerson, addProject, addAllocation, addFteOverride, addProjectBudgetOverride, addAllocationOverride } from '../../js/data/database.js';
+import { openDatabase, clearCache, getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides, addPerson, addProject, addAllocation, addFteValue, addBudgetValue, addAllocationOverride } from '../../js/data/database.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal } from '../../js/helpers/allocationHelper.js';
+import { getEffectiveFte, getEffectiveProjectBudget } from '../../js/helpers/overrideHelper.js';
 
-describe('Override Integration Tests', () => {
+describe('Value Integration Tests', () => {
     beforeEach(async () => {
         await openDatabase();
         clearCache();
     });
 
-    describe('FTE Overrides', () => {
-        it('should use override FTE value when calculating allocations', async () => {
-            // Add a person with base FTE of 1.0
-            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
-            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
-            await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
+    describe('FTE Values', () => {
+        it('should use time-based FTE value when calculating allocations', async () => {
+            // Add a person (no default FTE anymore)
+            await addPerson({ id: 'p001', name: 'Alice', active: true });
             
-            // Add FTE override: Alice goes to 0.5 FTE starting March 2025
-            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            // Add initial FTE value: 1.0 from January to February
+            await addFteValue({ personId: 'p001', fte: 1.0, startMonth: '2025-01', endMonth: '2025-02' });
+            
+            // Add second FTE value: 0.5 starting March
+            await addFteValue({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await addProject({ id: 'proj001', name: 'Project A' });
+            await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
+            await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
             
             const people = await getPeople();
             const projects = await getProjects();
             const allocations = await getAllocations();
-            const fteOverrides = await getFteOverrides();
+            const fteValues = await getFteValues();
             const allocationIndex = buildAllocationIndex(allocations);
             
-            // February: should use base FTE (1.0)
-            let fte = 1.0;
+            // February: should use first FTE value (1.0)
+            let fte = getEffectiveFte('p001', '2025-02', fteValues);
+            expect(fte).toBe(1.0);
             let result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-02', fte, null);
             expect(result).toBe(1.0);
             
-            // March: should use override FTE (0.5)
-            const applicableOverrides = fteOverrides.filter(o => 
-                o.personId === 'p001' && o.startMonth <= '2025-03' && (!o.endMonth || o.endMonth >= '2025-03')
-            );
-            if (applicableOverrides.length > 0) {
-                fte = applicableOverrides[0].fte;
-            }
+            // March: should use second FTE value (0.5)
+            fte = getEffectiveFte('p001', '2025-03', fteValues);
+            expect(fte).toBe(0.5);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-03', fte, null);
             expect(result).toBe(0.5);
         });
     });
 
-    describe('Project Budget Overrides', () => {
-        it('should use override planned PM when comparing against allocations', async () => {
-            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+    describe('Project Budget Values', () => {
+        it('should use time-based budget when comparing against allocations', async () => {
+            await addProject({ id: 'proj001', name: 'Project A' });
             
-            // Add budget override: Project changes to 5 PM starting April 2025
-            await addProjectBudgetOverride({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-04', endMonth: null });
+            // Add initial budget: 10 PM from January to March
+            await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: '2025-03' });
+            
+            // Add second budget: 5 PM starting April
+            await addBudgetValue({ projectId: 'proj001', plannedPM: 5, startMonth: '2025-04', endMonth: null });
             
             const projects = await getProjects();
-            const budgetOverrides = await getProjectBudgetOverrides();
+            const budgetValues = await getBudgetValues();
             
-            // March: should use base planned PM (10)
-            let planned = projects[0].plannedPM;
+            // March: should use first budget (10)
+            let planned = getEffectiveProjectBudget('proj001', '2025-03', budgetValues);
             expect(planned).toBe(10);
             
-            // April: should use override (5)
-            const applicableOverrides = budgetOverrides.filter(o => 
-                o.projectId === 'proj001' && o.startMonth <= '2025-04' && (!o.endMonth || o.endMonth >= '2025-04')
-            );
-            if (applicableOverrides.length > 0) {
-                planned = applicableOverrides[0].plannedPM;
-            }
+            // April: should use second budget (5)
+            planned = getEffectiveProjectBudget('proj001', '2025-04', budgetValues);
             expect(planned).toBe(5);
         });
     });
 
     describe('Allocation Overrides', () => {
         it('should use override percentage for specific month', async () => {
-            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
-            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+            await addPerson({ id: 'p001', name: 'Alice', active: true });
+            await addFteValue({ personId: 'p001', fte: 1.0, startMonth: '2025-01', endMonth: null });
+            await addProject({ id: 'proj001', name: 'Project A' });
+            await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
             
             // Add allocation with 100% (1.0) 
             await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
@@ -97,40 +100,46 @@ describe('Override Integration Tests', () => {
         });
     });
 
-    describe('Combined Overrides', () => {
-        it('should handle FTE and allocation overrides together', async () => {
-            await addPerson({ id: 'p001', name: 'Alice', fte: 1.0, active: true });
-            await addProject({ id: 'proj001', name: 'Project A', plannedPM: 10 });
+    describe('Combined Values and Overrides', () => {
+        it('should handle FTE values and allocation overrides together', async () => {
+            await addPerson({ id: 'p001', name: 'Alice', active: true });
+            
+            // FTE values: 1.0 initially, then 0.5 starting March
+            await addFteValue({ personId: 'p001', fte: 1.0, startMonth: '2025-01', endMonth: '2025-02' });
+            await addFteValue({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
+            
+            await addProject({ id: 'proj001', name: 'Project A' });
+            await addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
             await addAllocation({ personId: 'p001', projectId: 'proj001', pct: 1.0, startMonth: '2025-01', endMonth: null });
             
             const allocations = await getAllocations();
             const allocationId = allocations[0].id;
             
-            // FTE override: 0.5 FTE starting March
-            await addFteOverride({ personId: 'p001', fte: 0.5, startMonth: '2025-03', endMonth: null });
-            
             // Allocation override: 0.8 pct in April only
             await addAllocationOverride({ allocationId, month: '2025-04', pct: 0.8 });
             
-            const fteOverrides = await getFteOverrides();
+            const fteValues = await getFteValues();
             const allocationOverrides = await getAllocationOverrides();
             const allocationIndex = buildAllocationIndex(allocations);
             const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
             
-            // February: base FTE (1.0) * base allocation (1.0) = 1.0
-            let result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-02', 1.0, allocationOverrideIndex);
+            // February: FTE 1.0 * base allocation 1.0 = 1.0
+            let fte = getEffectiveFte('p001', '2025-02', fteValues);
+            let result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-02', fte, allocationOverrideIndex);
             expect(result).toBe(1.0);
             
-            // March: override FTE (0.5) * base allocation (1.0) = 0.5
-            let fte = 0.5; // FTE override applies
+            // March: FTE 0.5 * base allocation 1.0 = 0.5
+            fte = getEffectiveFte('p001', '2025-03', fteValues);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-03', fte, allocationOverrideIndex);
             expect(result).toBe(0.5);
             
-            // April: override FTE (0.5) * override allocation (0.8) = 0.4
+            // April: FTE 0.5 * allocation override 0.8 = 0.4
+            fte = getEffectiveFte('p001', '2025-04', fteValues);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-04', fte, allocationOverrideIndex);
             expect(result).toBe(0.4);
             
-            // May: override FTE (0.5) * base allocation (1.0) = 0.5 (allocation override is month-specific)
+            // May: FTE 0.5 * base allocation 1.0 = 0.5 (allocation override is month-specific)
+            fte = getEffectiveFte('p001', '2025-05', fteValues);
             result = calculatePM(allocationIndex, 'p001', 'proj001', '2025-05', fte, allocationOverrideIndex);
             expect(result).toBe(0.5);
         });

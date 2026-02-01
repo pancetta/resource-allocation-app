@@ -904,6 +904,18 @@ var App = (() => {
     });
     attachAllocationsEventListeners();
   }
+  async function updateRowPMValues(row, alloc) {
+    const people = await getPeople();
+    const person = people.find((p) => p.id === alloc.personId);
+    const fte = person ? person.fte ?? 1 : 1;
+    const pmPerMonth = pctToPMPerMonth(fte, alloc.pct);
+    const pmPerYear = pctToPMPerYear(fte, alloc.pct);
+    const cells = row.querySelectorAll(".pm-display");
+    if (cells.length >= 2) {
+      cells[0].textContent = pmPerMonth.toFixed(2);
+      cells[1].textContent = pmPerYear.toFixed(2);
+    }
+  }
   function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-person").forEach((select) => {
       select.addEventListener("change", async function() {
@@ -913,7 +925,7 @@ var App = (() => {
         alloc.personId = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
-        renderAllocations();
+        await updateRowPMValues(this.closest("tr"), alloc);
       });
     });
     document.querySelectorAll(".alloc-project").forEach((select) => {
@@ -934,7 +946,7 @@ var App = (() => {
         alloc.pct = parseFloat(this.value);
         await updateAllocation(alloc);
         scheduleAutoBackup();
-        renderAllocations();
+        await updateRowPMValues(this.closest("tr"), alloc);
       });
     });
     document.querySelectorAll(".alloc-start").forEach((input) => {

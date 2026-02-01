@@ -46,6 +46,26 @@ export async function renderAllocations() {
     attachAllocationsEventListeners();
 }
 
+/**
+ * Update PM values for a specific row without re-rendering the entire table
+ * @param {HTMLTableRowElement} row - The table row element
+ * @param {Object} alloc - The allocation object
+ */
+async function updateRowPMValues(row, alloc) {
+    const people = await getPeople();
+    const person = people.find(p => p.id === alloc.personId);
+    const fte = person ? (person.fte ?? 1) : 1;
+    const pmPerMonth = pctToPMPerMonth(fte, alloc.pct);
+    const pmPerYear = pctToPMPerYear(fte, alloc.pct);
+    
+    // Update the PM display cells (4th and 5th cells in the row)
+    const cells = row.querySelectorAll('.pm-display');
+    if (cells.length >= 2) {
+        cells[0].textContent = pmPerMonth.toFixed(2);
+        cells[1].textContent = pmPerYear.toFixed(2);
+    }
+}
+
 function attachAllocationsEventListeners() {
     // Person select change handlers
     document.querySelectorAll(".alloc-person").forEach(select => {
@@ -56,7 +76,8 @@ function attachAllocationsEventListeners() {
             alloc.personId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
-            renderAllocations(); // Re-render to update PM values
+            // Update PM values for this row
+            await updateRowPMValues(this.closest('tr'), alloc);
         });
     });
     
@@ -81,7 +102,8 @@ function attachAllocationsEventListeners() {
             alloc.pct = parseFloat(this.value);
             await updateAllocation(alloc);
             scheduleAutoBackup();
-            renderAllocations(); // Re-render to update PM values
+            // Update PM values for this row
+            await updateRowPMValues(this.closest('tr'), alloc);
         });
     });
     

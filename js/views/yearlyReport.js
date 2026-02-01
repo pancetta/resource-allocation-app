@@ -109,11 +109,11 @@ export async function calculateYear(year) {
             cells.map((c, idx) => {
                 const month = months[idx];
                 const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
-                return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
+                return `<td class="${cellClass(c, monthPlanned)}">${formatNumber(c)}</td>`;
             }).join('') +
-            `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>` +
-            `<td>${expectedPlannedYearly.toFixed(2)}</td>` +
-            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+            `<td class="${cellClass(total, expectedPlannedYearly)}">${formatNumber(total)}</td>` +
+            `<td>${formatNumber(expectedPlannedYearly)}</td>` +
+            `<td class="${cellClass(delta, 0)}">${formatNumber(delta)}</td>`;
         projTbody.appendChild(tr);
     });
 
@@ -140,10 +140,10 @@ export async function calculateYear(year) {
 
     // Build the total row HTML in one statement
     sumRowProj.innerHTML = `<td><strong>Total</strong></td>` +
-        monthlySumsProj.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
-        `<td><strong>${totalSumProj.toFixed(2)}</strong></td>` +
-        `<td><strong>${plannedSumProj.toFixed(2)}</strong></td>` +
-        `<td class="${cellClass(deltaSumProj, 0)}"><strong>${deltaSumProj.toFixed(2)}</strong></td>`;
+        monthlySumsProj.map(sum => `<td><strong>${formatNumber(sum)}</strong></td>`).join('') +
+        `<td><strong>${formatNumber(totalSumProj)}</strong></td>` +
+        `<td><strong>${formatNumber(plannedSumProj)}</strong></td>` +
+        `<td class="${cellClass(deltaSumProj, 0)}"><strong>${formatNumber(deltaSumProj)}</strong></td>`;
     tfootProj.appendChild(sumRowProj);
     
     projTable.appendChild(projTbody);

@@ -58,9 +58,70 @@ var App = (() => {
     return performTransaction(db2, storeName, "delete", id, invalidateCache2);
   }
 
+  // js/config/entitySchemas.js
+  var peopleSchema = {
+    fields: [
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 1
+      },
+      {
+        key: "type",
+        label: "Type",
+        type: "select",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 2,
+        options: [
+          { value: "210", label: "210" },
+          { value: "220", label: "220" },
+          { value: "230", label: "230" },
+          { value: "240", label: "240" },
+          { value: "250", label: "250" }
+        ],
+        defaultValue: "210",
+        validate: (value) => {
+          const validValues = ["210", "220", "230", "240", "250"];
+          if (!validValues.includes(value)) {
+            return { valid: false, message: `Type must be one of: ${validValues.join(", ")}` };
+          }
+          return { valid: true, message: "" };
+        }
+      },
+      {
+        key: "active",
+        label: "Active",
+        type: "checkbox",
+        required: false,
+        editable: true,
+        showInTable: true,
+        order: 3,
+        defaultValue: true
+      }
+    ],
+    // Default values for new person
+    getDefaults: () => ({
+      name: "",
+      type: "210",
+      active: true
+    })
+  };
+  function getTableHeaders(schema) {
+    return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order).map((f) => f.label);
+  }
+  function getEditableFields(schema) {
+    return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
+  }
+
   // js/data/database.js
   var DB_NAME = "resource-planning";
-  var DB_VERSION = 4;
+  var DB_VERSION = 5;
   var db;
   var cache = {
     people: null,
@@ -230,6 +291,20 @@ var App = (() => {
                 });
                 delete project.plannedPM;
                 projectsStore.put(project);
+              }
+            });
+          };
+        }
+        if (oldVersion < 5) {
+          const peopleStore = transaction.objectStore("people");
+          const peopleRequest = peopleStore.getAll();
+          peopleRequest.onsuccess = () => {
+            const people = peopleRequest.result;
+            const defaults = peopleSchema.getDefaults();
+            people.forEach((person) => {
+              if (!person.type) {
+                person.type = defaults.type;
+                peopleStore.put(person);
               }
             });
           };
@@ -544,6 +619,42 @@ var App = (() => {
   }
 
   // js/helpers/validationHelper.js
+  function validateFteValue(fte) {
+    const value = parseFloat(fte);
+    if (isNaN(value)) {
+      return { valid: false, message: "FTE must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "FTE cannot be below 0" };
+    }
+    if (value > 1) {
+      return { valid: false, message: "FTE cannot be above 1" };
+    }
+    return { valid: true, message: "" };
+  }
+  function validatePlannedPM(plannedPM) {
+    const value = parseFloat(plannedPM);
+    if (isNaN(value)) {
+      return { valid: false, message: "Planned PM must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "Planned PM cannot be negative" };
+    }
+    return { valid: true, message: "" };
+  }
+  function validateAllocationPercentage(pct) {
+    const value = parseFloat(pct);
+    if (isNaN(value)) {
+      return { valid: false, message: "Allocation percentage must be a valid number" };
+    }
+    if (value < 0) {
+      return { valid: false, message: "Allocation percentage cannot be negative" };
+    }
+    if (value > 100) {
+      return { valid: false, message: "Allocation percentage cannot exceed 100" };
+    }
+    return { valid: true, message: "" };
+  }
   async function validateFteValueDeletion(fteValueId) {
     const fteValues = await getFteValues();
     const value = fteValues.find((v) => v.id === fteValueId);
@@ -578,17 +689,33 @@ var App = (() => {
   // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#peopleTable tbody");
+    const table = document.querySelector("#peopleTable");
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    const thead = table.querySelector("thead");
+    if (thead) {
+      const headers = getTableHeaders(peopleSchema);
+      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}<th>Actions</th></tr>`;
+    }
     tbody.innerHTML = "";
     const people = await getPeople();
     people.forEach((p) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-            <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td><input type="checkbox" ${p.active ? "checked" : ""} data-id="${p.id}" data-field="active"></td>
-            <td><button class="delete-person" data-id="${p.id}">Delete</button></td>
-        `;
+      const fields = getEditableFields(peopleSchema);
+      const cells = fields.map((field) => {
+        if (field.type === "checkbox") {
+          return `<td><input type="checkbox" ${p[field.key] ? "checked" : ""} data-id="${p.id}" data-field="${field.key}"></td>`;
+        } else if (field.type === "select") {
+          const options = field.options.map(
+            (opt) => `<option value="${opt.value}" ${p[field.key] === opt.value ? "selected" : ""}>${opt.label}</option>`
+          ).join("");
+          return `<td><select data-id="${p.id}" data-field="${field.key}">${options}</select></td>`;
+        } else {
+          return `<td contenteditable="true" data-id="${p.id}" data-field="${field.key}">${p[field.key] || ""}</td>`;
+        }
+      }).join("");
+      tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
       tbody.appendChild(tr);
     });
     attachPeopleEventListeners();
@@ -632,8 +759,8 @@ var App = (() => {
         const value = this.textContent;
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
+        person[field] = value;
         if (field === "name") {
-          person.name = value;
           populatePersonSelect();
           renderFteValues();
         }
@@ -641,16 +768,40 @@ var App = (() => {
         scheduleAutoBackup();
       });
     });
+    document.querySelectorAll("#peopleTable select").forEach((select) => {
+      select.addEventListener("change", async function() {
+        const id = this.dataset.id;
+        const field = this.dataset.field;
+        const value = this.value;
+        const people = await getPeople();
+        const person = people.find((p) => p.id === id);
+        const fieldDef = peopleSchema.fields.find((f) => f.key === field);
+        if (fieldDef && fieldDef.validate) {
+          const validation = fieldDef.validate(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.value = person[field];
+            return;
+          }
+        }
+        person[field] = value;
+        await updatePerson(person);
+        scheduleAutoBackup();
+      });
+    });
     document.querySelectorAll("#peopleTable input[type=checkbox]").forEach((checkbox) => {
       checkbox.addEventListener("change", async function() {
         const id = this.dataset.id;
+        const field = this.dataset.field;
         const checked = this.checked;
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
-        person.active = checked;
+        person[field] = checked;
         await updatePerson(person);
         scheduleAutoBackup();
-        populatePersonSelect();
+        if (field === "active") {
+          populatePersonSelect();
+        }
       });
     });
     document.querySelectorAll(".delete-person").forEach((btn) => {
@@ -678,6 +829,12 @@ var App = (() => {
         const fteValues = await getFteValues();
         const fteValue = fteValues.find((v) => v.id === id);
         if (field === "fte") {
+          const validation = validateFteValue(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = fteValue.fte;
+            return;
+          }
           fteValue.fte = parseFloat(value);
         }
         await updateFteValue(fteValue);
@@ -746,7 +903,13 @@ var App = (() => {
   }
   async function addPersonAuto(name) {
     const id = await generatePersonId();
-    await addPerson({ id, name, active: true });
+    const defaults = peopleSchema.getDefaults();
+    await addPerson({
+      id,
+      name: name || defaults.name,
+      type: defaults.type,
+      active: defaults.active
+    });
     const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
     await addFteValue({
       personId: id,
@@ -880,6 +1043,12 @@ var App = (() => {
         const budgetValues = await getBudgetValues();
         const budgetValue = budgetValues.find((v) => v.id === id);
         if (field === "plannedPM") {
+          const validation = validatePlannedPM(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = budgetValue.plannedPM;
+            return;
+          }
           budgetValue.plannedPM = parseFloat(value);
         }
         await updateBudgetValue(budgetValue);
@@ -1212,6 +1381,12 @@ var App = (() => {
         const id = parseInt(this.dataset.id);
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
+        const validation = validateAllocationPercentage(this.value);
+        if (!validation.valid) {
+          alert(validation.message);
+          this.value = alloc.pct;
+          return;
+        }
         alloc.pct = parseFloat(this.value);
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1292,6 +1467,12 @@ var App = (() => {
         const overrides = await getAllocationOverrides();
         const override = overrides.find((o) => o.id === id);
         if (field === "pct") {
+          const validation = validateAllocationPercentage(value);
+          if (!validation.valid) {
+            alert(validation.message);
+            this.textContent = override.pct;
+            return;
+          }
           override.pct = parseFloat(value);
         }
         await updateAllocationOverride(override);

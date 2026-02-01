@@ -75,6 +75,7 @@ This is a client-side resource allocation web application built with vanilla Jav
 3. Maintain separation between data layer and view layer
 4. Add event listeners in view-specific `init` functions
 5. Re-render views after data changes
+6. **⚠️ Remember to rebuild bundle.js**: `npm run build:bundle`
 
 ### When Modifying Database
 1. Update the `DB_VERSION` constant in `database.js`
@@ -118,17 +119,44 @@ This is a client-side resource allocation web application built with vanilla Jav
 - All state is stored in IndexedDB - no server-side persistence
 - Application is fully client-side and can run from file:// protocol or static hosting
 
+## ⚠️ CRITICAL: Bundle.js Fallback
+
+**ALWAYS rebuild `bundle.js` after modifying any JavaScript files!**
+
+The application includes a fallback bundle (`js/bundle.js`) that loads when ES6 modules are not supported (e.g., when using `file://` protocol). This bundle must be kept in sync with the source code.
+
+### When to Rebuild Bundle.js
+- ✅ **AFTER** any changes to JavaScript files in the `js/` directory
+- ✅ **BEFORE** committing your changes
+- ✅ **BEFORE** pushing to GitHub
+- ✅ **BEFORE** marking a PR as complete
+
+### How to Rebuild
+```bash
+npm run build:bundle
+```
+
+### Verification
+- Check that `js/bundle.js` is modified in `git status`
+- Commit the updated bundle with your changes
+- Run `npm run test:e2e -- fallback.spec.js` to verify the bundle works
+
+### Why This Matters
+Users opening the app via `file://` protocol or in environments without ES6 module support will use `bundle.js`. If it's not updated, they'll experience bugs or missing features that don't appear in the regular version. See issue #50 for context.
+
 ## When Making Changes
 1. Keep the modular structure intact
 2. Maintain consistency with existing code style
 3. **Run existing tests before making changes** to establish baseline: `npm test` and `npm run test:e2e`
 4. Make your code changes
-5. **Run tests after changes** to verify no regressions: `npm test` and `npm run test:e2e`
-6. Add or update tests for new functionality or bug fixes
-7. Ensure changes work without a build step (no transpilation/bundling)
-8. Test manually in browser if needed
-9. Verify IndexedDB operations in browser console for data layer changes
-10. Check for failing tests in the linked CI pipeline after creating the PR and debug them.
+5. **⚠️ REBUILD bundle.js if you modified ANY JavaScript files**: `npm run build:bundle`
+6. **Run tests after changes** to verify no regressions: `npm test` and `npm run test:e2e`
+7. Add or update tests for new functionality or bug fixes
+8. Ensure changes work without a build step (no transpilation/bundling)
+9. Test manually in browser if needed
+10. Verify IndexedDB operations in browser console for data layer changes
+11. **⚠️ COMMIT the updated bundle.js along with your JS changes**
+12. Check for failing tests in the linked CI pipeline after creating the PR and debug them.
 
 ## Pull Request Workflow
 

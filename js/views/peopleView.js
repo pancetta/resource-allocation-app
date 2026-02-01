@@ -1,24 +1,48 @@
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
+import { peopleSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
     if (typeof document === 'undefined') return;
     
-    const tbody = document.querySelector("#peopleTable tbody");
+    const table = document.querySelector("#peopleTable");
+    if (!table) return;
+    
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    
+    const thead = table.querySelector("thead");
+    
+    // Render headers from schema if thead exists
+    if (thead) {
+        const headers = getTableHeaders(peopleSchema);
+        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Actions</th></tr>`;
+    }
     
     tbody.innerHTML = "";
     const people = await getPeople();
     
     people.forEach(p => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td><input type="checkbox" ${p.active ? "checked" : ""} data-id="${p.id}" data-field="active"></td>
-            <td><button class="delete-person" data-id="${p.id}">Delete</button></td>
-        `;
+        const fields = getEditableFields(peopleSchema);
+        
+        // Build cells based on schema
+        const cells = fields.map(field => {
+            if (field.type === 'checkbox') {
+                return `<td><input type="checkbox" ${p[field.key] ? "checked" : ""} data-id="${p.id}" data-field="${field.key}"></td>`;
+            } else if (field.type === 'select') {
+                const options = field.options.map(opt => 
+                    `<option value="${opt.value}" ${p[field.key] === opt.value ? 'selected' : ''}>${opt.label}</option>`
+                ).join('');
+                return `<td><select data-id="${p.id}" data-field="${field.key}">${options}</select></td>`;
+            } else {
+                return `<td contenteditable="true" data-id="${p.id}" data-field="${field.key}">${p[field.key] || ''}</td>`;
+            }
+        }).join('');
+        
+        tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
         tbody.appendChild(tr);
     });
     
@@ -79,8 +103,9 @@ function attachPeopleEventListeners() {
             const people = await getPeople();
             const person = people.find(p => p.id === id);
             
+            person[field] = value;
+            
             if (field === "name") {
-                person.name = value;
                 populatePersonSelect();
                 renderFteValues(); // Update FTE table in case person name changed
             }
@@ -90,19 +115,51 @@ function attachPeopleEventListeners() {
         });
     });
     
+    // Select dropdown handlers
+    document.querySelectorAll("#peopleTable select").forEach(select => {
+        select.addEventListener("change", async function() {
+            const id = this.dataset.id;
+            const field = this.dataset.field;
+            const value = this.value;
+            
+            const people = await getPeople();
+            const person = people.find(p => p.id === id);
+            
+            // Find field definition for validation
+            const fieldDef = peopleSchema.fields.find(f => f.key === field);
+            if (fieldDef && fieldDef.validate) {
+                const validation = fieldDef.validate(value);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    // Revert to original value
+                    this.value = person[field];
+                    return;
+                }
+            }
+            
+            person[field] = value;
+            await updatePerson(person);
+            scheduleAutoBackup();
+        });
+    });
+    
     // Checkbox handlers
     document.querySelectorAll("#peopleTable input[type=checkbox]").forEach(checkbox => {
         checkbox.addEventListener("change", async function() {
             const id = this.dataset.id;
+            const field = this.dataset.field;
             const checked = this.checked;
             
             const people = await getPeople();
             const person = people.find(p => p.id === id);
-            person.active = checked;
+            person[field] = checked;
             
             await updatePerson(person);
             scheduleAutoBackup();
-            populatePersonSelect();
+            
+            if (field === "active") {
+                populatePersonSelect();
+            }
         });
     });
     
@@ -237,7 +294,13 @@ export async function populateFtePersonSelect() {
 // Add person with auto-generated ID and initial FTE value
 export async function addPersonAuto(name) {
     const id = await generatePersonId();
-    await addPerson({ id, name, active: true });
+    const defaults = peopleSchema.getDefaults();
+    await addPerson({ 
+        id, 
+        name: name || defaults.name, 
+        type: defaults.type,
+        active: defaults.active 
+    });
     
     // Create initial FTE value for the person
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format

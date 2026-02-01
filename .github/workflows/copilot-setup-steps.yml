@@ -7,7 +7,7 @@ on:
   push:
     paths:
       - .github/workflows/copilot-setup-steps.yml
-  pull_request:
+  pull_request_target:
     paths:
       - .github/workflows/copilot-setup-steps.yml
 
@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -53,7 +55,7 @@ jobs:
           path: coverage/
 
       - name: Report coverage summary
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           json-summary-path: './coverage/coverage-summary.json'

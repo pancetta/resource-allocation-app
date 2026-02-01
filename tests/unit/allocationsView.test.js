@@ -1,6 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderAllocations, initAllocationsView } from '../../js/views/allocationsView.js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { renderAllocations, renderAllocationOverrides, populateAllocationSelect, initAllocationsView } from '../../js/views/allocationsView.js';
 import * as db from '../../js/data/database.js';
+
+// Mock scheduleAutoBackup
+vi.mock('../../js/main.js', () => ({
+    scheduleAutoBackup: vi.fn()
+}));
 
 describe('Allocations View', () => {
   beforeEach(async () => {
@@ -19,6 +24,14 @@ describe('Allocations View', () => {
       <input type="month" id="startMonthInput" value="2024-01">
       <input type="month" id="endMonthInput" value="2024-12">
       <button id="addAllocationBtn">Add Allocation</button>
+      
+      <table id="allocationOverridesTable">
+        <tbody></tbody>
+      </table>
+      <select id="allocationSelect"></select>
+      <input type="month" id="overrideMonthInput" value="2025-06">
+      <input type="number" id="overridePctInput" value="0.5">
+      <button id="addAllocationOverrideBtn">Add Override</button>
     `;
     
     // Add test data
@@ -322,6 +335,113 @@ describe('Allocations View', () => {
       
       const allocations = await db.getAllocations();
       expect(allocations[0].endMonth).toBe(null);
+    });
+  });
+
+  describe('renderAllocationOverrides', () => {
+    it('should render empty table when no overrides exist', async () => {
+      await renderAllocationOverrides();
+      
+      const tbody = document.querySelector('#allocationOverridesTable tbody');
+      expect(tbody.children.length).toBe(0);
+    });
+
+    it('should render allocation overrides in table', async () => {
+      await db.addAllocation({
+        id: 1,
+        personId: 'p001',
+        projectId: 'proj001',
+        pct: 1.0,
+        startMonth: '2025-01',
+        endMonth: null
+      });
+      
+      await db.addAllocationOverride({
+        allocationId: 1,
+        month: '2025-06',
+        pct: 0.5
+      });
+      
+      await renderAllocationOverrides();
+      
+      const tbody = document.querySelector('#allocationOverridesTable tbody');
+      expect(tbody.children.length).toBe(1);
+      
+      const row = tbody.children[0];
+      // Month is in an input field
+      const monthInput = row.querySelector('.override-month');
+      expect(monthInput.value).toBe('2025-06');
+      expect(row.textContent).toContain('0.5');
+    });
+  });
+
+  describe('populateAllocationSelect', () => {
+    it('should populate dropdown with allocations', async () => {
+      await db.addAllocation({
+        id: 1,
+        personId: 'p001',
+        projectId: 'proj001',
+        pct: 1.0,
+        startMonth: '2025-01',
+        endMonth: null
+      });
+      
+      await populateAllocationSelect();
+      
+      const select = document.getElementById('allocationSelect');
+      expect(select.options.length).toBe(1);
+      expect(select.options[0].value).toBe('1');
+    });
+  });
+
+  describe('allocation override management', () => {
+    it('should add allocation override when override button clicked', async () => {
+      await db.addAllocation({
+        id: 1,
+        personId: 'p001',
+        projectId: 'proj001',
+        pct: 1.0,
+        startMonth: '2025-01',
+        endMonth: null
+      });
+      
+      await populateAllocationSelect();
+      
+      initAllocationsView();
+      
+      document.getElementById('allocationSelect').value = '1';
+      document.getElementById('overrideMonthInput').value = '2025-06';
+      document.getElementById('overridePctInput').value = '0.5';
+      
+      const btn = document.getElementById('addAllocationOverrideBtn');
+      btn.click();
+      
+      // Wait for async add
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const overrides = await db.getAllocationOverrides();
+      expect(overrides.length).toBe(1);
+      expect(overrides[0].allocationId).toBe(1);
+      expect(overrides[0].month).toBe('2025-06');
+      expect(overrides[0].pct).toBe(0.5);
+    });
+
+    it('should show alert when allocation override is missing data', async () => {
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      
+      initAllocationsView();
+      
+      document.getElementById('allocationSelect').value = '';
+      document.getElementById('overrideMonthInput').value = '2025-06';
+      
+      const btn = document.getElementById('addAllocationOverrideBtn');
+      btn.click();
+      
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      expect(alertMock).toHaveBeenCalledWith('Please select an allocation and month');
+      
+      alertMock.mockRestore();
     });
   });
 });

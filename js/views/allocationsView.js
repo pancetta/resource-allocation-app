@@ -73,8 +73,18 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-person").forEach(select => {
         select.addEventListener("change", async function() {
             const id = parseInt(this.dataset.id);
+            if (isNaN(id)) return;
+            
+            // Validate person selection
+            if (!this.value) {
+                alert('Please select a person');
+                return;
+            }
+            
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
+            if (!alloc) return;
+            
             alloc.personId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -87,8 +97,18 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-project").forEach(select => {
         select.addEventListener("change", async function() {
             const id = parseInt(this.dataset.id);
+            if (isNaN(id)) return;
+            
+            // Validate project selection
+            if (!this.value) {
+                alert('Please select a project');
+                return;
+            }
+            
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
+            if (!alloc) return;
+            
             alloc.projectId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -99,8 +119,11 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-pct").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
+            if (isNaN(id)) return;
+            
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
+            if (!alloc) return;
             
             const validation = validateAllocationPercentage(this.value);
             if (!validation.valid) {
@@ -110,7 +133,14 @@ function attachAllocationsEventListeners() {
                 return;
             }
             
-            alloc.pct = parseFloat(this.value);
+            const pct = parseFloat(this.value);
+            if (isNaN(pct)) {
+                alert('Invalid percentage value');
+                this.value = alloc.pct;
+                return;
+            }
+            
+            alloc.pct = pct;
             await updateAllocation(alloc);
             scheduleAutoBackup();
             // Update PM values for this row
@@ -122,8 +152,19 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-start").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
+            if (isNaN(id)) return;
+            
+            // Validate date format (YYYY-MM)
+            const datePattern = /^\d{4}-\d{2}$/;
+            if (!datePattern.test(this.value)) {
+                alert('Invalid date format. Please use YYYY-MM format');
+                return;
+            }
+            
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
+            if (!alloc) return;
+            
             alloc.startMonth = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -134,8 +175,19 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-end").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
+            if (isNaN(id)) return;
+            
+            // Validate date format if not empty (YYYY-MM)
+            const datePattern = /^\d{4}-\d{2}$/;
+            if (this.value && !datePattern.test(this.value)) {
+                alert('Invalid date format. Please use YYYY-MM format or leave empty');
+                return;
+            }
+            
             const allocs = await getAllocations();
             const alloc = allocs.find(a => a.id === id);
+            if (!alloc) return;
+            
             alloc.endMonth = this.value || null;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -312,6 +364,10 @@ export function initAllocationsView() {
         }
         
         const pct = parseFloat(pctInput);
+        if (isNaN(pct)) {
+            alert('Invalid percentage value');
+            return;
+        }
         
         await addAllocation({
             personId,
@@ -356,6 +412,10 @@ export function initAllocationsView() {
             }
             
             const pct = parseFloat(pctInput);
+            if (isNaN(pct)) {
+                alert("Invalid percentage value");
+                return;
+            }
             
             await addAllocationOverride({
                 allocationId,

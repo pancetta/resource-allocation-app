@@ -772,6 +772,110 @@ var App = (() => {
     });
   }
 
+  // js/helpers/allocationHelper.js
+  function buildAllocationIndex(allocations) {
+    const index = /* @__PURE__ */ new Map();
+    for (const alloc of allocations) {
+      const key = `${alloc.personId}:${alloc.projectId}`;
+      if (!index.has(key)) {
+        index.set(key, []);
+      }
+      index.get(key).push(alloc);
+    }
+    return index;
+  }
+  function buildAllocationOverrideIndex(allocationOverrides) {
+    const index = /* @__PURE__ */ new Map();
+    for (const override of allocationOverrides) {
+      const key = `${override.allocationId}:${override.month}`;
+      index.set(key, override);
+    }
+    return index;
+  }
+  function calculatePM(allocationIndex, personId, projectId, month, fte, allocationOverrideIndex = null) {
+    const key = `${personId}:${projectId}`;
+    const allocations = allocationIndex.get(key);
+    if (!allocations) {
+      return 0;
+    }
+    return allocations.reduce((sum, alloc) => {
+      if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
+        let pct = alloc.pct;
+        if (allocationOverrideIndex) {
+          const overrideKey = `${alloc.id}:${month}`;
+          const override = allocationOverrideIndex.get(overrideKey);
+          if (override) {
+            pct = override.pct;
+          }
+        }
+        return sum + pct * fte;
+      }
+      return sum;
+    }, 0);
+  }
+  function calculatePersonTotal(allocationIndex, personId, projects, month, fte, allocationOverrideIndex = null) {
+    let total = 0;
+    for (const project of projects) {
+      total += calculatePM(allocationIndex, personId, project.id, month, fte, allocationOverrideIndex);
+    }
+    return total;
+  }
+  function calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides = null, allocationOverrideIndex = null) {
+    let total = 0;
+    for (const person of people) {
+      let fte = person.fte ?? 1;
+      if (fteOverrides) {
+        const applicableOverrides = fteOverrides.filter(
+          (override) => override.personId === person.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
+        );
+        if (applicableOverrides.length > 0) {
+          const sortedOverrides = applicableOverrides.sort(
+            (a, b) => b.startMonth.localeCompare(a.startMonth)
+          );
+          fte = sortedOverrides[0].fte;
+        }
+      }
+      total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
+    }
+    return total;
+  }
+  function calculatePersonMonthlyTotals(allocationIndex, personId, projects, months, fte, fteOverrides = null, allocationOverrideIndex = null) {
+    return months.map((month) => {
+      let effectiveFte = fte;
+      if (fteOverrides) {
+        const applicableOverrides = fteOverrides.filter(
+          (override) => override.personId === personId && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
+        );
+        if (applicableOverrides.length > 0) {
+          const sortedOverrides = applicableOverrides.sort(
+            (a, b) => b.startMonth.localeCompare(a.startMonth)
+          );
+          effectiveFte = sortedOverrides[0].fte;
+        }
+      }
+      return calculatePersonTotal(allocationIndex, personId, projects, month, effectiveFte, allocationOverrideIndex);
+    });
+  }
+  function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null) {
+    return months.map((month) => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex));
+  }
+  function sumArray(arr) {
+    return arr.reduce((sum, val) => sum + val, 0);
+  }
+  function pctToPMPerMonth(fte, pct) {
+    return fte * pct;
+  }
+  function pctToPMPerYear(fte, pct) {
+    return fte * pct * 12;
+  }
+  function formatPMWithPct(pm, fte) {
+    if (fte === 0) {
+      return `${pm.toFixed(2)} (N/A)`;
+    }
+    const pct = pm / fte * 100;
+    return `${pm.toFixed(2)} (${pct.toFixed(0)}%)`;
+  }
+
   // js/views/allocationsView.js
   async function renderAllocations() {
     if (typeof document === "undefined") return;
@@ -789,10 +893,16 @@ var App = (() => {
       const projectOptions = projects.map(
         (p) => `<option value="${p.id}" ${p.id === a.projectId ? "selected" : ""}>${p.name}</option>`
       ).join("");
+      const person = people.find((p) => p.id === a.personId);
+      const fte = person ? person.fte ?? 1 : 1;
+      const pmPerMonth = pctToPMPerMonth(fte, a.pct);
+      const pmPerYear = pctToPMPerYear(fte, a.pct);
       tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
             <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
+            <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
+            <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
             <td><input type="month" class="alloc-end" value="${a.endMonth ?? ""}" data-id="${a.id}"></td>
             <td><button class="delete-allocation" data-id="${a.id}">Delete</button></td>
@@ -800,6 +910,18 @@ var App = (() => {
       tbody.appendChild(tr);
     });
     attachAllocationsEventListeners();
+  }
+  async function updateRowPMValues(row, alloc) {
+    const people = await getPeople();
+    const person = people.find((p) => p.id === alloc.personId);
+    const fte = person ? person.fte ?? 1 : 1;
+    const pmPerMonth = pctToPMPerMonth(fte, alloc.pct);
+    const pmPerYear = pctToPMPerYear(fte, alloc.pct);
+    const cells = row.querySelectorAll(".pm-display");
+    if (cells.length >= 2) {
+      cells[0].textContent = pmPerMonth.toFixed(2);
+      cells[1].textContent = pmPerYear.toFixed(2);
+    }
   }
   function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-person").forEach((select) => {
@@ -810,6 +932,7 @@ var App = (() => {
         alloc.personId = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
+        await updateRowPMValues(this.closest("tr"), alloc);
       });
     });
     document.querySelectorAll(".alloc-project").forEach((select) => {
@@ -830,6 +953,7 @@ var App = (() => {
         alloc.pct = parseFloat(this.value);
         await updateAllocation(alloc);
         scheduleAutoBackup();
+        await updateRowPMValues(this.closest("tr"), alloc);
       });
     });
     document.querySelectorAll(".alloc-start").forEach((input) => {
@@ -1216,97 +1340,6 @@ var App = (() => {
     return "warning";
   }
 
-  // js/helpers/allocationHelper.js
-  function buildAllocationIndex(allocations) {
-    const index = /* @__PURE__ */ new Map();
-    for (const alloc of allocations) {
-      const key = `${alloc.personId}:${alloc.projectId}`;
-      if (!index.has(key)) {
-        index.set(key, []);
-      }
-      index.get(key).push(alloc);
-    }
-    return index;
-  }
-  function buildAllocationOverrideIndex(allocationOverrides) {
-    const index = /* @__PURE__ */ new Map();
-    for (const override of allocationOverrides) {
-      const key = `${override.allocationId}:${override.month}`;
-      index.set(key, override);
-    }
-    return index;
-  }
-  function calculatePM(allocationIndex, personId, projectId, month, fte, allocationOverrideIndex = null) {
-    const key = `${personId}:${projectId}`;
-    const allocations = allocationIndex.get(key);
-    if (!allocations) {
-      return 0;
-    }
-    return allocations.reduce((sum, alloc) => {
-      if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
-        let pct = alloc.pct;
-        if (allocationOverrideIndex) {
-          const overrideKey = `${alloc.id}:${month}`;
-          const override = allocationOverrideIndex.get(overrideKey);
-          if (override) {
-            pct = override.pct;
-          }
-        }
-        return sum + pct * fte;
-      }
-      return sum;
-    }, 0);
-  }
-  function calculatePersonTotal(allocationIndex, personId, projects, month, fte, allocationOverrideIndex = null) {
-    let total = 0;
-    for (const project of projects) {
-      total += calculatePM(allocationIndex, personId, project.id, month, fte, allocationOverrideIndex);
-    }
-    return total;
-  }
-  function calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides = null, allocationOverrideIndex = null) {
-    let total = 0;
-    for (const person of people) {
-      let fte = person.fte ?? 1;
-      if (fteOverrides) {
-        const applicableOverrides = fteOverrides.filter(
-          (override) => override.personId === person.id && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableOverrides.length > 0) {
-          const sortedOverrides = applicableOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          fte = sortedOverrides[0].fte;
-        }
-      }
-      total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
-    }
-    return total;
-  }
-  function calculatePersonMonthlyTotals(allocationIndex, personId, projects, months, fte, fteOverrides = null, allocationOverrideIndex = null) {
-    return months.map((month) => {
-      let effectiveFte = fte;
-      if (fteOverrides) {
-        const applicableOverrides = fteOverrides.filter(
-          (override) => override.personId === personId && override.startMonth <= month && (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableOverrides.length > 0) {
-          const sortedOverrides = applicableOverrides.sort(
-            (a, b) => b.startMonth.localeCompare(a.startMonth)
-          );
-          effectiveFte = sortedOverrides[0].fte;
-        }
-      }
-      return calculatePersonTotal(allocationIndex, personId, projects, month, effectiveFte, allocationOverrideIndex);
-    });
-  }
-  function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null) {
-    return months.map((month) => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex));
-  }
-  function sumArray(arr) {
-    return arr.reduce((sum, val) => sum + val, 0);
-  }
-
   // js/views/monthlyReport.js
   async function calculateMonth(month) {
     const people = await getPeople();
@@ -1338,7 +1371,7 @@ var App = (() => {
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${formatPMWithPct(c, fte)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${formatPMWithPct(total, fte)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
@@ -1434,7 +1467,7 @@ var App = (() => {
           );
           monthFte = sortedOverrides[0].fte;
         }
-        return `<td class="${cellClass(c, monthFte)}">${c.toFixed(2)}</td>`;
+        return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td><td>${expectedFteYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });

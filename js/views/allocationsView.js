@@ -1,5 +1,6 @@
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
+import { pctToPMPerMonth, pctToPMPerYear } from '../helpers/allocationHelper.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -22,10 +23,18 @@ export async function renderAllocations() {
             `<option value="${p.id}" ${p.id === a.projectId ? 'selected' : ''}>${p.name}</option>`
         ).join('');
         
+        // Get person's FTE to calculate PM values
+        const person = people.find(p => p.id === a.personId);
+        const fte = person ? (person.fte ?? 1) : 1;
+        const pmPerMonth = pctToPMPerMonth(fte, a.pct);
+        const pmPerYear = pctToPMPerYear(fte, a.pct);
+        
         tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
             <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
+            <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
+            <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
             <td><input type="month" class="alloc-end" value="${a.endMonth ?? ''}" data-id="${a.id}"></td>
             <td><button class="delete-allocation" data-id="${a.id}">Delete</button></td>
@@ -35,6 +44,26 @@ export async function renderAllocations() {
     
     // Attach event listeners
     attachAllocationsEventListeners();
+}
+
+/**
+ * Update PM values for a specific row without re-rendering the entire table
+ * @param {HTMLTableRowElement} row - The table row element
+ * @param {Object} alloc - The allocation object
+ */
+async function updateRowPMValues(row, alloc) {
+    const people = await getPeople();
+    const person = people.find(p => p.id === alloc.personId);
+    const fte = person ? (person.fte ?? 1) : 1;
+    const pmPerMonth = pctToPMPerMonth(fte, alloc.pct);
+    const pmPerYear = pctToPMPerYear(fte, alloc.pct);
+    
+    // Update the PM display cells (4th and 5th cells in the row)
+    const cells = row.querySelectorAll('.pm-display');
+    if (cells.length >= 2) {
+        cells[0].textContent = pmPerMonth.toFixed(2);
+        cells[1].textContent = pmPerYear.toFixed(2);
+    }
 }
 
 function attachAllocationsEventListeners() {
@@ -47,6 +76,8 @@ function attachAllocationsEventListeners() {
             alloc.personId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
+            // Update PM values for this row
+            await updateRowPMValues(this.closest('tr'), alloc);
         });
     });
     
@@ -71,6 +102,8 @@ function attachAllocationsEventListeners() {
             alloc.pct = parseFloat(this.value);
             await updateAllocation(alloc);
             scheduleAutoBackup();
+            // Update PM values for this row
+            await updateRowPMValues(this.closest('tr'), alloc);
         });
     });
     

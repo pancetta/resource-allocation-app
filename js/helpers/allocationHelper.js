@@ -192,3 +192,37 @@ export function calculateProjectMonthlyTotals(allocationIndex, projectId, people
 export function sumArray(arr) {
     return arr.reduce((sum, val) => sum + val, 0);
 }
+
+/**
+ * Convert percentage allocation to person-months per month
+ * @param {number} fte - Person's FTE value (0.0 to 1.0)
+ * @param {number} pct - Allocation percentage (0.0 to 1.0)
+ * @returns {number} Person-months per month
+ */
+export function pctToPMPerMonth(fte, pct) {
+    return fte * pct;
+}
+
+/**
+ * Convert percentage allocation to person-months per year
+ * @param {number} fte - Person's FTE value (0.0 to 1.0)
+ * @param {number} pct - Allocation percentage (0.0 to 1.0)
+ * @returns {number} Person-months per year
+ */
+export function pctToPMPerYear(fte, pct) {
+    return fte * pct * 12;
+}
+
+/**
+ * Format PM and percentage together for display
+ * @param {number} pm - Person-months value
+ * @param {number} fte - Person's FTE value for calculating percentage
+ * @returns {string} Formatted string like "0.50 (50%)"
+ */
+export function formatPMWithPct(pm, fte) {
+    if (fte === 0) {
+        return `${pm.toFixed(2)} (N/A)`;
+    }
+    const pct = (pm / fte) * 100;
+    return `${pm.toFixed(2)} (${pct.toFixed(0)}%)`;
+}

@@ -25,8 +25,8 @@ export async function init() {
         exportBtn.addEventListener("click", async () => {
             try {
                 const data = await exportAllData();
-                downloadJSON(data);
-                alert("Data exported successfully!");
+                const filename = downloadJSON(data);
+                showDownloadSuccess(filename);
             } catch (e) {
                 alert("Export failed: " + e.message);
             }
@@ -44,8 +44,8 @@ export async function init() {
             }
             
             try {
-                downloadJSON(autoBackup.data);
-                alert("Automatic backup downloaded successfully!");
+                const filename = downloadJSON(autoBackup.data);
+                showDownloadSuccess(filename);
             } catch (e) {
                 alert("Download failed: " + e.message);
             }
@@ -91,7 +91,7 @@ export async function init() {
         createBackupBtn.addEventListener("click", async () => {
             try {
                 await createBackup();
-                alert("Backup created successfully!");
+                alert("✅ Backup created successfully!\n\nThe backup is stored in your browser's localStorage. To save a permanent copy, use the 'Download Latest Auto-Backup' button above.");
                 await renderBackups();
             } catch (e) {
                 alert("Backup failed: " + e.message);
@@ -104,6 +104,9 @@ export async function init() {
     
     // Update auto-backup status
     updateAutoBackupStatus();
+    
+    // Set up beforeunload warning
+    setupBeforeUnloadWarning();
 }
 
 // Helper function to download JSON
@@ -112,10 +115,57 @@ function downloadJSON(data) {
     const blob = new Blob([jsonStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+    const filename = `resource-allocation-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.href = url;
-    a.download = `resource-allocation-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+    return filename;
+}
+
+// Show download success message with helpful info
+function showDownloadSuccess(filename) {
+    const message = `✅ Download started successfully!\n\n` +
+                   `File: ${filename}\n\n` +
+                   `The file will be saved to your browser's default Downloads folder.\n\n` +
+                   `💡 Tip: Check your browser's download bar (usually at the bottom) or Downloads folder to find the file.`;
+    alert(message);
+}
+
+// Set up warning before closing window with unsaved changes
+function setupBeforeUnloadWarning() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    
+    // Threshold in minutes before showing backup warning
+    const BACKUP_WARNING_THRESHOLD_MINUTES = 5;
+    
+    window.addEventListener('beforeunload', (e) => {
+        const autoBackup = getAutoPreparedBackup();
+        
+        // Only show warning if there's data and auto-backup exists
+        if (autoBackup) {
+            const preparedDate = new Date(autoBackup.preparedAt);
+            
+            // Validate that the date is valid before calculation
+            if (isNaN(preparedDate.getTime())) {
+                return; // Skip warning if date is invalid
+            }
+            
+            const minutesAgo = Math.floor((Date.now() - preparedDate.getTime()) / 60000);
+            
+            // Show warning if backup is older than threshold
+            if (minutesAgo >= BACKUP_WARNING_THRESHOLD_MINUTES) {
+                // Note: Modern browsers ignore custom messages and show their own generic dialog.
+                // The message assignment and return value are still needed to trigger the dialog.
+                const message = "You have unsaved changes! Consider downloading a backup before leaving.";
+                e.preventDefault();
+                e.returnValue = message;
+                return message;
+            }
+        }
+    });
 }
 
 // Update auto-backup status display

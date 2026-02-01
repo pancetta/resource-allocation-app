@@ -202,8 +202,8 @@ test.describe('Resource Allocation App - E2E Tests', () => {
       await page.selectOption('#personSelect', { index: 0 });
       await page.selectOption('#projectSelect', { index: 0 });
       
-      // Set percentage
-      await page.fill('#pctInput', '0.5');
+      // Set PM (person-months)
+      await page.fill('#pmInput', '0.5');
       
       // Add allocation
       await page.click('#addAllocationBtn');
@@ -336,7 +336,7 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     if (personOptions > 0 && projectOptions > 0) {
       await page.selectOption('#personSelect', { index: 0 });
       await page.selectOption('#projectSelect', { index: 0 });
-      await page.fill('#pctInput', '1');
+      await page.fill('#pmInput', '1');
       await page.click('#addAllocationBtn');
       await page.waitForTimeout(1000);
       

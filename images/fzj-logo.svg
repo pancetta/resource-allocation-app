@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">
+  <!-- FZJ Logo - Simplified representation -->
+  <rect width="200" height="60" fill="#005AA0"/>
+  <text x="100" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">
+    FZJ
+  </text>
+  <text x="100" y="50" font-family="Arial, sans-serif" font-size="8" fill="white" text-anchor="middle">
+    Forschungszentrum Jülich
+  </text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Division Logo - Circular design with blue and green segments -->
+  <circle cx="100" cy="100" r="95" fill="#E8F4FC"/>
+  
+  <!-- Blue segment (left side) -->
+  <path d="M 100 100 L 100 5 A 95 95 0 0 1 168.3 168.3 Z" fill="#005AA0"/>
+  
+  <!-- Green segment (top right) -->
+  <path d="M 100 100 L 168.3 31.7 A 95 95 0 0 1 168.3 168.3 Z" fill="#8CB903"/>
+  
+  <!-- White center circle -->
+  <circle cx="100" cy="100" r="35" fill="white"/>
+  
+  <!-- Inner blue circle -->
+  <circle cx="100" cy="100" r="25" fill="#005AA0"/>
+  <circle cx="100" cy="100" r="15" fill="white"/>
+</svg>

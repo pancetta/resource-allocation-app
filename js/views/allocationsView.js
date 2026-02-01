@@ -76,15 +76,17 @@ function attachAllocationsEventListeners() {
                 const id = parseInt(this.dataset.id);
                 if (isNaN(id)) return;
                 
-                // Validate person selection
-                if (!this.value) {
-                    alert('Please select a person');
-                    return;
-                }
-                
                 const allocs = await getAllocations();
                 const alloc = allocs.find(a => a.id === id);
                 if (!alloc) return;
+                
+                // Validate person selection
+                if (!this.value) {
+                    alert('Please select a person');
+                    // Revert to original value
+                    this.value = alloc.personId;
+                    return;
+                }
                 
                 alloc.personId = this.value;
                 await updateAllocation(alloc);
@@ -105,15 +107,17 @@ function attachAllocationsEventListeners() {
                 const id = parseInt(this.dataset.id);
                 if (isNaN(id)) return;
                 
-                // Validate project selection
-                if (!this.value) {
-                    alert('Please select a project');
-                    return;
-                }
-                
                 const allocs = await getAllocations();
                 const alloc = allocs.find(a => a.id === id);
                 if (!alloc) return;
+                
+                // Validate project selection
+                if (!this.value) {
+                    alert('Please select a project');
+                    // Revert to original value
+                    this.value = alloc.projectId;
+                    return;
+                }
                 
                 alloc.projectId = this.value;
                 await updateAllocation(alloc);
@@ -170,16 +174,18 @@ function attachAllocationsEventListeners() {
                 const id = parseInt(this.dataset.id);
                 if (isNaN(id)) return;
                 
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
                 // Validate date format (YYYY-MM)
                 const datePattern = /^\d{4}-\d{2}$/;
                 if (!datePattern.test(this.value)) {
                     alert('Invalid date format. Please use YYYY-MM format');
+                    // Revert to original value
+                    this.value = alloc.startMonth;
                     return;
                 }
-                
-                const allocs = await getAllocations();
-                const alloc = allocs.find(a => a.id === id);
-                if (!alloc) return;
                 
                 alloc.startMonth = this.value;
                 await updateAllocation(alloc);
@@ -198,16 +204,18 @@ function attachAllocationsEventListeners() {
                 const id = parseInt(this.dataset.id);
                 if (isNaN(id)) return;
                 
+                const allocs = await getAllocations();
+                const alloc = allocs.find(a => a.id === id);
+                if (!alloc) return;
+                
                 // Validate date format if not empty (YYYY-MM)
                 const datePattern = /^\d{4}-\d{2}$/;
                 if (this.value && !datePattern.test(this.value)) {
                     alert('Invalid date format. Please use YYYY-MM format or leave empty');
+                    // Revert to original value
+                    this.value = alloc.endMonth || '';
                     return;
                 }
-                
-                const allocs = await getAllocations();
-                const alloc = allocs.find(a => a.id === id);
-                if (!alloc) return;
                 
                 alloc.endMonth = this.value || null;
                 await updateAllocation(alloc);

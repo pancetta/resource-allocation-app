@@ -6,6 +6,7 @@
  **********************/
 
 import { isMonthInRange, compareMonths } from './dateHelper.js';
+import { getEffectiveFte } from './overrideHelper.js';
 
 /**
  * Build an index map for fast allocation lookups by person and project
@@ -104,31 +105,16 @@ export function calculatePersonTotal(allocationIndex, personId, projects, month,
  * @param {string} projectId - Project ID
  * @param {Array} people - Array of person objects
  * @param {string} month - Month string in YYYY-MM format
- * @param {Array} [fteOverrides] - Optional array of FTE override objects
+ * @param {Array} [fteValues] - Optional array of FTE value objects
  * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
  * @returns {number} Total person-months
  */
-export function calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides = null, allocationOverrideIndex = null) {
+export function calculateProjectTotal(allocationIndex, projectId, people, month, fteValues = null, allocationOverrideIndex = null) {
     let total = 0;
     
     for (const person of people) {
-        let fte = person.fte ?? 1;
-        
-        // Check for FTE override
-        if (fteOverrides) {
-            const applicableOverrides = fteOverrides.filter(override => 
-                override.personId === person.id &&
-                isMonthInRange(month, override.startMonth, override.endMonth)
-            );
-            
-            if (applicableOverrides.length > 0) {
-                // Use the most recent override
-                const sortedOverrides = applicableOverrides.sort((a, b) => 
-                    compareMonths(b.startMonth, a.startMonth)
-                );
-                fte = sortedOverrides[0].fte;
-            }
-        }
+        // Get effective FTE using helper
+        const fte = fteValues ? getEffectiveFte(person.id, month, fteValues) : 1;
         
         total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
     }

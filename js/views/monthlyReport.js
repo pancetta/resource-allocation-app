@@ -1,4 +1,4 @@
-import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides } from '../data/database.js';
+import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPMWithPct } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
@@ -8,8 +8,8 @@ export async function calculateMonth(month) {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     
     // Build indices once for performance
@@ -26,8 +26,8 @@ export async function calculateMonth(month) {
     const pTbody = document.createElement("tbody");
 
     people.forEach(p => {
-        // Get effective FTE for this month (considering overrides)
-        const fte = getEffectiveFte(p.id, month, p.fte ?? 1, fteOverrides);
+        // Get effective FTE for this month
+        const fte = getEffectiveFte(p.id, month, fteValues);
         
         const cells = projects.map(proj => calculatePM(allocationIndex, p.id, proj.id, month, fte, allocationOverrideIndex));
         const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
@@ -47,7 +47,7 @@ export async function calculateMonth(month) {
     const sumRow = document.createElement("tr");
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
         projects.map(proj => {
-            const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
+            const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
             return `<td><strong>${sum.toFixed(2)}</strong></td>`;
         }).join('') +
         `<td colspan="3"></td>`;
@@ -64,10 +64,10 @@ export async function calculateMonth(month) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(proj => {
-        const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
+        const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
         
-        // Get effective planned PM for this month (considering overrides)
-        const planned = getEffectiveProjectBudget(proj.id, month, proj.plannedPM ?? 0, projectBudgetOverrides);
+        // Get effective planned PM for this month
+        const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
         
         const delta = total - planned;
         

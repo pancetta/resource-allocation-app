@@ -1,4 +1,4 @@
-import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides } from '../data/database.js';
+import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPMWithPct } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getTotalEffectiveFte, getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
@@ -9,8 +9,8 @@ export async function calculateYear(year) {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
-    const fteOverrides = await getFteOverrides();
-    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const fteValues = await getFteValues();
+    const budgetValues = await getBudgetValues();
     const allocationOverrides = await getAllocationOverrides();
     
     // Build indices once for performance
@@ -29,12 +29,11 @@ export async function calculateYear(year) {
     const pTbody = document.createElement("tbody");
 
     people.forEach(p => {
-        const fte = p.fte ?? 1;
-        const cells = calculatePersonMonthlyTotals(allocationIndex, p.id, projects, months, fte, fteOverrides, allocationOverrideIndex);
+        const cells = calculatePersonMonthlyTotals(allocationIndex, p.id, projects, months, 1, fteValues, allocationOverrideIndex);
         const total = sumArray(cells);
         
-        // Calculate expected FTE for the year considering overrides
-        const expectedFteYearly = getTotalEffectiveFte(p.id, fte, months, fteOverrides);
+        // Calculate expected FTE for the year
+        const expectedFteYearly = getTotalEffectiveFte(p.id, months, fteValues);
         
         const delta = total - expectedFteYearly;
         
@@ -42,7 +41,7 @@ export async function calculateYear(year) {
         tr.innerHTML = `<td>${p.name}</td>` +
             cells.map((c, idx) => {
                 const month = months[idx];
-                const monthFte = getEffectiveFte(p.id, month, fte, fteOverrides);
+                const monthFte = getEffectiveFte(p.id, month, fteValues);
                 return `<td class="${cellClass(c, monthFte)}">${formatPMWithPct(c, monthFte)}</td>`;
             }).join('') +
             `<td class="${cellClass(total, expectedFteYearly)}">${total.toFixed(2)}</td>` +
@@ -60,30 +59,18 @@ export async function calculateYear(year) {
     const monthlySums = months.map(m => {
         let sum = 0;
         people.forEach(p => {
-            const fte = p.fte ?? 1;
-            const monthFte = getEffectiveFte(p.id, m, fte, fteOverrides);
+            const monthFte = getEffectiveFte(p.id, m, fteValues);
             sum += calculatePersonTotal(allocationIndex, p.id, projects, m, monthFte, allocationOverrideIndex);
         });
         return sum;
     });
 
-    // Calculate total sum considering FTE overrides
+    // Calculate total sum
     const totalSum = sumArray(monthlySums);
     let fteSum = 0;
     people.forEach(p => {
         months.forEach(month => {
-            let monthFte = p.fte ?? 1;
-            const applicableFteOverrides = fteOverrides.filter(override => 
-                override.personId === p.id &&
-                override.startMonth <= month &&
-                (!override.endMonth || override.endMonth >= month)
-            );
-            if (applicableFteOverrides.length > 0) {
-                const sortedOverrides = applicableFteOverrides.sort((a, b) => 
-                    b.startMonth.localeCompare(a.startMonth)
-                );
-                monthFte = sortedOverrides[0].fte;
-            }
+            const monthFte = getEffectiveFte(p.id, month, fteValues);
             fteSum += monthFte;
         });
     });
@@ -108,11 +95,11 @@ export async function calculateYear(year) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(p => {
-        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteOverrides, allocationOverrideIndex);
+        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex);
         const total = sumArray(cells);
         
-        // Calculate expected planned PM for the year considering overrides
-        const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, p.plannedPM ?? 0, months, projectBudgetOverrides);
+        // Calculate expected planned PM for the year
+        const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, months, budgetValues);
         
         const delta = total - expectedPlannedYearly;
         
@@ -120,7 +107,7 @@ export async function calculateYear(year) {
         tr.innerHTML = `<td>${p.name}</td>` +
             cells.map((c, idx) => {
                 const month = months[idx];
-                const monthPlanned = getEffectiveProjectBudget(p.id, month, p.plannedPM ?? 0, projectBudgetOverrides);
+                const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
                 return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
             }).join('') +
             `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>` +
@@ -137,16 +124,16 @@ export async function calculateYear(year) {
     const monthlySumsProj = months.map(m => {
         let sum = 0;
         projects.forEach(p => {
-            sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteOverrides, allocationOverrideIndex);
+            sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteValues, allocationOverrideIndex);
         });
         return sum;
     });
 
-    // Calculate total sum considering budget overrides
+    // Calculate total sum
     const totalSumProj = sumArray(monthlySumsProj);
     let plannedSumProj = 0;
     projects.forEach(p => {
-        plannedSumProj += getTotalEffectiveProjectBudget(p.id, p.plannedPM ?? 0, months, projectBudgetOverrides);
+        plannedSumProj += getTotalEffectiveProjectBudget(p.id, months, budgetValues);
     });
     const deltaSumProj = totalSumProj - plannedSumProj;
 

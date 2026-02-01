@@ -3,7 +3,7 @@ name: Tests
 on:
   push:
     branches: [ main, develop ]
-  pull_request:
+  pull_request_target:
     branches: [ main, develop ]
 
 jobs:
@@ -15,6 +15,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -36,7 +38,7 @@ jobs:
         path: coverage/
     
     - name: Report coverage summary
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request_target'
       uses: davelosert/vitest-coverage-report-action@v2
       with:
         json-summary-path: './coverage/coverage-summary.json'
@@ -49,6 +51,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
     
     - name: Setup Node.js
       uses: actions/setup-node@v4

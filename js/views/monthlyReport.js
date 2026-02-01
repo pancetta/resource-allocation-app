@@ -1,6 +1,7 @@
 import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPMWithPct } from '../helpers/allocationHelper.js';
+import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 
 // Monthly Report
 export async function calculateMonth(month) {
@@ -26,18 +27,7 @@ export async function calculateMonth(month) {
 
     people.forEach(p => {
         // Get effective FTE for this month (considering overrides)
-        let fte = p.fte ?? 1;
-        const applicableFteOverrides = fteOverrides.filter(override => 
-            override.personId === p.id &&
-            override.startMonth <= month &&
-            (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableFteOverrides.length > 0) {
-            const sortedOverrides = applicableFteOverrides.sort((a, b) => 
-                b.startMonth.localeCompare(a.startMonth)
-            );
-            fte = sortedOverrides[0].fte;
-        }
+        const fte = getEffectiveFte(p.id, month, p.fte ?? 1, fteOverrides);
         
         const cells = projects.map(proj => calculatePM(allocationIndex, p.id, proj.id, month, fte, allocationOverrideIndex));
         const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
@@ -77,18 +67,7 @@ export async function calculateMonth(month) {
         const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
         
         // Get effective planned PM for this month (considering overrides)
-        let planned = proj.plannedPM ?? 0;
-        const applicableBudgetOverrides = projectBudgetOverrides.filter(override => 
-            override.projectId === proj.id &&
-            override.startMonth <= month &&
-            (!override.endMonth || override.endMonth >= month)
-        );
-        if (applicableBudgetOverrides.length > 0) {
-            const sortedOverrides = applicableBudgetOverrides.sort((a, b) => 
-                b.startMonth.localeCompare(a.startMonth)
-            );
-            planned = sortedOverrides[0].plannedPM;
-        }
+        const planned = getEffectiveProjectBudget(proj.id, month, proj.plannedPM ?? 0, projectBudgetOverrides);
         
         const delta = total - planned;
         

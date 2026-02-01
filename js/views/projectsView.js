@@ -142,7 +142,35 @@ function attachBudgetValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const budgetValues = await getBudgetValues();
             const budgetValue = budgetValues.find(v => v.id === id);
-            budgetValue.startMonth = this.value;
+            const newStartMonth = this.value;
+            
+            // Check for overlaps with the new start date
+            const overlapping = await findOverlappingBudgetValues(
+                budgetValue.projectId, 
+                newStartMonth, 
+                budgetValue.endMonth,
+                id  // Exclude current entry
+            );
+            
+            if (overlapping.length > 0) {
+                const overlapMsg = overlapping.map(v => 
+                    `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
+                ).join('\n');
+                
+                const confirmOverlap = confirm(
+                    `Warning: This change creates overlapping budget entries:\n${overlapMsg}\n\n` +
+                    `The system will use the most recent entry when multiple values apply.\n` +
+                    `Are you sure you want to continue?`
+                );
+                
+                if (!confirmOverlap) {
+                    // Revert to original value
+                    this.value = budgetValue.startMonth;
+                    return;
+                }
+            }
+            
+            budgetValue.startMonth = newStartMonth;
             await updateBudgetValue(budgetValue);
             scheduleAutoBackup();
         });
@@ -154,7 +182,35 @@ function attachBudgetValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const budgetValues = await getBudgetValues();
             const budgetValue = budgetValues.find(v => v.id === id);
-            budgetValue.endMonth = this.value || null;
+            const newEndMonth = this.value || null;
+            
+            // Check for overlaps with the new end date
+            const overlapping = await findOverlappingBudgetValues(
+                budgetValue.projectId, 
+                budgetValue.startMonth, 
+                newEndMonth,
+                id  // Exclude current entry
+            );
+            
+            if (overlapping.length > 0) {
+                const overlapMsg = overlapping.map(v => 
+                    `  - Planned PM ${v.plannedPM} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
+                ).join('\n');
+                
+                const confirmOverlap = confirm(
+                    `Warning: This change creates overlapping budget entries:\n${overlapMsg}\n\n` +
+                    `The system will use the most recent entry when multiple values apply.\n` +
+                    `Are you sure you want to continue?`
+                );
+                
+                if (!confirmOverlap) {
+                    // Revert to original value
+                    this.value = budgetValue.endMonth || '';
+                    return;
+                }
+            }
+            
+            budgetValue.endMonth = newEndMonth;
             await updateBudgetValue(budgetValue);
             scheduleAutoBackup();
         });

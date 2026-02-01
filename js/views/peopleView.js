@@ -161,7 +161,35 @@ function attachFteValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const fteValues = await getFteValues();
             const fteValue = fteValues.find(v => v.id === id);
-            fteValue.startMonth = this.value;
+            const newStartMonth = this.value;
+            
+            // Check for overlaps with the new start date
+            const overlapping = await findOverlappingFteValues(
+                fteValue.personId, 
+                newStartMonth, 
+                fteValue.endMonth,
+                id  // Exclude current entry
+            );
+            
+            if (overlapping.length > 0) {
+                const overlapMsg = overlapping.map(v => 
+                    `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
+                ).join('\n');
+                
+                const confirmOverlap = confirm(
+                    `Warning: This change creates overlapping FTE entries:\n${overlapMsg}\n\n` +
+                    `The system will use the most recent entry when multiple values apply.\n` +
+                    `Are you sure you want to continue?`
+                );
+                
+                if (!confirmOverlap) {
+                    // Revert to original value
+                    this.value = fteValue.startMonth;
+                    return;
+                }
+            }
+            
+            fteValue.startMonth = newStartMonth;
             await updateFteValue(fteValue);
             scheduleAutoBackup();
         });
@@ -173,7 +201,35 @@ function attachFteValueEventListeners() {
             const id = parseInt(this.dataset.id);
             const fteValues = await getFteValues();
             const fteValue = fteValues.find(v => v.id === id);
-            fteValue.endMonth = this.value || null;
+            const newEndMonth = this.value || null;
+            
+            // Check for overlaps with the new end date
+            const overlapping = await findOverlappingFteValues(
+                fteValue.personId, 
+                fteValue.startMonth, 
+                newEndMonth,
+                id  // Exclude current entry
+            );
+            
+            if (overlapping.length > 0) {
+                const overlapMsg = overlapping.map(v => 
+                    `  - FTE ${v.fte} from ${v.startMonth} to ${v.endMonth || 'ongoing'}`
+                ).join('\n');
+                
+                const confirmOverlap = confirm(
+                    `Warning: This change creates overlapping FTE entries:\n${overlapMsg}\n\n` +
+                    `The system will use the most recent entry when multiple values apply.\n` +
+                    `Are you sure you want to continue?`
+                );
+                
+                if (!confirmOverlap) {
+                    // Revert to original value
+                    this.value = fteValue.endMonth || '';
+                    return;
+                }
+            }
+            
+            fteValue.endMonth = newEndMonth;
             await updateFteValue(fteValue);
             scheduleAutoBackup();
         });

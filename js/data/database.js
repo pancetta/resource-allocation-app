@@ -3,9 +3,10 @@
 **********************/
 
 import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
+import { peopleSchema } from '../config/entitySchemas.js';
 
 const DB_NAME = "resource-planning";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 let db;
 
 // Simple cache to reduce IndexedDB calls
@@ -233,6 +234,25 @@ export async function openDatabase() {
                             });
                             delete project.plannedPM;
                             projectsStore.put(project);
+                        }
+                    });
+                };
+            }
+            
+            // Version 5 migration - add type field to people
+            if (oldVersion < 5) {
+                const peopleStore = transaction.objectStore("people");
+                const peopleRequest = peopleStore.getAll();
+                
+                peopleRequest.onsuccess = () => {
+                    const people = peopleRequest.result;
+                    const defaults = peopleSchema.getDefaults();
+                    
+                    people.forEach(person => {
+                        // Add type field if it doesn't exist
+                        if (!person.type) {
+                            person.type = defaults.type;
+                            peopleStore.put(person);
                         }
                     });
                 };

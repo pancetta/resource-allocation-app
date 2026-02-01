@@ -1,6 +1,6 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
-import { validateBudgetValueDeletion } from '../helpers/validationHelper.js';
+import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
 
 // Render projects table (basic project info)
 export async function renderProjects() {
@@ -121,6 +121,13 @@ function attachBudgetValueEventListeners() {
             const budgetValue = budgetValues.find(v => v.id === id);
             
             if (field === "plannedPM") {
+                const validation = validatePlannedPM(value);
+                if (!validation.valid) {
+                    alert(validation.message);
+                    // Revert to original value
+                    this.textContent = budgetValue.plannedPM;
+                    return;
+                }
                 budgetValue.plannedPM = parseFloat(value);
             }
             

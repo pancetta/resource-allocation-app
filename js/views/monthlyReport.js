@@ -1,15 +1,19 @@
-import { getPeople, getProjects, getAllocations } from '../data/database.js';
+import { getPeople, getProjects, getAllocations, getFteOverrides, getProjectBudgetOverrides, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, calculatePM, calculatePersonTotal, calculateProjectTotal } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal } from '../helpers/allocationHelper.js';
 
 // Monthly Report
 export async function calculateMonth(month) {
     const people = await getPeople();
     const projects = await getProjects();
     const allocations = await getAllocations();
+    const fteOverrides = await getFteOverrides();
+    const projectBudgetOverrides = await getProjectBudgetOverrides();
+    const allocationOverrides = await getAllocationOverrides();
     
-    // Build index once for performance
+    // Build indices once for performance
     const allocationIndex = buildAllocationIndex(allocations);
+    const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
     
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
@@ -21,9 +25,22 @@ export async function calculateMonth(month) {
     const pTbody = document.createElement("tbody");
 
     people.forEach(p => {
-        const fte = p.fte ?? 1;
-        const cells = projects.map(proj => calculatePM(allocationIndex, p.id, proj.id, month, fte));
-        const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte);
+        // Get effective FTE for this month (considering overrides)
+        let fte = p.fte ?? 1;
+        const applicableFteOverrides = fteOverrides.filter(override => 
+            override.personId === p.id &&
+            override.startMonth <= month &&
+            (!override.endMonth || override.endMonth >= month)
+        );
+        if (applicableFteOverrides.length > 0) {
+            const sortedOverrides = applicableFteOverrides.sort((a, b) => 
+                b.startMonth.localeCompare(a.startMonth)
+            );
+            fte = sortedOverrides[0].fte;
+        }
+        
+        const cells = projects.map(proj => calculatePM(allocationIndex, p.id, proj.id, month, fte, allocationOverrideIndex));
+        const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
         const delta = total - fte;
         
         const tr = document.createElement("tr");
@@ -40,7 +57,7 @@ export async function calculateMonth(month) {
     const sumRow = document.createElement("tr");
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
         projects.map(proj => {
-            const sum = calculateProjectTotal(allocationIndex, proj.id, people, month);
+            const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
             return `<td><strong>${sum.toFixed(2)}</strong></td>`;
         }).join('') +
         `<td colspan="3"></td>`;
@@ -57,8 +74,22 @@ export async function calculateMonth(month) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(proj => {
-        const total = calculateProjectTotal(allocationIndex, proj.id, people, month);
-        const planned = proj.plannedPM ?? 0;
+        const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteOverrides, allocationOverrideIndex);
+        
+        // Get effective planned PM for this month (considering overrides)
+        let planned = proj.plannedPM ?? 0;
+        const applicableBudgetOverrides = projectBudgetOverrides.filter(override => 
+            override.projectId === proj.id &&
+            override.startMonth <= month &&
+            (!override.endMonth || override.endMonth >= month)
+        );
+        if (applicableBudgetOverrides.length > 0) {
+            const sortedOverrides = applicableBudgetOverrides.sort((a, b) => 
+                b.startMonth.localeCompare(a.startMonth)
+            );
+            planned = sortedOverrides[0].plannedPM;
+        }
+        
         const delta = total - planned;
         
         const tr = document.createElement("tr");

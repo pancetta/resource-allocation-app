@@ -164,3 +164,11 @@ button:active {
     background-color: #f8d7da;
     color: #721c24;
 }
+
+/* PM display columns - read-only calculated values */
+.pm-display {
+    background-color: #f0f3f8 !important;
+    font-style: italic;
+    color: #495057;
+    font-weight: 500;
+}

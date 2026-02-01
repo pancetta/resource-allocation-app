@@ -1,5 +1,6 @@
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
+import { pctToPMPerMonth, pctToPMPerYear } from '../helpers/allocationHelper.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -22,10 +23,18 @@ export async function renderAllocations() {
             `<option value="${p.id}" ${p.id === a.projectId ? 'selected' : ''}>${p.name}</option>`
         ).join('');
         
+        // Get person's FTE to calculate PM values
+        const person = people.find(p => p.id === a.personId);
+        const fte = person ? (person.fte ?? 1) : 1;
+        const pmPerMonth = pctToPMPerMonth(fte, a.pct);
+        const pmPerYear = pctToPMPerYear(fte, a.pct);
+        
         tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
             <td><input type="number" class="alloc-pct" step="0.01" min="0" max="1" value="${a.pct}" data-id="${a.id}"></td>
+            <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
+            <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
             <td><input type="month" class="alloc-end" value="${a.endMonth ?? ''}" data-id="${a.id}"></td>
             <td><button class="delete-allocation" data-id="${a.id}">Delete</button></td>
@@ -47,6 +56,7 @@ function attachAllocationsEventListeners() {
             alloc.personId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
+            renderAllocations(); // Re-render to update PM values
         });
     });
     
@@ -71,6 +81,7 @@ function attachAllocationsEventListeners() {
             alloc.pct = parseFloat(this.value);
             await updateAllocation(alloc);
             scheduleAutoBackup();
+            renderAllocations(); // Re-render to update PM values
         });
     });
     

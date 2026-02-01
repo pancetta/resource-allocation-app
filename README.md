@@ -7,6 +7,7 @@ A client-side resource allocation web application built with vanilla JavaScript 
 - **People Management**: Add, edit, and delete team members with FTE tracking
 - **Project Management**: Create and manage projects with planned PM (Person-Months)
 - **Allocations**: Assign people to projects with percentage allocations and date ranges
+- **Extensible Schema**: Easy configuration system for adding custom attributes to people and projects
 - **Reports**:
   - Monthly reports showing person and project allocations
   - Yearly overview with month-by-month breakdown
@@ -17,6 +18,18 @@ A client-side resource allocation web application built with vanilla JavaScript 
   - **Automatic JSON backup preparation** - one-click download of latest data
   - Automatic backups to browser localStorage (up to 10 recent versions)
   - Manual backup creation and restoration
+
+## Extensibility
+
+The application uses a schema-based configuration system that makes it easy to add custom attributes to people and projects without modifying core code.
+
+**Example**: The "Type" field for people (with values 210, 220, 230, 240, 250) is configured in the schema and automatically:
+- Renders as a dropdown in the UI
+- Validates user input
+- Persists to the database
+- Exports/imports correctly
+
+For detailed instructions on adding custom fields, see [docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md).
 
 ## Data Safety & Backup
 
@@ -323,6 +336,8 @@ See `.github/workflows/tests.yml` for CI configuration.
 │   └── components.css  # Component-specific styles
 ├── js/
 │   ├── main.js         # Application initialization
+│   ├── config/
+│   │   └── entitySchemas.js # Schema definitions for people and projects
 │   ├── data/
 │   │   └── database.js # IndexedDB layer
 │   ├── helpers/
@@ -336,6 +351,8 @@ See `.github/workflows/tests.yml` for CI configuration.
 │       ├── monthlyReport.js
 │       ├── yearlyReport.js
 │       └── projectOverview.js
+├── docs/
+│   └── EXTENSIBILITY.md # Guide for adding custom fields
 └── tests/
     ├── unit/           # Unit tests
     ├── integration/    # Integration tests

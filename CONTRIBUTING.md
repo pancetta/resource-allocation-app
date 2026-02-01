@@ -170,7 +170,11 @@ The project uses GitHub Actions for continuous integration:
 - Uploads coverage reports and test artifacts
 
 **Copilot Setup Workflow** (`.github/workflows/copilot-setup-steps.yml`):
-- Triggers when Copilot creates/modifies PRs or when the workflow file changes
+- Triggers on: 
+  - Pull requests that modify the workflow file itself
+  - Push events that modify the workflow file
+  - Manual workflow dispatch
+  - Automatically when Copilot creates/modifies PRs
 - Runs the exact same tests as the main CI workflow
 - Ensures Copilot uses the same environment and catches issues early
 - No manual approval needed for Copilot-created PRs

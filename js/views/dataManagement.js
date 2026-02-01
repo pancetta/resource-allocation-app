@@ -138,16 +138,27 @@ function setupBeforeUnloadWarning() {
         return;
     }
     
+    // Threshold in minutes before showing backup warning
+    const BACKUP_WARNING_THRESHOLD_MINUTES = 5;
+    
     window.addEventListener('beforeunload', (e) => {
         const autoBackup = getAutoPreparedBackup();
         
         // Only show warning if there's data and auto-backup exists
         if (autoBackup) {
             const preparedDate = new Date(autoBackup.preparedAt);
+            
+            // Validate that the date is valid before calculation
+            if (isNaN(preparedDate.getTime())) {
+                return; // Skip warning if date is invalid
+            }
+            
             const minutesAgo = Math.floor((Date.now() - preparedDate.getTime()) / 60000);
             
-            // Show warning if backup is older than 5 minutes or if significant time passed
-            if (minutesAgo >= 5) {
+            // Show warning if backup is older than threshold
+            if (minutesAgo >= BACKUP_WARNING_THRESHOLD_MINUTES) {
+                // Note: Modern browsers ignore custom messages and show their own generic dialog.
+                // The message assignment and return value are still needed to trigger the dialog.
                 const message = "You have unsaved changes! Consider downloading a backup before leaving.";
                 e.preventDefault();
                 e.returnValue = message;

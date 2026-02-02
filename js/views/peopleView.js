@@ -14,6 +14,8 @@ import { MIN_FTE, MAX_FTE, FTE_STEP, DEFAULT_FTE } from '../config/constants.js'
 import { showSuccess, showError, showWarning } from '../ui/toast.js';
 import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
+import { addBatchSelection, getSelectedRows } from '../helpers/tableHelpers.js';
+import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchOperations.js';
 
 /**
  * Render people table (basic person info)
@@ -415,6 +417,41 @@ export function initPeopleView() {
         
         if (peopleTable) {
             makeTableSortable(peopleTable);
+            
+            // Add batch operations for people
+            addBatchSelection(peopleTable, (selectedCount, totalCount) => {
+                const toolbar = peopleTable.previousElementSibling;
+                if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+                    updateBatchToolbar(toolbar, selectedCount, totalCount);
+                }
+            });
+            
+            // Add batch operations toolbar
+            addBatchOperationsToolbar(peopleTable, {
+                'Delete Selected': async (selectedIds) => {
+                    if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
+                        return;
+                    }
+                    
+                    await saveState(`Batch delete ${selectedIds.length} people`);
+                    
+                    for (const id of selectedIds) {
+                        // Delete FTE values first
+                        const fteValues = await getFteValues();
+                        const personFteValues = fteValues.filter(v => v.personId === id);
+                        for (const value of personFteValues) {
+                            await deleteFteValue(value.id);
+                        }
+                        // Then delete the person
+                        await deletePerson(id);
+                    }
+                    
+                    scheduleAutoBackup();
+                    renderPeople();
+                    renderFteValues();
+                    showSuccess(`Deleted ${selectedIds.length} people`);
+                }
+            });
         }
         if (fteValuesTable) {
             makeTableSortable(fteValuesTable);

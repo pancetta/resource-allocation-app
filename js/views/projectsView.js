@@ -12,6 +12,8 @@ import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/valid
 import { showSuccess } from '../ui/toast.js';
 import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
+import { addBatchSelection, getSelectedRows } from '../helpers/tableHelpers.js';
+import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchOperations.js';
 
 /**
  * Render projects table (basic project info)
@@ -313,6 +315,41 @@ export function initProjectsView() {
         
         if (projectsTable) {
             makeTableSortable(projectsTable);
+            
+            // Add batch operations for projects
+            addBatchSelection(projectsTable, (selectedCount, totalCount) => {
+                const toolbar = projectsTable.previousElementSibling;
+                if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+                    updateBatchToolbar(toolbar, selectedCount, totalCount);
+                }
+            });
+            
+            // Add batch operations toolbar
+            addBatchOperationsToolbar(projectsTable, {
+                'Delete Selected': async (selectedIds) => {
+                    if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {
+                        return;
+                    }
+                    
+                    await saveState(`Batch delete ${selectedIds.length} projects`);
+                    
+                    for (const id of selectedIds) {
+                        // Delete budget values first
+                        const budgetValues = await getBudgetValues();
+                        const projectBudgetValues = budgetValues.filter(v => v.projectId === id);
+                        for (const value of projectBudgetValues) {
+                            await deleteBudgetValue(value.id);
+                        }
+                        // Then delete the project
+                        await deleteProject(id);
+                    }
+                    
+                    scheduleAutoBackup();
+                    renderProjects();
+                    renderBudgetValues();
+                    showSuccess(`Deleted ${selectedIds.length} projects`);
+                }
+            });
         }
         if (budgetValuesTable) {
             makeTableSortable(budgetValuesTable);

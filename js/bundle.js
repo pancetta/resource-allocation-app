@@ -1192,6 +1192,52 @@ var App = (() => {
   }
 
   // js/views/peopleView.js
+  init_tableHelpers();
+
+  // js/helpers/batchOperations.js
+  init_tableHelpers();
+  function addBatchOperationsToolbar(table, operations) {
+    if (!table) return null;
+    let toolbar = table.previousElementSibling;
+    if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+      return toolbar;
+    }
+    toolbar = document.createElement("div");
+    toolbar.className = "batch-toolbar";
+    toolbar.style.display = "none";
+    const counter = document.createElement("span");
+    counter.className = "batch-counter";
+    counter.textContent = "0 selected";
+    toolbar.appendChild(counter);
+    Object.entries(operations).forEach(([name, handler]) => {
+      const button = document.createElement("button");
+      button.className = "batch-action-btn";
+      button.textContent = name;
+      button.addEventListener("click", async () => {
+        const selectedIds = getSelectedRows(table);
+        if (selectedIds.length > 0) {
+          await handler(selectedIds);
+        }
+      });
+      toolbar.appendChild(button);
+    });
+    table.parentNode.insertBefore(toolbar, table);
+    return toolbar;
+  }
+  function updateBatchToolbar(toolbar, selectedCount, totalCount) {
+    if (!toolbar) return;
+    const counter = toolbar.querySelector(".batch-counter");
+    if (counter) {
+      counter.textContent = `${selectedCount} of ${totalCount} selected`;
+    }
+    if (selectedCount > 0) {
+      toolbar.style.display = "flex";
+    } else {
+      toolbar.style.display = "none";
+    }
+  }
+
+  // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
     const table = document.querySelector("#peopleTable");
@@ -1494,6 +1540,32 @@ var App = (() => {
       const fteSearchInput = document.getElementById("fteSearchInput");
       if (peopleTable) {
         makeTableSortable2(peopleTable);
+        addBatchSelection(peopleTable, (selectedCount, totalCount) => {
+          const toolbar = peopleTable.previousElementSibling;
+          if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+          }
+        });
+        addBatchOperationsToolbar(peopleTable, {
+          "Delete Selected": async (selectedIds) => {
+            if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
+              return;
+            }
+            await saveState(`Batch delete ${selectedIds.length} people`);
+            for (const id of selectedIds) {
+              const fteValues = await getFteValues();
+              const personFteValues = fteValues.filter((v) => v.personId === id);
+              for (const value of personFteValues) {
+                await deleteFteValue(value.id);
+              }
+              await deletePerson(id);
+            }
+            scheduleAutoBackup();
+            renderPeople();
+            renderFteValues();
+            showSuccess(`Deleted ${selectedIds.length} people`);
+          }
+        });
       }
       if (fteValuesTable) {
         makeTableSortable2(fteValuesTable);
@@ -1509,6 +1581,7 @@ var App = (() => {
 
   // js/views/projectsView.js
   init_toast();
+  init_tableHelpers();
   async function renderProjects() {
     if (typeof document === "undefined") return;
     const tbody = document.querySelector("#projectsTable tbody");
@@ -1737,6 +1810,32 @@ var App = (() => {
       const budgetSearchInput = document.getElementById("budgetSearchInput");
       if (projectsTable) {
         makeTableSortable2(projectsTable);
+        addBatchSelection(projectsTable, (selectedCount, totalCount) => {
+          const toolbar = projectsTable.previousElementSibling;
+          if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+          }
+        });
+        addBatchOperationsToolbar(projectsTable, {
+          "Delete Selected": async (selectedIds) => {
+            if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {
+              return;
+            }
+            await saveState(`Batch delete ${selectedIds.length} projects`);
+            for (const id of selectedIds) {
+              const budgetValues = await getBudgetValues();
+              const projectBudgetValues = budgetValues.filter((v) => v.projectId === id);
+              for (const value of projectBudgetValues) {
+                await deleteBudgetValue(value.id);
+              }
+              await deleteProject(id);
+            }
+            scheduleAutoBackup();
+            renderProjects();
+            renderBudgetValues();
+            showSuccess(`Deleted ${selectedIds.length} projects`);
+          }
+        });
       }
       if (budgetValuesTable) {
         makeTableSortable2(budgetValuesTable);

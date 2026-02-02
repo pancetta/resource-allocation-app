@@ -28,14 +28,26 @@ export function addQuickAddRow(table, placeholders, onAdd, onCancel) {
     const tr = document.createElement('tr');
     tr.className = 'quick-add-row';
     
+    // Count total columns from table header
+    const thead = table.querySelector('thead');
+    const headerRow = thead ? thead.querySelector('tr') : null;
+    const totalColumns = headerRow ? headerRow.querySelectorAll('th').length : placeholders.length + 1;
+    
     // Create input cells
     const cells = placeholders.map((placeholder, index) => {
         return `<td><input type="text" class="quick-add-input" data-index="${index}" placeholder="${placeholder}"></td>`;
     }).join('');
     
+    // Calculate number of empty cells needed to fill the gap
+    // We have: placeholders.length input cells + 1 action cell
+    // We need: totalColumns cells
+    const emptyCellsNeeded = totalColumns - placeholders.length - 1;
+    const emptyCells = emptyCellsNeeded > 0 ? '<td></td>'.repeat(emptyCellsNeeded) : '';
+    
     // Add action buttons
     tr.innerHTML = `
         ${cells}
+        ${emptyCells}
         <td class="quick-add-actions">
             <button class="quick-add-save" title="Save (Enter)">✓</button>
             <button class="quick-add-cancel" title="Cancel (Esc)">✗</button>

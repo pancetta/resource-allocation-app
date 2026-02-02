@@ -971,3 +971,63 @@ button:disabled:hover {
     background-color: #ccc;
     cursor: not-allowed;
 }
+
+/* Data Pruning Dialog */
+.prune-option {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.prune-option label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.prune-option input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.prune-option input[type="month"] {
+    margin: 10px 0;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.prune-count {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+.prune-description {
+    margin: 8px 0 0 0;
+    font-size: 0.85em;
+    color: #666;
+}
+
+#prunePreview {
+    background-color: #fff;
+    border: 1px solid #005AA0;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+#prunePreview h4 {
+    color: #005AA0;
+    margin: 10px 0 5px 0;
+}
+
+#prunePreview ul {
+    margin: 5px 0;
+    padding-left: 25px;
+}
+
+#prunePreview li {
+    margin: 3px 0;
+    font-size: 0.9em;
+}

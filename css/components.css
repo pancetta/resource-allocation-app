@@ -72,6 +72,26 @@ tfoot td {
     font-weight: 500;
 }
 
+/* Split cell layout for PM/Percentage display */
+.split-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.split-cell-pm {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.split-cell-pct {
+    font-size: 11px;
+    color: #666;
+    font-weight: 400;
+}
+
 /* First column styling */
 td:first-child {
     text-align: left;

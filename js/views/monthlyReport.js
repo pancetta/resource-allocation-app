@@ -1,6 +1,6 @@
 import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM, pmToPercentage, formatPercentage } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 
 // Monthly Report
@@ -35,8 +35,21 @@ export async function calculateMonth(month) {
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
-            cells.map(c => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join('') +
-            `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` +
+            cells.map(c => {
+                const pct = pmToPercentage(c, fte);
+                return `<td class="${cellClass(c, fte / projects.length)}">
+                    <div class="split-cell">
+                        <div class="split-cell-pm">${c.toFixed(2)}</div>
+                        <div class="split-cell-pct">${pct.toFixed(1)}%</div>
+                    </div>
+                </td>`;
+            }).join('') +
+            `<td class="${cellClass(total, fte)}">
+                <div class="split-cell">
+                    <div class="split-cell-pm">${total.toFixed(2)}</div>
+                    <div class="split-cell-pct">${pmToPercentage(total, fte).toFixed(1)}%</div>
+                </div>
+            </td>` +
             `<td>${fte.toFixed(2)}</td>` +
             `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
         pTbody.appendChild(tr);

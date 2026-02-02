@@ -198,3 +198,23 @@ export function pmPerMonthToYear(pmPerMonth) {
 export function formatPM(pm) {
     return pm.toFixed(2);
 }
+
+/**
+ * Convert PM to percentage of FTE
+ * @param {number} pm - Person-months value
+ * @param {number} fte - Full-Time Equivalent value
+ * @returns {number} Percentage (0-100)
+ */
+export function pmToPercentage(pm, fte) {
+    if (fte === 0) return 0;
+    return (pm / fte) * 100;
+}
+
+/**
+ * Format percentage value for display
+ * @param {number} percentage - Percentage value
+ * @returns {string} Formatted string with % symbol
+ */
+export function formatPercentage(percentage) {
+    return percentage.toFixed(1) + '%';
+}

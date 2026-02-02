@@ -2016,6 +2016,10 @@ var App = (() => {
   function pmPerMonthToYear(pmPerMonth) {
     return pmPerMonth * MONTHS_PER_YEAR;
   }
+  function pmToPercentage(pm, fte) {
+    if (fte === 0) return 0;
+    return pm / fte * 100;
+  }
 
   // js/views/allocationsView.js
   async function renderAllocations() {
@@ -2479,7 +2483,20 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => {
+        const pct = pmToPercentage(c, fte);
+        return `<td class="${cellClass(c, fte / projects.length)}">
+                    <div class="split-cell">
+                        <div class="split-cell-pm">${c.toFixed(2)}</div>
+                        <div class="split-cell-pct">${pct.toFixed(1)}%</div>
+                    </div>
+                </td>`;
+      }).join("") + `<td class="${cellClass(total, fte)}">
+                <div class="split-cell">
+                    <div class="split-cell-pm">${total.toFixed(2)}</div>
+                    <div class="split-cell-pct">${pmToPercentage(total, fte).toFixed(1)}%</div>
+                </div>
+            </td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");

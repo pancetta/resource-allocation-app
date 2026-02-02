@@ -63,6 +63,15 @@ export async function renderPeople() {
         tbody.appendChild(tr);
     });
     
+    // Add batch selection checkbox column after rendering
+    // (this is idempotent - won't duplicate if already added)
+    addBatchSelection(table, (selectedCount, totalCount) => {
+        const toolbar = table.previousElementSibling;
+        if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+        }
+    });
+    
     // Attach event listeners
     attachPeopleEventListeners();
     populatePersonSelect();
@@ -418,13 +427,8 @@ export function initPeopleView() {
         if (peopleTable) {
             makeTableSortable(peopleTable);
             
-            // Add batch operations for people
-            addBatchSelection(peopleTable, (selectedCount, totalCount) => {
-                const toolbar = peopleTable.previousElementSibling;
-                if (toolbar && toolbar.classList.contains('batch-toolbar')) {
-                    updateBatchToolbar(toolbar, selectedCount, totalCount);
-                }
-            });
+            // Note: addBatchSelection is now called in renderPeople() after rendering
+            // to ensure proper header initialization order
             
             // Add batch operations toolbar
             addBatchOperationsToolbar(peopleTable, {

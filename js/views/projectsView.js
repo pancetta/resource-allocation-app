@@ -9,6 +9,7 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
+import { projectsSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
 import { showSuccess } from '../ui/toast.js';
 import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
@@ -22,8 +23,19 @@ import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchO
 export async function renderProjects() {
     if (typeof document === 'undefined') return;
     
-    const tbody = document.querySelector("#projectsTable tbody");
+    const table = document.querySelector("#projectsTable");
+    if (!table) return;
+    
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    
+    const thead = table.querySelector("thead");
+    
+    // Render headers from schema if thead exists
+    if (thead) {
+        const headers = getTableHeaders(projectsSchema);
+        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Actions</th></tr>`;
+    }
     
     tbody.innerHTML = "";
     const projects = await getProjects();
@@ -35,6 +47,15 @@ export async function renderProjects() {
             <td><button class="delete-project" data-id="${p.id}">Delete</button></td>
         `;
         tbody.appendChild(tr);
+    });
+    
+    // Add batch selection checkbox column after rendering
+    // (this is idempotent - won't duplicate if already added)
+    addBatchSelection(table, (selectedCount, totalCount) => {
+        const toolbar = table.previousElementSibling;
+        if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+        }
     });
     
     // Attach event listeners
@@ -316,13 +337,8 @@ export function initProjectsView() {
         if (projectsTable) {
             makeTableSortable(projectsTable);
             
-            // Add batch operations for projects
-            addBatchSelection(projectsTable, (selectedCount, totalCount) => {
-                const toolbar = projectsTable.previousElementSibling;
-                if (toolbar && toolbar.classList.contains('batch-toolbar')) {
-                    updateBatchToolbar(toolbar, selectedCount, totalCount);
-                }
-            });
+            // Note: addBatchSelection is now called in renderProjects() after rendering
+            // to ensure proper header initialization order
             
             // Add batch operations toolbar
             addBatchOperationsToolbar(projectsTable, {

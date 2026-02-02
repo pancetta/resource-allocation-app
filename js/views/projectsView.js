@@ -9,6 +9,9 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
+import { showSuccess } from '../ui/toast.js';
+import { saveState } from '../helpers/undoManager.js';
+import { addQuickAddRow } from '../helpers/quickAdd.js';
 
 /**
  * Render projects table (basic project info)
@@ -232,6 +235,9 @@ export async function populateBudgetProjectSelect() {
 
 // Add project with auto-generated ID and initial budget value
 export async function addProjectAuto(name) {
+    // Save state for undo
+    await saveState(`Add project: ${name}`);
+    
     const id = await generateProjectId();
     await addProject({ id, name });
     
@@ -247,6 +253,7 @@ export async function addProjectAuto(name) {
     scheduleAutoBackup();
     renderProjects();
     renderBudgetValues();
+    showSuccess(`Added project: ${name}`);
 }
 
 // Initialize projects view
@@ -256,8 +263,20 @@ export function initProjectsView() {
     const addProjectBtn = document.getElementById("addProjectBtn");
     if (addProjectBtn) {
         addProjectBtn.addEventListener("click", async () => {
-            const name = prompt("Project name");
-            if (name) await addProjectAuto(name);
+            const projectsTable = document.getElementById("projectsTable");
+            if (!projectsTable) return;
+            
+            // Add quick-add row
+            addQuickAddRow(
+                projectsTable,
+                ['Enter project name...'],
+                async (values) => {
+                    const name = values[0];
+                    if (name) {
+                        await addProjectAuto(name);
+                    }
+                }
+            );
         });
     }
     

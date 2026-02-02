@@ -1123,6 +1123,74 @@ var App = (() => {
     });
   }
 
+  // js/helpers/quickAdd.js
+  function addQuickAddRow(table, placeholders, onAdd, onCancel) {
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const existing = tbody.querySelector(".quick-add-row");
+    if (existing) {
+      existing.remove();
+    }
+    const tr = document.createElement("tr");
+    tr.className = "quick-add-row";
+    const cells = placeholders.map((placeholder, index) => {
+      return `<td><input type="text" class="quick-add-input" data-index="${index}" placeholder="${placeholder}"></td>`;
+    }).join("");
+    tr.innerHTML = `
+        ${cells}
+        <td class="quick-add-actions">
+            <button class="quick-add-save" title="Save (Enter)">\u2713</button>
+            <button class="quick-add-cancel" title="Cancel (Esc)">\u2717</button>
+        </td>
+    `;
+    tbody.insertBefore(tr, tbody.firstChild);
+    const inputs = tr.querySelectorAll(".quick-add-input");
+    const saveBtn = tr.querySelector(".quick-add-save");
+    const cancelBtn = tr.querySelector(".quick-add-cancel");
+    if (inputs.length > 0) {
+      inputs[0].focus();
+    }
+    const handleSave = () => {
+      const values = Array.from(inputs).map((input) => input.value.trim());
+      if (values.every((v) => !v)) {
+        handleCancel();
+        return;
+      }
+      if (onAdd) {
+        onAdd(values);
+      }
+      tr.remove();
+    };
+    const handleCancel = () => {
+      tr.remove();
+      if (onCancel) {
+        onCancel();
+      }
+    };
+    saveBtn.addEventListener("click", handleSave);
+    cancelBtn.addEventListener("click", handleCancel);
+    inputs.forEach((input, index) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (index === inputs.length - 1) {
+            handleSave();
+          } else {
+            inputs[index + 1].focus();
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          handleCancel();
+        } else if (e.key === "Tab" && index === inputs.length - 1 && !e.shiftKey) {
+          e.preventDefault();
+          handleSave();
+        }
+      });
+    });
+    return tr;
+  }
+
   // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
@@ -1384,8 +1452,18 @@ var App = (() => {
     const addPersonBtn = document.getElementById("addPersonBtn");
     if (addPersonBtn) {
       addPersonBtn.addEventListener("click", async () => {
-        const name = prompt("Person name");
-        if (name) await addPersonAuto(name);
+        const peopleTable = document.getElementById("peopleTable");
+        if (!peopleTable) return;
+        addQuickAddRow(
+          peopleTable,
+          ["Enter name..."],
+          async (values) => {
+            const name = values[0];
+            if (name) {
+              await addPersonAuto(name);
+            }
+          }
+        );
       });
     }
     const addFteValueBtn = document.getElementById("addFteValueBtn");
@@ -1430,6 +1508,7 @@ var App = (() => {
   }
 
   // js/views/projectsView.js
+  init_toast();
   async function renderProjects() {
     if (typeof document === "undefined") return;
     const tbody = document.querySelector("#projectsTable tbody");
@@ -1595,6 +1674,7 @@ var App = (() => {
     });
   }
   async function addProjectAuto(name) {
+    await saveState(`Add project: ${name}`);
     const id = await generateProjectId();
     await addProject({ id, name });
     const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
@@ -1608,14 +1688,25 @@ var App = (() => {
     scheduleAutoBackup();
     renderProjects();
     renderBudgetValues();
+    showSuccess(`Added project: ${name}`);
   }
   function initProjectsView() {
     if (typeof document === "undefined") return;
     const addProjectBtn = document.getElementById("addProjectBtn");
     if (addProjectBtn) {
       addProjectBtn.addEventListener("click", async () => {
-        const name = prompt("Project name");
-        if (name) await addProjectAuto(name);
+        const projectsTable = document.getElementById("projectsTable");
+        if (!projectsTable) return;
+        addQuickAddRow(
+          projectsTable,
+          ["Enter project name..."],
+          async (values) => {
+            const name = values[0];
+            if (name) {
+              await addProjectAuto(name);
+            }
+          }
+        );
       });
     }
     const addBudgetValueBtn = document.getElementById("addBudgetValueBtn");

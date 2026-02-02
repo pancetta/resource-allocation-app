@@ -13,6 +13,7 @@ import { peopleSchema, getTableHeaders, getEditableFields } from '../config/enti
 import { MIN_FTE, MAX_FTE, FTE_STEP, DEFAULT_FTE } from '../config/constants.js';
 import { showSuccess, showError, showWarning } from '../ui/toast.js';
 import { saveState } from '../helpers/undoManager.js';
+import { addQuickAddRow } from '../helpers/quickAdd.js';
 
 /**
  * Render people table (basic person info)
@@ -364,8 +365,20 @@ export function initPeopleView() {
     const addPersonBtn = document.getElementById("addPersonBtn");
     if (addPersonBtn) {
         addPersonBtn.addEventListener("click", async () => {
-            const name = prompt("Person name");
-            if (name) await addPersonAuto(name);
+            const peopleTable = document.getElementById("peopleTable");
+            if (!peopleTable) return;
+            
+            // Add quick-add row
+            addQuickAddRow(
+                peopleTable,
+                ['Enter name...'],
+                async (values) => {
+                    const name = values[0];
+                    if (name) {
+                        await addPersonAuto(name);
+                    }
+                }
+            );
         });
     }
     

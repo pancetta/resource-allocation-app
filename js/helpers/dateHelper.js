@@ -3,13 +3,15 @@
  * Standardizes month format (YYYY-MM) and provides utilities for date operations
  */
 
+import { MONTHS_PER_YEAR } from '../config/constants.js';
+
 /**
  * Get array of months for a given year in YYYY-MM format
  * @param {number|string} year - The year (e.g., 2025)
  * @returns {Array<string>} Array of month strings ['2025-01', '2025-02', ..., '2025-12']
  */
 export function getMonthsInYear(year) {
-    return Array.from({ length: 12 }, (_, i) => 
+    return Array.from({ length: MONTHS_PER_YEAR }, (_, i) => 
         `${year}-${String(i + 1).padStart(2, '0')}`
     );
 }

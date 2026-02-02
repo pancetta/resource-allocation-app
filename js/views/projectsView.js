@@ -1,8 +1,19 @@
+/**
+ * Projects View
+ * 
+ * Manages the projects table and budget values table in the UI.
+ * Handles rendering, event listeners, and CRUD operations for projects
+ * and their planned person-month budgets over time.
+ */
+
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
 
-// Render projects table (basic project info)
+/**
+ * Render projects table (basic project info)
+ * Displays all projects with editable name field
+ */
 export async function renderProjects() {
     if (typeof document === 'undefined') return;
     
@@ -75,6 +86,10 @@ function attachProjectsEventListeners() {
             
             const projects = await getProjects();
             const project = projects.find(p => p.id === id);
+            if (!project) {
+                console.error(`Project with id ${id} not found`);
+                return;
+            }
             
             if (field === "name") {
                 project.name = value;

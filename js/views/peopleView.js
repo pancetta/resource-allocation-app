@@ -1,9 +1,21 @@
+/**
+ * People View
+ * 
+ * Manages the people table and FTE values table in the UI.
+ * Handles rendering, event listeners, and CRUD operations for people
+ * and their FTE (Full-Time Equivalent) values over time.
+ */
+
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
 import { peopleSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
+import { MIN_FTE, MAX_FTE, FTE_STEP, DEFAULT_FTE } from '../config/constants.js';
 
-// Render people table (basic person info)
+/**
+ * Render people table (basic person info)
+ * Displays all people with editable fields based on the people schema
+ */
 export async function renderPeople() {
     if (typeof document === 'undefined') return;
     
@@ -124,6 +136,10 @@ function attachPeopleEventListeners() {
             
             const people = await getPeople();
             const person = people.find(p => p.id === id);
+            if (!person) {
+                console.error(`Person with id ${id} not found`);
+                return;
+            }
             
             // Find field definition for validation
             const fieldDef = peopleSchema.fields.find(f => f.key === field);
@@ -152,6 +168,10 @@ function attachPeopleEventListeners() {
             
             const people = await getPeople();
             const person = people.find(p => p.id === id);
+            if (!person) {
+                console.error(`Person with id ${id} not found`);
+                return;
+            }
             person[field] = checked;
             
             await updatePerson(person);
@@ -306,7 +326,7 @@ export async function addPersonAuto(name) {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
     await addFteValue({
         personId: id,
-        fte: 1.0,
+        fte: DEFAULT_FTE,
         startMonth: currentMonth,
         endMonth: null // Open-ended
     });

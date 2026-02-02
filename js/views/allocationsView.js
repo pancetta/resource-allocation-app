@@ -1,9 +1,21 @@
+/**
+ * Allocations View
+ * 
+ * Manages the allocations table and allocation overrides table in the UI.
+ * Handles rendering, event listeners, and CRUD operations for allocations
+ * and their monthly overrides.
+ */
+
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { pmPerMonthToYear } from '../helpers/allocationHelper.js';
 import { findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore } from '../helpers/validationHelper.js';
+import { PM_STEP, MIN_PM } from '../config/constants.js';
 
-// Render allocations table
+/**
+ * Render allocations table
+ * Displays all allocations with editable fields for person, project, PM, and date ranges
+ */
 export async function renderAllocations() {
     if (typeof document === 'undefined') return;
     
@@ -11,11 +23,11 @@ export async function renderAllocations() {
     if (!tbody) return;
     
     tbody.innerHTML = "";
-    const allocs = await getAllocations();
+    const allocations = await getAllocations();
     const people = await getPeople();
     const projects = await getProjects();
     
-    allocs.forEach(a => {
+    allocations.forEach(a => {
         const tr = document.createElement("tr");
         const personOptions = people.filter(p => p.active).map(p =>
             `<option value="${p.id}" ${p.id === a.personId ? 'selected' : ''}>${p.name}</option>`
@@ -31,7 +43,7 @@ export async function renderAllocations() {
         tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
-            <td><input type="number" class="alloc-pm" step="0.01" min="0" value="${a.pm}" data-id="${a.id}"></td>
+            <td><input type="number" class="alloc-pm" step="${PM_STEP}" min="${MIN_PM}" value="${a.pm}" data-id="${a.id}"></td>
             <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
             <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
@@ -67,8 +79,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-person").forEach(select => {
         select.addEventListener("change", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             alloc.personId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -81,8 +97,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-project").forEach(select => {
         select.addEventListener("change", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             alloc.projectId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -93,11 +113,15 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-pm").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             
             const pm = parseFloat(this.value);
-            if (isNaN(pm) || pm < 0) {
+            if (isNaN(pm) || pm < MIN_PM) {
                 alert("PM must be a positive number");
                 // Revert to original value
                 this.value = alloc.pm;
@@ -116,8 +140,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-start").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             const newStartMonth = this.value;
             
             // Check for overlaps with the new start date
@@ -163,8 +191,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-end").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             const newEndMonth = this.value || null;
             
             // Check for overlaps with the new end date

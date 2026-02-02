@@ -157,6 +157,11 @@ export function addBatchSelection(table, onSelectionChange) {
     
     if (!thead || !tbody) return;
     
+    // Check if checkbox column already exists (to avoid duplicate additions)
+    if (thead.querySelector('.select-all-checkbox')) {
+        return; // Already initialized
+    }
+    
     // Add checkbox column header
     const selectAllTh = document.createElement('th');
     selectAllTh.innerHTML = '<input type="checkbox" class="select-all-checkbox">';

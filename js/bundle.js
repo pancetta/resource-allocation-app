@@ -174,6 +174,9 @@ var App = (() => {
     const thead = table.querySelector("thead tr");
     const tbody = table.querySelector("tbody");
     if (!thead || !tbody) return;
+    if (thead.querySelector(".select-all-checkbox")) {
+      return;
+    }
     const selectAllTh = document.createElement("th");
     selectAllTh.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
     thead.insertBefore(selectAllTh, thead.firstChild);
@@ -1286,6 +1289,12 @@ var App = (() => {
       tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
       tbody.appendChild(tr);
     });
+    addBatchSelection(table, (selectedCount, totalCount) => {
+      const toolbar = table.previousElementSibling;
+      if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+        updateBatchToolbar(toolbar, selectedCount, totalCount);
+      }
+    });
     attachPeopleEventListeners();
     populatePersonSelect();
   }
@@ -1557,12 +1566,6 @@ var App = (() => {
       const fteSearchInput = document.getElementById("fteSearchInput");
       if (peopleTable) {
         makeTableSortable2(peopleTable);
-        addBatchSelection(peopleTable, (selectedCount, totalCount) => {
-          const toolbar = peopleTable.previousElementSibling;
-          if (toolbar && toolbar.classList.contains("batch-toolbar")) {
-            updateBatchToolbar(toolbar, selectedCount, totalCount);
-          }
-        });
         addBatchOperationsToolbar(peopleTable, {
           "Delete Selected": async (selectedIds) => {
             if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
@@ -1619,6 +1622,12 @@ var App = (() => {
             <td><button class="delete-project" data-id="${p.id}">Delete</button></td>
         `;
       tbody.appendChild(tr);
+    });
+    addBatchSelection(table, (selectedCount, totalCount) => {
+      const toolbar = table.previousElementSibling;
+      if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+        updateBatchToolbar(toolbar, selectedCount, totalCount);
+      }
     });
     attachProjectsEventListeners();
     populateProjectSelect();
@@ -1834,12 +1843,6 @@ var App = (() => {
       const budgetSearchInput = document.getElementById("budgetSearchInput");
       if (projectsTable) {
         makeTableSortable2(projectsTable);
-        addBatchSelection(projectsTable, (selectedCount, totalCount) => {
-          const toolbar = projectsTable.previousElementSibling;
-          if (toolbar && toolbar.classList.contains("batch-toolbar")) {
-            updateBatchToolbar(toolbar, selectedCount, totalCount);
-          }
-        });
         addBatchOperationsToolbar(projectsTable, {
           "Delete Selected": async (selectedIds) => {
             if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {

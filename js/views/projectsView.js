@@ -49,6 +49,15 @@ export async function renderProjects() {
         tbody.appendChild(tr);
     });
     
+    // Add batch selection checkbox column after rendering
+    // (this is idempotent - won't duplicate if already added)
+    addBatchSelection(table, (selectedCount, totalCount) => {
+        const toolbar = table.previousElementSibling;
+        if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+        }
+    });
+    
     // Attach event listeners
     attachProjectsEventListeners();
     populateProjectSelect();
@@ -328,13 +337,8 @@ export function initProjectsView() {
         if (projectsTable) {
             makeTableSortable(projectsTable);
             
-            // Add batch operations for projects
-            addBatchSelection(projectsTable, (selectedCount, totalCount) => {
-                const toolbar = projectsTable.previousElementSibling;
-                if (toolbar && toolbar.classList.contains('batch-toolbar')) {
-                    updateBatchToolbar(toolbar, selectedCount, totalCount);
-                }
-            });
+            // Note: addBatchSelection is now called in renderProjects() after rendering
+            // to ensure proper header initialization order
             
             // Add batch operations toolbar
             addBatchOperationsToolbar(projectsTable, {

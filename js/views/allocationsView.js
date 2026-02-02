@@ -1,10 +1,21 @@
+/**
+ * Allocations View
+ * 
+ * Manages the allocations table and allocation overrides table in the UI.
+ * Handles rendering, event listeners, and CRUD operations for allocations
+ * and their monthly overrides.
+ */
+
 import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { pmPerMonthToYear } from '../helpers/allocationHelper.js';
 import { findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore } from '../helpers/validationHelper.js';
 import { PM_STEP, MIN_PM } from '../config/constants.js';
 
-// Render allocations table
+/**
+ * Render allocations table
+ * Displays all allocations with editable fields for person, project, PM, and date ranges
+ */
 export async function renderAllocations() {
     if (typeof document === 'undefined') return;
     

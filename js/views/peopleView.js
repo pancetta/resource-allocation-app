@@ -1,10 +1,21 @@
+/**
+ * People View
+ * 
+ * Manages the people table and FTE values table in the UI.
+ * Handles rendering, event listeners, and CRUD operations for people
+ * and their FTE (Full-Time Equivalent) values over time.
+ */
+
 import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, getFteValues, addFteValue, updateFteValue, deleteFteValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
 import { peopleSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
 import { MIN_FTE, MAX_FTE, FTE_STEP, DEFAULT_FTE } from '../config/constants.js';
 
-// Render people table (basic person info)
+/**
+ * Render people table (basic person info)
+ * Displays all people with editable fields based on the people schema
+ */
 export async function renderPeople() {
     if (typeof document === 'undefined') return;
     

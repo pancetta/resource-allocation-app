@@ -14,7 +14,12 @@
         <h1>Resource Allocation App</h1>
     </div>
     <div class="header-right">
-        <img src="images/fzj.png" alt="FZJ Logo" class="fzj-logo">
+        <div class="undo-redo-controls">
+            <button id="undoBtn" title="Undo (Ctrl+Z)" disabled>⟲ Undo</button>
+            <button id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>⟳ Redo</button>
+        </div>
+        <button id="helpBtn" title="Help" style="margin-left: 10px;">❓ Help</button>
+        <img src="images/fzj.png" alt="FZJ Logo" class="fzj-logo" style="margin-left: 15px;">
     </div>
 </header>
 
@@ -30,14 +35,24 @@
 <div id="people" class="tab-content">
     <h2>People</h2>
     <h3>Basic Information</h3>
+    
+    <div class="table-controls">
+        <input type="text" id="peopleSearchInput" class="search-input" placeholder="🔍 Search people...">
+    </div>
+    
     <table id="peopleTable">
         <thead><tr><th>Name</th><th>Active</th><th>Actions</th></tr></thead>
         <tbody></tbody>
     </table>
     <button id="addPersonBtn">Add Person</button>
     
-    <h3>FTE Values (Time-Based)</h3>
+    <h3>FTE Values (Time-Based) <span class="tooltip-icon" data-tooltip="FTE = Full-Time Equivalent. 1.0 = full-time, 0.5 = half-time, 0.0 = on leave">ℹ️</span></h3>
     <p>Define FTE values for specific time periods. Each person can have different FTE values over time (e.g., full-time, part-time, leave).</p>
+    
+    <div class="table-controls">
+        <input type="text" id="fteSearchInput" class="search-input" placeholder="🔍 Search FTE values...">
+    </div>
+    
     <table id="fteValuesTable">
         <thead><tr><th>Person</th><th>FTE</th><th>Start Month</th><th>End Month</th><th>Actions</th></tr></thead>
         <tbody></tbody>
@@ -45,6 +60,7 @@
     
     <select id="ftePersonSelect"></select>
     <input type="number" id="fteValueInput" step="0.01" min="0" max="1" value="1.0" placeholder="FTE">
+    <span class="tooltip-icon" data-tooltip="1.0 = full-time, 0.5 = half-time, 0.0 = on leave">ℹ️</span>
     <input type="month" id="fteStartMonthInput" value="2025-01" placeholder="Start">
     <input type="month" id="fteEndMonthInput" value="" placeholder="End (leave empty for ongoing)">
     <button id="addFteValueBtn">Add FTE Value</button>
@@ -54,14 +70,24 @@
 <div id="projects" class="tab-content">
     <h2>Projects</h2>
     <h3>Basic Information</h3>
+    
+    <div class="table-controls">
+        <input type="text" id="projectsSearchInput" class="search-input" placeholder="🔍 Search projects...">
+    </div>
+    
     <table id="projectsTable">
         <thead><tr><th>Name</th><th>Actions</th></tr></thead>
         <tbody></tbody>
     </table>
     <button id="addProjectBtn">Add Project</button>
     
-    <h3>Budget Values (Time-Based Planned PM)</h3>
+    <h3>Budget Values (Time-Based Planned PM) <span class="tooltip-icon" data-tooltip="PM = Person-Months. Example: 5 PM = 5 person-months of work">ℹ️</span></h3>
     <p>Define planned person-months (PM) for specific time periods. Each project can have different budgets over time.</p>
+    
+    <div class="table-controls">
+        <input type="text" id="budgetSearchInput" class="search-input" placeholder="🔍 Search budget values...">
+    </div>
+    
     <table id="budgetValuesTable">
         <thead><tr><th>Project</th><th>Planned PM</th><th>Start Month</th><th>End Month</th><th>Actions</th></tr></thead>
         <tbody></tbody>
@@ -69,6 +95,7 @@
     
     <select id="budgetProjectSelect"></select>
     <input type="number" id="budgetValueInput" step="0.1" min="0" value="5" placeholder="Planned PM">
+    <span class="tooltip-icon" data-tooltip="Planned person-months for this period">ℹ️</span>
     <input type="month" id="budgetStartMonthInput" value="2025-01" placeholder="Start">
     <input type="month" id="budgetEndMonthInput" value="" placeholder="End (leave empty for ongoing)">
     <button id="addBudgetValueBtn">Add Budget Value</button>
@@ -76,7 +103,12 @@
 
 <!-- ALLOCATIONS -->
 <div id="allocations" class="tab-content">
-    <h2>Default / Monthly Allocations</h2>
+    <h2>Default / Monthly Allocations <span class="tooltip-icon" data-tooltip="Assign people to projects with specific PM (person-months) per month">ℹ️</span></h2>
+    
+    <div class="table-controls">
+        <input type="text" id="allocationsSearchInput" class="search-input" placeholder="🔍 Search allocations...">
+    </div>
+    
     <table id="allocationsTable">
         <thead><tr><th>Person</th><th>Project</th><th>Allocation (PM/month)</th><th>PM/month</th><th>PM/year</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
         <tbody></tbody>
@@ -85,12 +117,19 @@
     <select id="personSelect"></select>
     <select id="projectSelect"></select>
     <input type="number" id="pmInput" step="0.01" min="0" value="1" placeholder="PM per month">
+    <span class="tooltip-icon" data-tooltip="Person-months per month. 0.5 = half a person's time">ℹ️</span>
     <input type="month" id="startMonthInput" value="2025-01">
     <input type="month" id="endMonthInput" value="" placeholder="End (leave empty for ongoing)">
+    <span class="tooltip-icon" data-tooltip="Leave empty for ongoing allocations">ℹ️</span>
     <button id="addAllocationBtn">Add Allocation</button>
     
-    <h3>Allocation Overrides (Month-Specific Exceptions)</h3>
+    <h3>Allocation Overrides (Month-Specific Exceptions) <span class="tooltip-icon" data-tooltip="Override allocation for specific months (e.g., vacation, partial availability)">ℹ️</span></h3>
     <p>Define month-specific exceptions to allocations (e.g., normally 1.0 PM but 0.5 PM in June 2025).</p>
+    
+    <div class="table-controls">
+        <input type="text" id="overridesSearchInput" class="search-input" placeholder="🔍 Search overrides...">
+    </div>
+    
     <table id="allocationOverridesTable">
         <thead><tr><th>Allocation</th><th>Month</th><th>Override PM</th><th>Actions</th></tr></thead>
         <tbody></tbody>
@@ -99,6 +138,7 @@
     <select id="allocationSelect"></select>
     <input type="month" id="overrideMonthInput" value="2025-01">
     <input type="number" id="overridePmInput" step="0.01" min="0" value="0.5" placeholder="PM">
+    <span class="tooltip-icon" data-tooltip="Override PM for this specific month">ℹ️</span>
     <button id="addAllocationOverrideBtn">Add Override</button>
 </div>
 
@@ -117,6 +157,11 @@
     <h3>Project Monthly Overview</h3>
     <label>Year: <input type="number" id="overviewYearInput" value="2025" min="2000" max="2100"></label>
     <button id="projectMonthlyBtn">Project × Month</button>
+
+    <h3>Timeline Visualization <span class="tooltip-icon" data-tooltip="Visual timeline showing allocations across months">ℹ️</span></h3>
+    <label>Year: <input type="number" id="timelineYearInput" value="2025" min="2000" max="2100"></label>
+    <button id="showTimelineBtn">Show Timeline</button>
+    <div id="timelineOutput"></div>
 
     <div id="resultsOutput"></div>
 </div>
@@ -185,6 +230,51 @@
         <li>Look for keys starting with "resource-planning-backup-"</li>
         <li>Copy the value and save it to a file if needed</li>
     </ol>
+    
+    <h3>🗑️ Data Pruning</h3>
+    <p>Remove old or inactive data to keep your database clean and efficient.</p>
+    <button id="dataPruningBtn" style="background-color: #8CB903; color: white;">🗑️ Prune Old Data</button>
+    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+        <strong>💡 Tip:</strong> You can remove inactive people and old FTE/budget/allocation values that are no longer needed. Changes can be undone with the undo button.
+    </p>
+</div>
+
+<!-- Auto-save indicator -->
+<div id="autoSaveIndicator" class="auto-save-indicator saved" style="display: none;">
+    <span class="status-icon">✓</span>
+    <span id="autoSaveText">All changes saved</span>
+</div>
+
+<!-- Help Panel -->
+<div id="helpPanel" class="help-panel">
+    <div class="help-panel-header">
+        <h2 style="margin: 0;">Help & Tips</h2>
+        <button id="closeHelpBtn" style="background: transparent; color: white; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+    </div>
+    <div class="help-panel-content" id="helpPanelContent">
+        <div class="help-section">
+            <h3>Getting Started</h3>
+            <p>1. Add people in the <strong>People</strong> tab</p>
+            <p>2. Add projects in the <strong>Projects</strong> tab</p>
+            <p>3. Create allocations in the <strong>Allocations</strong> tab</p>
+            <p>4. View reports in the <strong>Results</strong> tab</p>
+        </div>
+        
+        <div class="help-section">
+            <h3>Keyboard Shortcuts</h3>
+            <p><kbd>Ctrl/Cmd + Z</kbd> - Undo last change</p>
+            <p><kbd>Ctrl/Cmd + Shift + Z</kbd> - Redo</p>
+            <p><kbd>Ctrl/Cmd + Y</kbd> - Redo (alternative)</p>
+        </div>
+        
+        <div class="help-section">
+            <h3>Tips & Tricks</h3>
+            <p>• Click column headers to sort tables</p>
+            <p>• Use search boxes to filter table rows</p>
+            <p>• Hover over field labels for helpful tooltips</p>
+            <p>• Export data regularly to prevent data loss</p>
+        </div>
+    </div>
 </div>
 
 <script type="module" src="js/main.js"></script>

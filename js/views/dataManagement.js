@@ -12,6 +12,8 @@ import {
     deleteBackup,
     getAutoPreparedBackup
 } from '../data/database.js';
+import { showImportPreview } from '../helpers/importPreview.js';
+import { showDataPruningDialog } from '../helpers/dataPruning.js';
 import {
     MILLISECONDS_PER_SECOND,
     SECONDS_PER_MINUTE,
@@ -79,7 +81,10 @@ export async function init() {
                 const text = await file.text();
                 const data = JSON.parse(text);
                 
-                if (!confirm("This will replace all existing data. Are you sure?")) {
+                // Show import preview dialog
+                const confirmed = await showImportPreview(data);
+                
+                if (!confirmed) {
                     e.target.value = "";
                     return;
                 }
@@ -93,6 +98,14 @@ export async function init() {
             } finally {
                 e.target.value = "";
             }
+        });
+    }
+    
+    // Data pruning button
+    const dataPruningBtn = document.getElementById("dataPruningBtn");
+    if (dataPruningBtn) {
+        dataPruningBtn.addEventListener("click", async () => {
+            await showDataPruningDialog();
         });
     }
 

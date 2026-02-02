@@ -3,6 +3,9 @@ var App = (() => {
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __esm = (fn, res) => function __init() {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
@@ -16,6 +19,207 @@ var App = (() => {
     return to;
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // js/ui/toast.js
+  var toast_exports = {};
+  __export(toast_exports, {
+    showError: () => showError,
+    showInfo: () => showInfo,
+    showSuccess: () => showSuccess,
+    showToast: () => showToast,
+    showWarning: () => showWarning
+  });
+  function showToast(message, type = "info", duration = 3e3) {
+    if (typeof document === "undefined") return;
+    let container = document.getElementById("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    const icons = {
+      success: "\u2713",
+      error: "\u2717",
+      warning: "\u26A0",
+      info: "\u2139"
+    };
+    const icon = icons[type] || icons.info;
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" aria-label="Close">&times;</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add("toast-show"), 10);
+    const closeBtn = toast.querySelector(".toast-close");
+    closeBtn.addEventListener("click", () => removeToast(toast));
+    setTimeout(() => removeToast(toast), duration);
+  }
+  function removeToast(toast) {
+    if (!toast || !toast.parentElement) return;
+    toast.classList.remove("toast-show");
+    toast.classList.add("toast-hide");
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.parentElement.removeChild(toast);
+      }
+    }, 300);
+  }
+  function showSuccess(message, duration) {
+    showToast(message, "success", duration);
+  }
+  function showError(message, duration) {
+    showToast(message, "error", duration);
+  }
+  function showWarning(message, duration) {
+    showToast(message, "warning", duration);
+  }
+  function showInfo(message, duration) {
+    showToast(message, "info", duration);
+  }
+  var init_toast = __esm({
+    "js/ui/toast.js"() {
+    }
+  });
+
+  // js/helpers/tableHelpers.js
+  var tableHelpers_exports = {};
+  __export(tableHelpers_exports, {
+    addBatchSelection: () => addBatchSelection,
+    addTableFilter: () => addTableFilter,
+    getSelectedRows: () => getSelectedRows,
+    makeTableSortable: () => makeTableSortable
+  });
+  function makeTableSortable(table, sortableColumns = []) {
+    if (!table) return;
+    const thead = table.querySelector("thead");
+    if (!thead) return;
+    const headers = thead.querySelectorAll("th");
+    const tbody = table.querySelector("tbody");
+    headers.forEach((header, index) => {
+      if (sortableColumns.length > 0 && !sortableColumns.includes(index)) {
+        return;
+      }
+      header.classList.add("sortable");
+      header.style.cursor = "pointer";
+      header.addEventListener("click", () => {
+        sortTable(table, index, header);
+      });
+    });
+  }
+  function sortTable(table, columnIndex, header) {
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    let ascending = true;
+    if (header.classList.contains("sort-asc")) {
+      ascending = false;
+    }
+    table.querySelectorAll("th").forEach((th) => {
+      th.classList.remove("sort-asc", "sort-desc");
+    });
+    header.classList.add(ascending ? "sort-asc" : "sort-desc");
+    rows.sort((a, b) => {
+      const aCell = a.cells[columnIndex];
+      const bCell = b.cells[columnIndex];
+      if (!aCell || !bCell) return 0;
+      let aValue = getCellValue(aCell);
+      let bValue = getCellValue(bCell);
+      const aNum = parseFloat(aValue);
+      const bNum = parseFloat(bValue);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return ascending ? aNum - bNum : bNum - aNum;
+      }
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+      if (aValue < bValue) return ascending ? -1 : 1;
+      if (aValue > bValue) return ascending ? 1 : -1;
+      return 0;
+    });
+    rows.forEach((row) => tbody.appendChild(row));
+  }
+  function getCellValue(cell) {
+    const input = cell.querySelector('input[type="text"], input[type="number"]');
+    if (input) return input.value;
+    const select = cell.querySelector("select");
+    if (select) return select.options[select.selectedIndex]?.text || "";
+    const checkbox = cell.querySelector('input[type="checkbox"]');
+    if (checkbox) return checkbox.checked ? "1" : "0";
+    return cell.textContent.trim();
+  }
+  function addTableFilter(table, searchInput) {
+    if (!table || !searchInput) return;
+    searchInput.addEventListener("input", () => {
+      filterTable(table, searchInput.value);
+    });
+  }
+  function filterTable(table, searchTerm) {
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll("tr");
+    const term = searchTerm.toLowerCase();
+    rows.forEach((row) => {
+      if (row.classList.contains("quick-add-row")) {
+        return;
+      }
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(term) ? "" : "none";
+    });
+  }
+  function addBatchSelection(table, onSelectionChange) {
+    if (!table) return;
+    const thead = table.querySelector("thead tr");
+    const tbody = table.querySelector("tbody");
+    if (!thead || !tbody) return;
+    const selectAllTh = document.createElement("th");
+    selectAllTh.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
+    thead.insertBefore(selectAllTh, thead.firstChild);
+    const selectAllCheckbox = selectAllTh.querySelector(".select-all-checkbox");
+    selectAllCheckbox.addEventListener("change", () => {
+      const checkboxes = tbody.querySelectorAll(".row-select-checkbox");
+      checkboxes.forEach((cb) => {
+        cb.checked = selectAllCheckbox.checked;
+      });
+      updateSelection();
+    });
+    const rows = tbody.querySelectorAll("tr");
+    rows.forEach((row) => {
+      const selectTd = document.createElement("td");
+      selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
+      row.insertBefore(selectTd, row.firstChild);
+      const checkbox = selectTd.querySelector(".row-select-checkbox");
+      checkbox.addEventListener("change", updateSelection);
+    });
+    function updateSelection() {
+      const checkboxes = Array.from(tbody.querySelectorAll(".row-select-checkbox"));
+      const selected = checkboxes.filter((cb) => cb.checked);
+      if (onSelectionChange) {
+        onSelectionChange(selected.length, checkboxes.length);
+      }
+    }
+  }
+  function getSelectedRows(table) {
+    if (!table) return [];
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return [];
+    const selected = [];
+    const checkboxes = tbody.querySelectorAll(".row-select-checkbox:checked");
+    checkboxes.forEach((checkbox) => {
+      const row = checkbox.closest("tr");
+      const deleteBtn = row.querySelector("[data-id]");
+      if (deleteBtn) {
+        selected.push(deleteBtn.getAttribute("data-id"));
+      }
+    });
+    return selected;
+  }
+  var init_tableHelpers = __esm({
+    "js/helpers/tableHelpers.js"() {
+    }
+  });
 
   // js/main.js
   var main_exports = {};
@@ -654,6 +858,21 @@ var App = (() => {
   async function deleteAllocationOverride(id) {
     return deleteRecord(db, "allocationOverrides", id, () => invalidateCache("allocationOverrides"));
   }
+  async function exportData() {
+    return await exportAllData();
+  }
+  async function importData(data, reload = true) {
+    await importAllData(data);
+    invalidateCache();
+    if (reload && typeof window !== "undefined") {
+      window.location.reload();
+    } else if (!reload) {
+      const event = new CustomEvent("dataImported");
+      if (typeof document !== "undefined") {
+        document.dispatchEvent(event);
+      }
+    }
+  }
 
   // js/ui/tabs.js
   function initTabs() {
@@ -786,6 +1005,239 @@ var App = (() => {
   }
 
   // js/views/peopleView.js
+  init_toast();
+
+  // js/helpers/undoManager.js
+  var MAX_HISTORY = 20;
+  var undoStack = [];
+  var redoStack = [];
+  var isApplyingState = false;
+  async function saveState(actionName) {
+    if (isApplyingState) return;
+    try {
+      const state = await exportData();
+      undoStack.push({
+        data: state,
+        action: actionName,
+        timestamp: Date.now()
+      });
+      if (undoStack.length > MAX_HISTORY) {
+        undoStack.shift();
+      }
+      redoStack = [];
+      updateUndoRedoButtons();
+    } catch (error) {
+      console.error("Failed to save state:", error);
+    }
+  }
+  async function undo() {
+    if (undoStack.length === 0) return false;
+    try {
+      isApplyingState = true;
+      const currentState = await exportData();
+      const lastAction = undoStack.pop();
+      redoStack.push({
+        data: currentState,
+        action: lastAction.action,
+        timestamp: Date.now()
+      });
+      await importData(lastAction.data, false);
+      updateUndoRedoButtons();
+      return true;
+    } catch (error) {
+      console.error("Undo failed:", error);
+      return false;
+    } finally {
+      isApplyingState = false;
+    }
+  }
+  async function redo() {
+    if (redoStack.length === 0) return false;
+    try {
+      isApplyingState = true;
+      const currentState = await exportData();
+      const nextAction = redoStack.pop();
+      undoStack.push({
+        data: currentState,
+        action: nextAction.action,
+        timestamp: Date.now()
+      });
+      await importData(nextAction.data, false);
+      updateUndoRedoButtons();
+      return true;
+    } catch (error) {
+      console.error("Redo failed:", error);
+      return false;
+    } finally {
+      isApplyingState = false;
+    }
+  }
+  function canUndo() {
+    return undoStack.length > 0;
+  }
+  function canRedo() {
+    return redoStack.length > 0;
+  }
+  function getLastAction() {
+    if (undoStack.length === 0) return null;
+    return undoStack[undoStack.length - 1].action;
+  }
+  function getNextRedoAction() {
+    if (redoStack.length === 0) return null;
+    return redoStack[redoStack.length - 1].action;
+  }
+  function updateUndoRedoButtons() {
+    if (typeof document === "undefined") return;
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    if (undoBtn) {
+      undoBtn.disabled = !canUndo();
+      const lastAction = getLastAction();
+      undoBtn.title = lastAction ? `Undo: ${lastAction}` : "Nothing to undo";
+    }
+    if (redoBtn) {
+      redoBtn.disabled = !canRedo();
+      const nextAction = getNextRedoAction();
+      redoBtn.title = nextAction ? `Redo: ${nextAction}` : "Nothing to redo";
+    }
+  }
+  function initUndoRedoShortcuts() {
+    if (typeof document === "undefined") return;
+    document.addEventListener("keydown", async (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const success = await undo();
+        if (success) {
+          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
+          showSuccess2("Undo successful");
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey || (e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        const success = await redo();
+        if (success) {
+          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
+          showSuccess2("Redo successful");
+        }
+      }
+    });
+  }
+
+  // js/helpers/quickAdd.js
+  function addQuickAddRow(table, placeholders, onAdd, onCancel) {
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const existing = tbody.querySelector(".quick-add-row");
+    if (existing) {
+      existing.remove();
+    }
+    const tr = document.createElement("tr");
+    tr.className = "quick-add-row";
+    const cells = placeholders.map((placeholder, index) => {
+      return `<td><input type="text" class="quick-add-input" data-index="${index}" placeholder="${placeholder}"></td>`;
+    }).join("");
+    tr.innerHTML = `
+        ${cells}
+        <td class="quick-add-actions">
+            <button class="quick-add-save" title="Save (Enter)">\u2713</button>
+            <button class="quick-add-cancel" title="Cancel (Esc)">\u2717</button>
+        </td>
+    `;
+    tbody.insertBefore(tr, tbody.firstChild);
+    const inputs = tr.querySelectorAll(".quick-add-input");
+    const saveBtn = tr.querySelector(".quick-add-save");
+    const cancelBtn = tr.querySelector(".quick-add-cancel");
+    if (inputs.length > 0) {
+      inputs[0].focus();
+    }
+    const handleSave = () => {
+      const values = Array.from(inputs).map((input) => input.value.trim());
+      if (values.every((v) => !v)) {
+        handleCancel();
+        return;
+      }
+      if (onAdd) {
+        onAdd(values);
+      }
+      tr.remove();
+    };
+    const handleCancel = () => {
+      tr.remove();
+      if (onCancel) {
+        onCancel();
+      }
+    };
+    saveBtn.addEventListener("click", handleSave);
+    cancelBtn.addEventListener("click", handleCancel);
+    inputs.forEach((input, index) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (index === inputs.length - 1) {
+            handleSave();
+          } else {
+            inputs[index + 1].focus();
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          handleCancel();
+        } else if (e.key === "Tab" && index === inputs.length - 1 && !e.shiftKey) {
+          e.preventDefault();
+          handleSave();
+        }
+      });
+    });
+    return tr;
+  }
+
+  // js/views/peopleView.js
+  init_tableHelpers();
+
+  // js/helpers/batchOperations.js
+  init_tableHelpers();
+  function addBatchOperationsToolbar(table, operations) {
+    if (!table) return null;
+    let toolbar = table.previousElementSibling;
+    if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+      return toolbar;
+    }
+    toolbar = document.createElement("div");
+    toolbar.className = "batch-toolbar";
+    toolbar.style.display = "none";
+    const counter = document.createElement("span");
+    counter.className = "batch-counter";
+    counter.textContent = "0 selected";
+    toolbar.appendChild(counter);
+    Object.entries(operations).forEach(([name, handler]) => {
+      const button = document.createElement("button");
+      button.className = "batch-action-btn";
+      button.textContent = name;
+      button.addEventListener("click", async () => {
+        const selectedIds = getSelectedRows(table);
+        if (selectedIds.length > 0) {
+          await handler(selectedIds);
+        }
+      });
+      toolbar.appendChild(button);
+    });
+    table.parentNode.insertBefore(toolbar, table);
+    return toolbar;
+  }
+  function updateBatchToolbar(toolbar, selectedCount, totalCount) {
+    if (!toolbar) return;
+    const counter = toolbar.querySelector(".batch-counter");
+    if (counter) {
+      counter.textContent = `${selectedCount} of ${totalCount} selected`;
+    }
+    if (selectedCount > 0) {
+      toolbar.style.display = "flex";
+    } else {
+      toolbar.style.display = "none";
+    }
+  }
+
+  // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
     const table = document.querySelector("#peopleTable");
@@ -914,6 +1366,15 @@ var App = (() => {
     document.querySelectorAll(".delete-person").forEach((btn) => {
       btn.addEventListener("click", async function() {
         const id = this.dataset.id;
+        const people = await getPeople();
+        const person = people.find((p) => p.id === id);
+        const personName = person ? person.name : id;
+        if (typeof window !== "undefined" && window.confirm) {
+          if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
+            return;
+          }
+        }
+        await saveState(`Delete person: ${personName}`);
         const fteValues = await getFteValues();
         const personFteValues = fteValues.filter((v) => v.personId === id);
         for (const value of personFteValues) {
@@ -923,6 +1384,7 @@ var App = (() => {
         scheduleAutoBackup();
         renderPeople();
         renderFteValues();
+        showSuccess(`Deleted ${personName}`);
       });
     });
   }
@@ -1009,6 +1471,7 @@ var App = (() => {
     });
   }
   async function addPersonAuto(name) {
+    await saveState(`Add person: ${name}`);
     const id = await generatePersonId();
     const defaults = peopleSchema.getDefaults();
     await addPerson({
@@ -1028,14 +1491,25 @@ var App = (() => {
     scheduleAutoBackup();
     renderPeople();
     renderFteValues();
+    showSuccess(`Added person: ${name}`);
   }
   function initPeopleView() {
     if (typeof document === "undefined") return;
     const addPersonBtn = document.getElementById("addPersonBtn");
     if (addPersonBtn) {
       addPersonBtn.addEventListener("click", async () => {
-        const name = prompt("Person name");
-        if (name) await addPersonAuto(name);
+        const peopleTable = document.getElementById("peopleTable");
+        if (!peopleTable) return;
+        addQuickAddRow(
+          peopleTable,
+          ["Enter name..."],
+          async (values) => {
+            const name = values[0];
+            if (name) {
+              await addPersonAuto(name);
+            }
+          }
+        );
       });
     }
     const addFteValueBtn = document.getElementById("addFteValueBtn");
@@ -1059,9 +1533,55 @@ var App = (() => {
         renderFteValues();
       });
     }
+    Promise.resolve().then(() => (init_tableHelpers(), tableHelpers_exports)).then(({ makeTableSortable: makeTableSortable2, addTableFilter: addTableFilter2 }) => {
+      const peopleTable = document.getElementById("peopleTable");
+      const fteValuesTable = document.getElementById("fteValuesTable");
+      const peopleSearchInput = document.getElementById("peopleSearchInput");
+      const fteSearchInput = document.getElementById("fteSearchInput");
+      if (peopleTable) {
+        makeTableSortable2(peopleTable);
+        addBatchSelection(peopleTable, (selectedCount, totalCount) => {
+          const toolbar = peopleTable.previousElementSibling;
+          if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+          }
+        });
+        addBatchOperationsToolbar(peopleTable, {
+          "Delete Selected": async (selectedIds) => {
+            if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
+              return;
+            }
+            await saveState(`Batch delete ${selectedIds.length} people`);
+            for (const id of selectedIds) {
+              const fteValues = await getFteValues();
+              const personFteValues = fteValues.filter((v) => v.personId === id);
+              for (const value of personFteValues) {
+                await deleteFteValue(value.id);
+              }
+              await deletePerson(id);
+            }
+            scheduleAutoBackup();
+            renderPeople();
+            renderFteValues();
+            showSuccess(`Deleted ${selectedIds.length} people`);
+          }
+        });
+      }
+      if (fteValuesTable) {
+        makeTableSortable2(fteValuesTable);
+      }
+      if (peopleTable && peopleSearchInput) {
+        addTableFilter2(peopleTable, peopleSearchInput);
+      }
+      if (fteValuesTable && fteSearchInput) {
+        addTableFilter2(fteValuesTable, fteSearchInput);
+      }
+    });
   }
 
   // js/views/projectsView.js
+  init_toast();
+  init_tableHelpers();
   async function renderProjects() {
     if (typeof document === "undefined") return;
     const tbody = document.querySelector("#projectsTable tbody");
@@ -1227,6 +1747,7 @@ var App = (() => {
     });
   }
   async function addProjectAuto(name) {
+    await saveState(`Add project: ${name}`);
     const id = await generateProjectId();
     await addProject({ id, name });
     const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
@@ -1240,14 +1761,25 @@ var App = (() => {
     scheduleAutoBackup();
     renderProjects();
     renderBudgetValues();
+    showSuccess(`Added project: ${name}`);
   }
   function initProjectsView() {
     if (typeof document === "undefined") return;
     const addProjectBtn = document.getElementById("addProjectBtn");
     if (addProjectBtn) {
       addProjectBtn.addEventListener("click", async () => {
-        const name = prompt("Project name");
-        if (name) await addProjectAuto(name);
+        const projectsTable = document.getElementById("projectsTable");
+        if (!projectsTable) return;
+        addQuickAddRow(
+          projectsTable,
+          ["Enter project name..."],
+          async (values) => {
+            const name = values[0];
+            if (name) {
+              await addProjectAuto(name);
+            }
+          }
+        );
       });
     }
     const addBudgetValueBtn = document.getElementById("addBudgetValueBtn");
@@ -1271,6 +1803,50 @@ var App = (() => {
         renderBudgetValues();
       });
     }
+    Promise.resolve().then(() => (init_tableHelpers(), tableHelpers_exports)).then(({ makeTableSortable: makeTableSortable2, addTableFilter: addTableFilter2 }) => {
+      const projectsTable = document.getElementById("projectsTable");
+      const budgetValuesTable = document.getElementById("budgetValuesTable");
+      const projectsSearchInput = document.getElementById("projectsSearchInput");
+      const budgetSearchInput = document.getElementById("budgetSearchInput");
+      if (projectsTable) {
+        makeTableSortable2(projectsTable);
+        addBatchSelection(projectsTable, (selectedCount, totalCount) => {
+          const toolbar = projectsTable.previousElementSibling;
+          if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+          }
+        });
+        addBatchOperationsToolbar(projectsTable, {
+          "Delete Selected": async (selectedIds) => {
+            if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {
+              return;
+            }
+            await saveState(`Batch delete ${selectedIds.length} projects`);
+            for (const id of selectedIds) {
+              const budgetValues = await getBudgetValues();
+              const projectBudgetValues = budgetValues.filter((v) => v.projectId === id);
+              for (const value of projectBudgetValues) {
+                await deleteBudgetValue(value.id);
+              }
+              await deleteProject(id);
+            }
+            scheduleAutoBackup();
+            renderProjects();
+            renderBudgetValues();
+            showSuccess(`Deleted ${selectedIds.length} projects`);
+          }
+        });
+      }
+      if (budgetValuesTable) {
+        makeTableSortable2(budgetValuesTable);
+      }
+      if (projectsTable && projectsSearchInput) {
+        addTableFilter2(projectsTable, projectsSearchInput);
+      }
+      if (budgetValuesTable && budgetSearchInput) {
+        addTableFilter2(budgetValuesTable, budgetSearchInput);
+      }
+    });
   }
 
   // js/helpers/dateHelper.js
@@ -1822,6 +2398,24 @@ Click OK to proceed with overlap, or Cancel to abort.`
         renderAllocationOverrides();
       });
     }
+    Promise.resolve().then(() => (init_tableHelpers(), tableHelpers_exports)).then(({ makeTableSortable: makeTableSortable2, addTableFilter: addTableFilter2 }) => {
+      const allocationsTable = document.getElementById("allocationsTable");
+      const overridesTable = document.getElementById("allocationOverridesTable");
+      const allocationsSearchInput = document.getElementById("allocationsSearchInput");
+      const overridesSearchInput = document.getElementById("overridesSearchInput");
+      if (allocationsTable) {
+        makeTableSortable2(allocationsTable);
+      }
+      if (overridesTable) {
+        makeTableSortable2(overridesTable);
+      }
+      if (allocationsTable && allocationsSearchInput) {
+        addTableFilter2(allocationsTable, allocationsSearchInput);
+      }
+      if (overridesTable && overridesSearchInput) {
+        addTableFilter2(overridesTable, overridesSearchInput);
+      }
+    });
   }
 
   // js/helpers/classUtil.js
@@ -2046,6 +2640,502 @@ Click OK to proceed with overlap, or Cancel to abort.`
     });
   }
 
+  // js/views/timelineView.js
+  function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = hash % 360;
+    const s = 65;
+    const l = 55;
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  }
+  function parseMonth(monthStr) {
+    const [year, month] = monthStr.split("-").map(Number);
+    return new Date(year, month - 1, 1);
+  }
+  function formatMonth(monthStr) {
+    const date = parseMonth(monthStr);
+    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  }
+  async function renderTimeline(containerId, year) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+    const allocations = await getAllocations();
+    const people = await getPeople();
+    const projects = await getProjects();
+    const yearStart = `${year}-01`;
+    const yearEnd = `${year}-12`;
+    const relevantAllocations = allocations.filter((a) => {
+      const start = a.startMonth;
+      const end = a.endMonth || "9999-12";
+      return start <= yearEnd && end >= yearStart;
+    });
+    if (relevantAllocations.length === 0) {
+      container.innerHTML = "<p>No allocations found for this year.</p>";
+      return;
+    }
+    const months = [];
+    for (let m = 1; m <= 12; m++) {
+      months.push(`${year}-${String(m).padStart(2, "0")}`);
+    }
+    const html = `
+        <div class="timeline-container">
+            <h3>Allocation Timeline for ${year}</h3>
+            <div class="timeline-grid">
+                <div class="timeline-row timeline-header-row">
+                    <div class="timeline-label">Person \u2192 Project</div>
+                    ${months.map((m) => `<div class="timeline-month-header">${formatMonth(m)}</div>`).join("")}
+                </div>
+                ${relevantAllocations.map((alloc) => {
+      const person = people.find((p) => p.id === alloc.personId);
+      const project = projects.find((p) => p.id === alloc.projectId);
+      const personName = person ? person.name : alloc.personId;
+      const projectName = project ? project.name : alloc.projectId;
+      const color = stringToColor(alloc.projectId);
+      return `
+                        <div class="timeline-row">
+                            <div class="timeline-label" title="${personName} \u2192 ${projectName}">${personName} \u2192 ${projectName}</div>
+                            ${months.map((m) => {
+        const start = alloc.startMonth;
+        const end = alloc.endMonth || "9999-12";
+        const isActive = m >= start && m <= end;
+        const pm = alloc.pm;
+        return `
+                                    <div class="timeline-cell ${isActive ? "timeline-active" : ""}" 
+                                         style="${isActive ? `background-color: ${color}; opacity: ${Math.min(pm * 0.5 + 0.3, 1)}` : ""}"
+                                         title="${isActive ? `${personName} \u2192 ${projectName}: ${pm} PM` : ""}">
+                                        ${isActive ? pm.toFixed(1) : ""}
+                                    </div>
+                                `;
+      }).join("")}
+                        </div>
+                    `;
+    }).join("")}
+            </div>
+            <div class="timeline-legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ccc;"></div>
+                    <span>No allocation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: hsl(200, 65%, 55%); opacity: 0.5;"></div>
+                    <span>Low allocation (&lt;0.5 PM)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: hsl(200, 65%, 55%);"></div>
+                    <span>High allocation (\u22650.5 PM)</span>
+                </div>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+  }
+  function initTimelineView() {
+    if (typeof document === "undefined") return;
+    const showTimelineBtn = document.getElementById("showTimelineBtn");
+    if (showTimelineBtn) {
+      showTimelineBtn.addEventListener("click", async () => {
+        const year = parseInt(document.getElementById("timelineYearInput")?.value || (/* @__PURE__ */ new Date()).getFullYear());
+        await renderTimeline("timelineOutput", year);
+      });
+    }
+  }
+
+  // js/helpers/importPreview.js
+  async function showImportPreview(data) {
+    if (typeof document === "undefined") return false;
+    const overlay = document.createElement("div");
+    overlay.className = "import-preview-overlay";
+    const modal = document.createElement("div");
+    modal.className = "import-preview-modal";
+    const stats = analyzeImportData(data);
+    modal.innerHTML = `
+        <div class="import-preview-header">
+            <h2>\u{1F4E4} Import Data Preview</h2>
+            <button class="import-preview-close" title="Cancel">&times;</button>
+        </div>
+        <div class="import-preview-body">
+            <div class="import-warning">
+                \u26A0\uFE0F <strong>Warning:</strong> This will replace all existing data!
+            </div>
+            
+            <h3>Data to be Imported:</h3>
+            <table class="import-stats-table">
+                <tr>
+                    <td><strong>People:</strong></td>
+                    <td>${stats.people} person(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Projects:</strong></td>
+                    <td>${stats.projects} project(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Allocations:</strong></td>
+                    <td>${stats.allocations} allocation(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>FTE Values:</strong></td>
+                    <td>${stats.fteValues} FTE value(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Budget Values:</strong></td>
+                    <td>${stats.budgetValues} budget value(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Overrides:</strong></td>
+                    <td>${stats.overrides} override(s)</td>
+                </tr>
+            </table>
+            
+            ${stats.errors.length > 0 ? `
+            <div class="import-errors">
+                <h3>\u26A0\uFE0F Validation Issues:</h3>
+                <ul>
+                    ${stats.errors.map((err) => `<li>${err}</li>`).join("")}
+                </ul>
+            </div>
+            ` : '<div class="import-success">\u2705 Data structure looks valid</div>'}
+            
+            ${stats.warnings.length > 0 ? `
+            <div class="import-warnings">
+                <h3>\u26A0\uFE0F Warnings:</h3>
+                <ul>
+                    ${stats.warnings.map((warn) => `<li>${warn}</li>`).join("")}
+                </ul>
+            </div>
+            ` : ""}
+        </div>
+        <div class="import-preview-footer">
+            <button class="import-preview-cancel">Cancel</button>
+            <button class="import-preview-confirm" ${stats.errors.length > 0 ? "disabled" : ""}>
+                ${stats.errors.length > 0 ? "Cannot Import (Errors Found)" : "Import Data"}
+            </button>
+        </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    return new Promise((resolve) => {
+      const closeBtn = modal.querySelector(".import-preview-close");
+      const cancelBtn = modal.querySelector(".import-preview-cancel");
+      const confirmBtn = modal.querySelector(".import-preview-confirm");
+      const cleanup = () => {
+        overlay.remove();
+      };
+      const handleCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+      const handleConfirm = async () => {
+        if (stats.errors.length > 0) return;
+        cleanup();
+        resolve(true);
+      };
+      closeBtn.addEventListener("click", handleCancel);
+      cancelBtn.addEventListener("click", handleCancel);
+      confirmBtn.addEventListener("click", handleConfirm);
+      const handleEscape = (e) => {
+        if (e.key === "Escape") {
+          handleCancel();
+          document.removeEventListener("keydown", handleEscape);
+        }
+      };
+      document.addEventListener("keydown", handleEscape);
+    });
+  }
+  function analyzeImportData(data) {
+    const stats = {
+      people: 0,
+      projects: 0,
+      allocations: 0,
+      fteValues: 0,
+      budgetValues: 0,
+      overrides: 0,
+      errors: [],
+      warnings: []
+    };
+    try {
+      if (!data || typeof data !== "object") {
+        stats.errors.push("Invalid data format");
+        return stats;
+      }
+      if (data.people && Array.isArray(data.people)) {
+        stats.people = data.people.length;
+      } else {
+        stats.warnings.push("No people data found");
+      }
+      if (data.projects && Array.isArray(data.projects)) {
+        stats.projects = data.projects.length;
+      } else {
+        stats.warnings.push("No projects data found");
+      }
+      if (data.defaultAllocations && Array.isArray(data.defaultAllocations)) {
+        stats.allocations = data.defaultAllocations.length;
+      } else {
+        stats.warnings.push("No allocations data found");
+      }
+      if (data.fteValues && Array.isArray(data.fteValues)) {
+        stats.fteValues = data.fteValues.length;
+      } else {
+        stats.warnings.push("No FTE values found");
+      }
+      if (data.budgetValues && Array.isArray(data.budgetValues)) {
+        stats.budgetValues = data.budgetValues.length;
+      } else {
+        stats.warnings.push("No budget values found");
+      }
+      if (data.allocationOverrides && Array.isArray(data.allocationOverrides)) {
+        stats.overrides = data.allocationOverrides.length;
+      }
+      if (stats.people === 0 && stats.projects === 0) {
+        stats.errors.push("No people or projects found in import data");
+      }
+    } catch (e) {
+      stats.errors.push(`Error analyzing data: ${e.message}`);
+    }
+    return stats;
+  }
+
+  // js/helpers/dataPruning.js
+  init_toast();
+  async function showDataPruningDialog() {
+    if (typeof document === "undefined") return;
+    const overlay = document.createElement("div");
+    overlay.className = "import-preview-overlay";
+    const modal = document.createElement("div");
+    modal.className = "import-preview-modal";
+    modal.innerHTML = `
+        <div class="import-preview-header">
+            <h2>\u{1F5D1}\uFE0F Data Pruning Tool</h2>
+            <button class="import-preview-close" title="Close">&times;</button>
+        </div>
+        <div class="import-preview-body">
+            <div class="import-warning">
+                \u26A0\uFE0F <strong>Warning:</strong> This will permanently delete data. Use undo if needed.
+            </div>
+            
+            <h3>Prune Options:</h3>
+            
+            <div class="prune-option">
+                <input type="checkbox" id="pruneInactivePeople" checked>
+                <label for="pruneInactivePeople">
+                    <strong>Delete Inactive People</strong>
+                    <span id="inactivePeopleCount" class="prune-count">Checking...</span>
+                </label>
+                <p class="prune-description">Remove people marked as inactive and all their FTE values.</p>
+            </div>
+            
+            <div class="prune-option">
+                <label for="pruneOldDataBefore"><strong>Delete Old FTE/Budget Values Before:</strong></label>
+                <input type="month" id="pruneOldDataBefore">
+                <span id="oldDataCount" class="prune-count">Select date to see count</span>
+                <p class="prune-description">Remove FTE and budget values that end before this date.</p>
+            </div>
+            
+            <div class="prune-option">
+                <label for="pruneOldAllocationsBefore"><strong>Delete Old Allocations Before:</strong></label>
+                <input type="month" id="pruneOldAllocationsBefore">
+                <span id="oldAllocationsCount" class="prune-count">Select date to see count</span>
+                <p class="prune-description">Remove allocations that end before this date.</p>
+            </div>
+            
+            <div id="prunePreview" style="display: none; margin-top: 20px;">
+                <h3>Preview of Items to be Deleted:</h3>
+                <div id="prunePreviewContent"></div>
+            </div>
+        </div>
+        <div class="import-preview-footer">
+            <button class="import-preview-cancel">Cancel</button>
+            <button id="previewPruneBtn" class="import-preview-confirm" style="background-color: #8CB903;">Preview</button>
+            <button id="executePruneBtn" class="import-preview-confirm" style="display: none;">Execute Pruning</button>
+        </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    const closeBtn = modal.querySelector(".import-preview-close");
+    const cancelBtn = modal.querySelector(".import-preview-cancel");
+    const previewBtn = modal.querySelector("#previewPruneBtn");
+    const executeBtn = modal.querySelector("#executePruneBtn");
+    const oldDataInput = modal.querySelector("#pruneOldDataBefore");
+    const oldAllocationsInput = modal.querySelector("#pruneOldAllocationsBefore");
+    updateInactivePeopleCount();
+    oldDataInput.addEventListener("change", updateOldDataCount);
+    oldAllocationsInput.addEventListener("change", updateOldAllocationsCount);
+    previewBtn.addEventListener("click", async () => {
+      const preview = await generatePrunePreview();
+      displayPrunePreview(preview);
+      previewBtn.style.display = "none";
+      executeBtn.style.display = "inline-block";
+    });
+    executeBtn.addEventListener("click", async () => {
+      const pruneInactivePeople = modal.querySelector("#pruneInactivePeople").checked;
+      const oldDataBefore = oldDataInput.value;
+      const oldAllocationsBefore = oldAllocationsInput.value;
+      const count = await executePruning(pruneInactivePeople, oldDataBefore, oldAllocationsBefore);
+      overlay.remove();
+      showSuccess(`Pruned ${count} items successfully`);
+    });
+    const handleClose = () => overlay.remove();
+    closeBtn.addEventListener("click", handleClose);
+    cancelBtn.addEventListener("click", handleClose);
+    document.addEventListener("keydown", function escHandler(e) {
+      if (e.key === "Escape") {
+        handleClose();
+        document.removeEventListener("keydown", escHandler);
+      }
+    });
+    async function updateInactivePeopleCount() {
+      const people = await getPeople();
+      const inactiveCount = people.filter((p) => !p.active).length;
+      modal.querySelector("#inactivePeopleCount").textContent = `(${inactiveCount} people)`;
+    }
+    async function updateOldDataCount() {
+      const date = oldDataInput.value;
+      if (!date) return;
+      const fteValues = await getFteValues();
+      const budgetValues = await getBudgetValues();
+      const oldFte = fteValues.filter((v) => v.endMonth && v.endMonth < date).length;
+      const oldBudget = budgetValues.filter((v) => v.endMonth && v.endMonth < date).length;
+      modal.querySelector("#oldDataCount").textContent = `(${oldFte} FTE + ${oldBudget} budget = ${oldFte + oldBudget} total)`;
+    }
+    async function updateOldAllocationsCount() {
+      const date = oldAllocationsInput.value;
+      if (!date) return;
+      const allocations = await getAllocations();
+      const oldCount = allocations.filter((a) => a.endMonth && a.endMonth < date).length;
+      modal.querySelector("#oldAllocationsCount").textContent = `(${oldCount} allocations)`;
+    }
+    async function generatePrunePreview() {
+      const preview = {
+        inactivePeople: [],
+        oldFteValues: [],
+        oldBudgetValues: [],
+        oldAllocations: []
+      };
+      if (modal.querySelector("#pruneInactivePeople").checked) {
+        const people = await getPeople();
+        preview.inactivePeople = people.filter((p) => !p.active);
+      }
+      const oldDataBefore = oldDataInput.value;
+      if (oldDataBefore) {
+        const fteValues = await getFteValues();
+        const budgetValues = await getBudgetValues();
+        const people = await getPeople();
+        const projects = await getProjects();
+        preview.oldFteValues = fteValues.filter((v) => v.endMonth && v.endMonth < oldDataBefore).map((v) => {
+          const person = people.find((p) => p.id === v.personId);
+          return { ...v, personName: person?.name || v.personId };
+        });
+        preview.oldBudgetValues = budgetValues.filter((v) => v.endMonth && v.endMonth < oldDataBefore).map((v) => {
+          const project = projects.find((p) => p.id === v.projectId);
+          return { ...v, projectName: project?.name || v.projectId };
+        });
+      }
+      const oldAllocationsBefore = oldAllocationsInput.value;
+      if (oldAllocationsBefore) {
+        const allocations = await getAllocations();
+        const people = await getPeople();
+        const projects = await getProjects();
+        preview.oldAllocations = allocations.filter((a) => a.endMonth && a.endMonth < oldAllocationsBefore).map((a) => {
+          const person = people.find((p) => p.id === a.personId);
+          const project = projects.find((p) => p.id === a.projectId);
+          return { ...a, personName: person?.name || a.personId, projectName: project?.name || a.projectId };
+        });
+      }
+      return preview;
+    }
+    function displayPrunePreview(preview) {
+      const previewDiv = modal.querySelector("#prunePreview");
+      const contentDiv = modal.querySelector("#prunePreviewContent");
+      let html = "";
+      if (preview.inactivePeople.length > 0) {
+        html += `<h4>Inactive People (${preview.inactivePeople.length}):</h4><ul>`;
+        preview.inactivePeople.forEach((p) => {
+          html += `<li>${p.name}</li>`;
+        });
+        html += `</ul>`;
+      }
+      if (preview.oldFteValues.length > 0) {
+        html += `<h4>Old FTE Values (${preview.oldFteValues.length}):</h4><ul>`;
+        preview.oldFteValues.slice(0, 10).forEach((v) => {
+          html += `<li>${v.personName}: ${v.fte} (${v.startMonth} to ${v.endMonth || "ongoing"})</li>`;
+        });
+        if (preview.oldFteValues.length > 10) {
+          html += `<li>... and ${preview.oldFteValues.length - 10} more</li>`;
+        }
+        html += `</ul>`;
+      }
+      if (preview.oldBudgetValues.length > 0) {
+        html += `<h4>Old Budget Values (${preview.oldBudgetValues.length}):</h4><ul>`;
+        preview.oldBudgetValues.slice(0, 10).forEach((v) => {
+          html += `<li>${v.projectName}: ${v.plannedPM} PM (${v.startMonth} to ${v.endMonth || "ongoing"})</li>`;
+        });
+        if (preview.oldBudgetValues.length > 10) {
+          html += `<li>... and ${preview.oldBudgetValues.length - 10} more</li>`;
+        }
+        html += `</ul>`;
+      }
+      if (preview.oldAllocations.length > 0) {
+        html += `<h4>Old Allocations (${preview.oldAllocations.length}):</h4><ul>`;
+        preview.oldAllocations.slice(0, 10).forEach((a) => {
+          html += `<li>${a.personName} \u2192 ${a.projectName}: ${a.pm} PM (${a.startMonth} to ${a.endMonth || "ongoing"})</li>`;
+        });
+        if (preview.oldAllocations.length > 10) {
+          html += `<li>... and ${preview.oldAllocations.length - 10} more</li>`;
+        }
+        html += `</ul>`;
+      }
+      if (!html) {
+        html = "<p><em>No items selected for pruning</em></p>";
+      }
+      contentDiv.innerHTML = html;
+      previewDiv.style.display = "block";
+    }
+    async function executePruning(pruneInactivePeople, oldDataBefore, oldAllocationsBefore) {
+      let totalDeleted = 0;
+      await saveState("Data pruning");
+      if (pruneInactivePeople) {
+        const people = await getPeople();
+        const inactivePeople = people.filter((p) => !p.active);
+        for (const person of inactivePeople) {
+          const fteValues = await getFteValues();
+          const personFte = fteValues.filter((v) => v.personId === person.id);
+          for (const fte of personFte) {
+            await deleteFteValue(fte.id);
+            totalDeleted++;
+          }
+          await deletePerson(person.id);
+          totalDeleted++;
+        }
+      }
+      if (oldDataBefore) {
+        const fteValues = await getFteValues();
+        const budgetValues = await getBudgetValues();
+        const oldFte = fteValues.filter((v) => v.endMonth && v.endMonth < oldDataBefore);
+        for (const fte of oldFte) {
+          await deleteFteValue(fte.id);
+          totalDeleted++;
+        }
+        const oldBudget = budgetValues.filter((v) => v.endMonth && v.endMonth < oldDataBefore);
+        for (const budget of oldBudget) {
+          await deleteBudgetValue(budget.id);
+          totalDeleted++;
+        }
+      }
+      if (oldAllocationsBefore) {
+        const allocations = await getAllocations();
+        const oldAllocations = allocations.filter((a) => a.endMonth && a.endMonth < oldAllocationsBefore);
+        for (const allocation of oldAllocations) {
+          await deleteAllocation(allocation.id);
+          totalDeleted++;
+        }
+      }
+      return totalDeleted;
+    }
+  }
+
   // js/views/dataManagement.js
   async function init() {
     if (typeof document === "undefined") {
@@ -2091,7 +3181,8 @@ Click OK to proceed with overlap, or Cancel to abort.`
         try {
           const text = await file.text();
           const data = JSON.parse(text);
-          if (!confirm("This will replace all existing data. Are you sure?")) {
+          const confirmed = await showImportPreview(data);
+          if (!confirmed) {
             e.target.value = "";
             return;
           }
@@ -2103,6 +3194,12 @@ Click OK to proceed with overlap, or Cancel to abort.`
         } finally {
           e.target.value = "";
         }
+      });
+    }
+    const dataPruningBtn = document.getElementById("dataPruningBtn");
+    if (dataPruningBtn) {
+      dataPruningBtn.addEventListener("click", async () => {
+        await showDataPruningDialog();
       });
     }
     const createBackupBtn = document.getElementById("createBackupBtn");
@@ -2269,11 +3366,279 @@ The file will be saved to your browser's default Downloads folder.
     }, AUTO_BACKUP_DELAY_MS);
   }
 
+  // js/ui/enhancements.js
+  init_toast();
+  function initUndoRedoButtons() {
+    if (typeof document === "undefined") return;
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    if (undoBtn) {
+      undoBtn.addEventListener("click", async () => {
+        const success = await undo();
+        if (success) {
+          showSuccess("Undo successful");
+        } else {
+          showError("Nothing to undo");
+        }
+      });
+    }
+    if (redoBtn) {
+      redoBtn.addEventListener("click", async () => {
+        const success = await redo();
+        if (success) {
+          showSuccess("Redo successful");
+        } else {
+          showError("Nothing to redo");
+        }
+      });
+    }
+    updateUndoRedoButtons();
+  }
+  function initHelpPanel() {
+    if (typeof document === "undefined") return;
+    const helpBtn = document.getElementById("helpBtn");
+    const helpPanel = document.getElementById("helpPanel");
+    const closeHelpBtn = document.getElementById("closeHelpBtn");
+    if (helpBtn && helpPanel) {
+      helpBtn.addEventListener("click", () => {
+        helpPanel.classList.add("open");
+      });
+    }
+    if (closeHelpBtn && helpPanel) {
+      closeHelpBtn.addEventListener("click", () => {
+        helpPanel.classList.remove("open");
+      });
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && helpPanel && helpPanel.classList.contains("open")) {
+        helpPanel.classList.remove("open");
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("tab-button")) {
+        updateHelpContent(e.target.dataset.tab);
+      }
+    });
+  }
+  function updateHelpContent(tabName) {
+    const helpContent = document.getElementById("helpPanelContent");
+    if (!helpContent) return;
+    const helpData = {
+      people: {
+        title: "People Tab Help",
+        sections: [
+          {
+            heading: "Adding People",
+            content: 'Click "Add Person" to add a new team member. Fill in their name and details.'
+          },
+          {
+            heading: "FTE (Full-Time Equivalent)",
+            content: "FTE represents work capacity: 1.0 = full-time, 0.5 = half-time, 0.0 = on leave. You can set different FTE values for different time periods."
+          },
+          {
+            heading: "Active Status",
+            content: 'Uncheck "Active" to hide people from allocations (e.g., former employees) without deleting them.'
+          }
+        ]
+      },
+      projects: {
+        title: "Projects Tab Help",
+        sections: [
+          {
+            heading: "Adding Projects",
+            content: 'Click "Add Project" to create a new project.'
+          },
+          {
+            heading: "Budget Values",
+            content: "Set planned person-months (PM) for different time periods. This helps track if projects are over or under allocated."
+          }
+        ]
+      },
+      allocations: {
+        title: "Allocations Tab Help",
+        sections: [
+          {
+            heading: "Creating Allocations",
+            content: "Assign people to projects with specific PM (person-months) per month. Example: 0.5 PM = half a person's time."
+          },
+          {
+            heading: "Date Ranges",
+            content: "Set start and end months. Leave end month empty for ongoing allocations."
+          },
+          {
+            heading: "Overrides",
+            content: "Create month-specific exceptions for special cases (e.g., vacation, partial month)."
+          }
+        ]
+      },
+      results: {
+        title: "Results Tab Help",
+        sections: [
+          {
+            heading: "Monthly Report",
+            content: "View person and project allocations for a specific month. Green = matches budget, Yellow = slight mismatch, Red = significant mismatch."
+          },
+          {
+            heading: "Yearly Overview",
+            content: "See allocation trends across an entire year month-by-month."
+          },
+          {
+            heading: "Project \xD7 Month",
+            content: "View all projects across months in a grid format."
+          }
+        ]
+      },
+      data: {
+        title: "Data Management Help",
+        sections: [
+          {
+            heading: "Export Data",
+            content: "Download all your data as a JSON file. Do this regularly to prevent data loss!"
+          },
+          {
+            heading: "Import Data",
+            content: "Restore data from a previously exported JSON file. This replaces ALL current data."
+          },
+          {
+            heading: "Automatic Backups",
+            content: 'Backups are saved in browser storage. Use "Download Latest Auto-Backup" for instant access to your latest changes.'
+          }
+        ]
+      }
+    };
+    const data = helpData[tabName];
+    if (!data) return;
+    let html = `<div class="help-section"><h3>${data.title}</h3></div>`;
+    data.sections.forEach((section) => {
+      html += `
+            <div class="help-section">
+                <h3>${section.heading}</h3>
+                <p>${section.content}</p>
+            </div>
+        `;
+    });
+    html += `
+        <div class="help-section">
+            <h3>Keyboard Shortcuts</h3>
+            <p><kbd>Ctrl/Cmd + Z</kbd> - Undo last change</p>
+            <p><kbd>Ctrl/Cmd + Shift + Z</kbd> or <kbd>Ctrl/Cmd + Y</kbd> - Redo</p>
+        </div>
+        
+        <div class="help-section">
+            <h3>General Tips</h3>
+            <p>\u2022 Click column headers to sort tables</p>
+            <p>\u2022 Use search boxes to quickly find items</p>
+            <p>\u2022 Hover over \u2139\uFE0F icons for field-specific help</p>
+            <p>\u2022 Export data regularly to prevent loss</p>
+        </div>
+    `;
+    helpContent.innerHTML = html;
+  }
+  function initAutoSaveIndicator() {
+    if (typeof document === "undefined") return;
+    const indicator = document.getElementById("autoSaveIndicator");
+    if (!indicator) return;
+    indicator.style.display = "flex";
+    let saveTimeout;
+    document.addEventListener("dataChanged", () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
+      indicator.classList.remove("saved");
+      indicator.classList.add("saving");
+      indicator.querySelector("#autoSaveText").textContent = "Saving...";
+      saveTimeout = setTimeout(() => {
+        indicator.classList.remove("saving");
+        indicator.classList.add("saved");
+        indicator.querySelector("#autoSaveText").textContent = "All changes saved";
+      }, 1e3);
+    });
+  }
+  function initUIEnhancements() {
+    initUndoRedoButtons();
+    initHelpPanel();
+    initAutoSaveIndicator();
+  }
+
+  // js/helpers/smartDefaults.js
+  function getCurrentMonth() {
+    const now = /* @__PURE__ */ new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  }
+  function getCurrentYear() {
+    return (/* @__PURE__ */ new Date()).getFullYear();
+  }
+  function initSmartDefaults() {
+    if (typeof document === "undefined") return;
+    const startMonthInputs = [
+      "fteStartMonthInput",
+      "budgetStartMonthInput",
+      "startMonthInput",
+      "overrideMonthInput"
+    ];
+    const currentMonth = getCurrentMonth();
+    startMonthInputs.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input && !input.value) {
+        input.value = currentMonth;
+      }
+    });
+    const yearInputs = [
+      "yearInput",
+      "overviewYearInput"
+    ];
+    const currentYear = getCurrentYear();
+    yearInputs.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input && !input.value) {
+        input.value = currentYear;
+      }
+    });
+    const monthInput = document.getElementById("monthInput");
+    if (monthInput && !monthInput.value) {
+      monthInput.value = currentMonth;
+    }
+    setupValueMemory();
+  }
+  function setupValueMemory() {
+    const inputsToRemember = [
+      { id: "fteValueInput", key: "lastFTE", default: 1 },
+      { id: "budgetValueInput", key: "lastBudget", default: 5 },
+      { id: "pmInput", key: "lastPM", default: 1 }
+    ];
+    inputsToRemember.forEach(({ id, key, default: defaultValue }) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        input.value = saved;
+      }
+      input.addEventListener("change", () => {
+        localStorage.setItem(key, input.value);
+      });
+    });
+  }
+
   // js/main.js
+  async function rerenderAllViews() {
+    await renderPeople();
+    await renderFteValues();
+    await renderProjects();
+    await renderBudgetValues();
+    await renderAllocations();
+    await renderAllocationOverrides();
+    await populatePersonSelect();
+    await populateFtePersonSelect();
+    await populateProjectSelect();
+    await populateBudgetProjectSelect();
+    await populateAllocationSelect();
+  }
   if (typeof window !== "undefined" && typeof document !== "undefined" && document.readyState !== void 0) {
     (async () => {
       await openDatabase();
       initTabs();
+      initUIEnhancements();
+      initSmartDefaults();
       initPeopleView();
       initProjectsView();
       initAllocationsView();
@@ -2281,17 +3646,12 @@ The file will be saved to your browser's default Downloads folder.
       initMonthlyReport();
       initYearlyReport();
       initProjectOverview();
-      await renderPeople();
-      await renderFteValues();
-      await renderProjects();
-      await renderBudgetValues();
-      await renderAllocations();
-      await renderAllocationOverrides();
-      await populatePersonSelect();
-      await populateFtePersonSelect();
-      await populateProjectSelect();
-      await populateBudgetProjectSelect();
-      await populateAllocationSelect();
+      initTimelineView();
+      initUndoRedoShortcuts();
+      await rerenderAllViews();
+      document.addEventListener("dataImported", async () => {
+        await rerenderAllViews();
+      });
       try {
         await createBackup();
         console.log("Initial backup created");

@@ -91,17 +91,16 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should edit person details', async ({ page }) => {
-    // Handle the prompt dialog
-    page.once('dialog', async dialog => {
-      await dialog.accept('Initial Name');
-    });
-    
-    // Add a person first
+    // Add a person first using quick-add row
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Initial Name');
+    await page.press('.quick-add-row input', 'Enter');
+    
+    await page.waitForSelector('#peopleTable tbody tr:not(.quick-add-row)', { timeout: 10000 });
     
     // Click on the name cell (should be contenteditable)
-    const nameCell = page.locator('#peopleTable tbody tr').first().locator('td').first();
+    const nameCell = page.locator('#peopleTable tbody tr:not(.quick-add-row)').first().locator('td').first();
     await nameCell.click();
     
     // Clear existing text and type new name
@@ -120,24 +119,30 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     await page.reload();
     await page.waitForSelector('.tab-button', { timeout: 5000 });
     
-    const savedName = await page.locator('#peopleTable tbody tr').first().locator('td').first().textContent();
+    const savedName = await page.locator('#peopleTable tbody tr:not(.quick-add-row)').first().locator('td').first().textContent();
     expect(savedName).toContain('John Doe');
   });
 
   test('should delete a person', async ({ page }) => {
-    // Handle the prompt dialog
-    page.once('dialog', async dialog => {
-      await dialog.accept('Person to Delete');
-    });
-    
-    // Add a person first
+    // Add a person first using quick-add row
     await page.click('#addPersonBtn');
-    await page.waitForSelector('#peopleTable tbody tr', { timeout: 10000 });
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Person to Delete');
+    await page.press('.quick-add-row input', 'Enter');
+    
+    await page.waitForSelector('#peopleTable tbody tr:not(.quick-add-row)', { timeout: 10000 });
     
     // Wait a bit for the row to be fully rendered
     await page.waitForTimeout(500);
     
     const initialCount = await page.locator('#peopleTable tbody tr').count();
+    
+    // Handle the confirmation dialog for deletion
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Delete');
+      await dialog.accept();
+    });
     
     // Click delete button
     const deleteBtn = page.locator('#peopleTable tbody tr .delete-person').first();

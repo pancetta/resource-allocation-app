@@ -9,6 +9,11 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
+import { showSuccess } from '../ui/toast.js';
+import { saveState } from '../helpers/undoManager.js';
+import { addQuickAddRow } from '../helpers/quickAdd.js';
+import { addBatchSelection, getSelectedRows } from '../helpers/tableHelpers.js';
+import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchOperations.js';
 
 /**
  * Render projects table (basic project info)
@@ -232,6 +237,9 @@ export async function populateBudgetProjectSelect() {
 
 // Add project with auto-generated ID and initial budget value
 export async function addProjectAuto(name) {
+    // Save state for undo
+    await saveState(`Add project: ${name}`);
+    
     const id = await generateProjectId();
     await addProject({ id, name });
     
@@ -247,6 +255,7 @@ export async function addProjectAuto(name) {
     scheduleAutoBackup();
     renderProjects();
     renderBudgetValues();
+    showSuccess(`Added project: ${name}`);
 }
 
 // Initialize projects view
@@ -256,8 +265,20 @@ export function initProjectsView() {
     const addProjectBtn = document.getElementById("addProjectBtn");
     if (addProjectBtn) {
         addProjectBtn.addEventListener("click", async () => {
-            const name = prompt("Project name");
-            if (name) await addProjectAuto(name);
+            const projectsTable = document.getElementById("projectsTable");
+            if (!projectsTable) return;
+            
+            // Add quick-add row
+            addQuickAddRow(
+                projectsTable,
+                ['Enter project name...'],
+                async (values) => {
+                    const name = values[0];
+                    if (name) {
+                        await addProjectAuto(name);
+                    }
+                }
+            );
         });
     }
     
@@ -284,4 +305,60 @@ export function initProjectsView() {
             renderBudgetValues();
         });
     }
+    
+    // Initialize table enhancements
+    import('../helpers/tableHelpers.js').then(({ makeTableSortable, addTableFilter }) => {
+        const projectsTable = document.getElementById("projectsTable");
+        const budgetValuesTable = document.getElementById("budgetValuesTable");
+        const projectsSearchInput = document.getElementById("projectsSearchInput");
+        const budgetSearchInput = document.getElementById("budgetSearchInput");
+        
+        if (projectsTable) {
+            makeTableSortable(projectsTable);
+            
+            // Add batch operations for projects
+            addBatchSelection(projectsTable, (selectedCount, totalCount) => {
+                const toolbar = projectsTable.previousElementSibling;
+                if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+                    updateBatchToolbar(toolbar, selectedCount, totalCount);
+                }
+            });
+            
+            // Add batch operations toolbar
+            addBatchOperationsToolbar(projectsTable, {
+                'Delete Selected': async (selectedIds) => {
+                    if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {
+                        return;
+                    }
+                    
+                    await saveState(`Batch delete ${selectedIds.length} projects`);
+                    
+                    for (const id of selectedIds) {
+                        // Delete budget values first
+                        const budgetValues = await getBudgetValues();
+                        const projectBudgetValues = budgetValues.filter(v => v.projectId === id);
+                        for (const value of projectBudgetValues) {
+                            await deleteBudgetValue(value.id);
+                        }
+                        // Then delete the project
+                        await deleteProject(id);
+                    }
+                    
+                    scheduleAutoBackup();
+                    renderProjects();
+                    renderBudgetValues();
+                    showSuccess(`Deleted ${selectedIds.length} projects`);
+                }
+            });
+        }
+        if (budgetValuesTable) {
+            makeTableSortable(budgetValuesTable);
+        }
+        if (projectsTable && projectsSearchInput) {
+            addTableFilter(projectsTable, projectsSearchInput);
+        }
+        if (budgetValuesTable && budgetSearchInput) {
+            addTableFilter(budgetValuesTable, budgetSearchInput);
+        }
+    });
 }

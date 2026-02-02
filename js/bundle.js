@@ -2744,6 +2744,160 @@ Click OK to proceed with overlap, or Cancel to abort.`
     }
   }
 
+  // js/helpers/importPreview.js
+  async function showImportPreview(data) {
+    if (typeof document === "undefined") return false;
+    const overlay = document.createElement("div");
+    overlay.className = "import-preview-overlay";
+    const modal = document.createElement("div");
+    modal.className = "import-preview-modal";
+    const stats = analyzeImportData(data);
+    modal.innerHTML = `
+        <div class="import-preview-header">
+            <h2>\u{1F4E4} Import Data Preview</h2>
+            <button class="import-preview-close" title="Cancel">&times;</button>
+        </div>
+        <div class="import-preview-body">
+            <div class="import-warning">
+                \u26A0\uFE0F <strong>Warning:</strong> This will replace all existing data!
+            </div>
+            
+            <h3>Data to be Imported:</h3>
+            <table class="import-stats-table">
+                <tr>
+                    <td><strong>People:</strong></td>
+                    <td>${stats.people} person(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Projects:</strong></td>
+                    <td>${stats.projects} project(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Allocations:</strong></td>
+                    <td>${stats.allocations} allocation(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>FTE Values:</strong></td>
+                    <td>${stats.fteValues} FTE value(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Budget Values:</strong></td>
+                    <td>${stats.budgetValues} budget value(s)</td>
+                </tr>
+                <tr>
+                    <td><strong>Overrides:</strong></td>
+                    <td>${stats.overrides} override(s)</td>
+                </tr>
+            </table>
+            
+            ${stats.errors.length > 0 ? `
+            <div class="import-errors">
+                <h3>\u26A0\uFE0F Validation Issues:</h3>
+                <ul>
+                    ${stats.errors.map((err) => `<li>${err}</li>`).join("")}
+                </ul>
+            </div>
+            ` : '<div class="import-success">\u2705 Data structure looks valid</div>'}
+            
+            ${stats.warnings.length > 0 ? `
+            <div class="import-warnings">
+                <h3>\u26A0\uFE0F Warnings:</h3>
+                <ul>
+                    ${stats.warnings.map((warn) => `<li>${warn}</li>`).join("")}
+                </ul>
+            </div>
+            ` : ""}
+        </div>
+        <div class="import-preview-footer">
+            <button class="import-preview-cancel">Cancel</button>
+            <button class="import-preview-confirm" ${stats.errors.length > 0 ? "disabled" : ""}>
+                ${stats.errors.length > 0 ? "Cannot Import (Errors Found)" : "Import Data"}
+            </button>
+        </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    return new Promise((resolve) => {
+      const closeBtn = modal.querySelector(".import-preview-close");
+      const cancelBtn = modal.querySelector(".import-preview-cancel");
+      const confirmBtn = modal.querySelector(".import-preview-confirm");
+      const cleanup = () => {
+        overlay.remove();
+      };
+      const handleCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+      const handleConfirm = async () => {
+        if (stats.errors.length > 0) return;
+        cleanup();
+        resolve(true);
+      };
+      closeBtn.addEventListener("click", handleCancel);
+      cancelBtn.addEventListener("click", handleCancel);
+      confirmBtn.addEventListener("click", handleConfirm);
+      const handleEscape = (e) => {
+        if (e.key === "Escape") {
+          handleCancel();
+          document.removeEventListener("keydown", handleEscape);
+        }
+      };
+      document.addEventListener("keydown", handleEscape);
+    });
+  }
+  function analyzeImportData(data) {
+    const stats = {
+      people: 0,
+      projects: 0,
+      allocations: 0,
+      fteValues: 0,
+      budgetValues: 0,
+      overrides: 0,
+      errors: [],
+      warnings: []
+    };
+    try {
+      if (!data || typeof data !== "object") {
+        stats.errors.push("Invalid data format");
+        return stats;
+      }
+      if (data.people && Array.isArray(data.people)) {
+        stats.people = data.people.length;
+      } else {
+        stats.warnings.push("No people data found");
+      }
+      if (data.projects && Array.isArray(data.projects)) {
+        stats.projects = data.projects.length;
+      } else {
+        stats.warnings.push("No projects data found");
+      }
+      if (data.defaultAllocations && Array.isArray(data.defaultAllocations)) {
+        stats.allocations = data.defaultAllocations.length;
+      } else {
+        stats.warnings.push("No allocations data found");
+      }
+      if (data.fteValues && Array.isArray(data.fteValues)) {
+        stats.fteValues = data.fteValues.length;
+      } else {
+        stats.warnings.push("No FTE values found");
+      }
+      if (data.budgetValues && Array.isArray(data.budgetValues)) {
+        stats.budgetValues = data.budgetValues.length;
+      } else {
+        stats.warnings.push("No budget values found");
+      }
+      if (data.allocationOverrides && Array.isArray(data.allocationOverrides)) {
+        stats.overrides = data.allocationOverrides.length;
+      }
+      if (stats.people === 0 && stats.projects === 0) {
+        stats.errors.push("No people or projects found in import data");
+      }
+    } catch (e) {
+      stats.errors.push(`Error analyzing data: ${e.message}`);
+    }
+    return stats;
+  }
+
   // js/views/dataManagement.js
   async function init() {
     if (typeof document === "undefined") {
@@ -2789,7 +2943,8 @@ Click OK to proceed with overlap, or Cancel to abort.`
         try {
           const text = await file.text();
           const data = JSON.parse(text);
-          if (!confirm("This will replace all existing data. Are you sure?")) {
+          const confirmed = await showImportPreview(data);
+          if (!confirmed) {
             e.target.value = "";
             return;
           }

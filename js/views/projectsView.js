@@ -284,4 +284,25 @@ export function initProjectsView() {
             renderBudgetValues();
         });
     }
+    
+    // Initialize table enhancements
+    import('../helpers/tableHelpers.js').then(({ makeTableSortable, addTableFilter }) => {
+        const projectsTable = document.getElementById("projectsTable");
+        const budgetValuesTable = document.getElementById("budgetValuesTable");
+        const projectsSearchInput = document.getElementById("projectsSearchInput");
+        const budgetSearchInput = document.getElementById("budgetSearchInput");
+        
+        if (projectsTable) {
+            makeTableSortable(projectsTable);
+        }
+        if (budgetValuesTable) {
+            makeTableSortable(budgetValuesTable);
+        }
+        if (projectsTable && projectsSearchInput) {
+            addTableFilter(projectsTable, projectsSearchInput);
+        }
+        if (budgetValuesTable && budgetSearchInput) {
+            addTableFilter(budgetValuesTable, budgetSearchInput);
+        }
+    });
 }

@@ -528,4 +528,25 @@ export function initAllocationsView() {
             renderAllocationOverrides();
         });
     }
+    
+    // Initialize table enhancements
+    import('../helpers/tableHelpers.js').then(({ makeTableSortable, addTableFilter }) => {
+        const allocationsTable = document.getElementById("allocationsTable");
+        const overridesTable = document.getElementById("allocationOverridesTable");
+        const allocationsSearchInput = document.getElementById("allocationsSearchInput");
+        const overridesSearchInput = document.getElementById("overridesSearchInput");
+        
+        if (allocationsTable) {
+            makeTableSortable(allocationsTable);
+        }
+        if (overridesTable) {
+            makeTableSortable(overridesTable);
+        }
+        if (allocationsTable && allocationsSearchInput) {
+            addTableFilter(allocationsTable, allocationsSearchInput);
+        }
+        if (overridesTable && overridesSearchInput) {
+            addTableFilter(overridesTable, overridesSearchInput);
+        }
+    });
 }

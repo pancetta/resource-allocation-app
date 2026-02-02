@@ -583,6 +583,66 @@ button:disabled:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.timeline-grid {
+    display: grid;
+    grid-template-columns: 200px repeat(12, 80px);
+    gap: 2px;
+    font-size: 12px;
+}
+
+.timeline-row {
+    display: contents;
+}
+
+.timeline-header-row {
+    font-weight: bold;
+}
+
+.timeline-label {
+    background: #f0f3f8;
+    padding: 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.timeline-month-header {
+    background: linear-gradient(135deg, #005AA0 0%, #003D73 100%);
+    color: white;
+    padding: 8px 4px;
+    text-align: center;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.timeline-cell {
+    background: #f8f9fa;
+    padding: 8px 4px;
+    text-align: center;
+    border-radius: 4px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    color: white;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-cell.timeline-active {
+    cursor: help;
+}
+
+.timeline-cell.timeline-active:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .timeline-header {
     display: flex;
     gap: 10px;

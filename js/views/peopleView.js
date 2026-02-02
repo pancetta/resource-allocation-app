@@ -11,6 +11,8 @@ import { scheduleAutoBackup } from '../main.js';
 import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
 import { peopleSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
 import { MIN_FTE, MAX_FTE, FTE_STEP, DEFAULT_FTE } from '../config/constants.js';
+import { showSuccess, showError, showWarning } from '../ui/toast.js';
+import { saveState } from '../helpers/undoManager.js';
 
 /**
  * Render people table (basic person info)
@@ -187,6 +189,17 @@ function attachPeopleEventListeners() {
     document.querySelectorAll(".delete-person").forEach(btn => {
         btn.addEventListener("click", async function() {
             const id = this.dataset.id;
+            const people = await getPeople();
+            const person = people.find(p => p.id === id);
+            const personName = person ? person.name : id;
+            
+            if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
+                return;
+            }
+            
+            // Save state for undo
+            await saveState(`Delete person: ${personName}`);
+            
             // Delete person's FTE values first
             const fteValues = await getFteValues();
             const personFteValues = fteValues.filter(v => v.personId === id);
@@ -199,6 +212,7 @@ function attachPeopleEventListeners() {
             scheduleAutoBackup();
             renderPeople();
             renderFteValues();
+            showSuccess(`Deleted ${personName}`);
         });
     });
 }
@@ -313,6 +327,9 @@ export async function populateFtePersonSelect() {
 
 // Add person with auto-generated ID and initial FTE value
 export async function addPersonAuto(name) {
+    // Save state for undo
+    await saveState(`Add person: ${name}`);
+    
     const id = await generatePersonId();
     const defaults = peopleSchema.getDefaults();
     await addPerson({ 
@@ -334,6 +351,7 @@ export async function addPersonAuto(name) {
     scheduleAutoBackup();
     renderPeople();
     renderFteValues();
+    showSuccess(`Added person: ${name}`);
 }
 
 // Initialize people view

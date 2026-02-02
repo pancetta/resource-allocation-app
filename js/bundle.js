@@ -20,6 +20,71 @@ var App = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+  // js/ui/toast.js
+  var toast_exports = {};
+  __export(toast_exports, {
+    showError: () => showError,
+    showInfo: () => showInfo,
+    showSuccess: () => showSuccess,
+    showToast: () => showToast,
+    showWarning: () => showWarning
+  });
+  function showToast(message, type = "info", duration = 3e3) {
+    if (typeof document === "undefined") return;
+    let container = document.getElementById("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    const icons = {
+      success: "\u2713",
+      error: "\u2717",
+      warning: "\u26A0",
+      info: "\u2139"
+    };
+    const icon = icons[type] || icons.info;
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" aria-label="Close">&times;</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add("toast-show"), 10);
+    const closeBtn = toast.querySelector(".toast-close");
+    closeBtn.addEventListener("click", () => removeToast(toast));
+    setTimeout(() => removeToast(toast), duration);
+  }
+  function removeToast(toast) {
+    if (!toast || !toast.parentElement) return;
+    toast.classList.remove("toast-show");
+    toast.classList.add("toast-hide");
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.parentElement.removeChild(toast);
+      }
+    }, 300);
+  }
+  function showSuccess(message, duration) {
+    showToast(message, "success", duration);
+  }
+  function showError(message, duration) {
+    showToast(message, "error", duration);
+  }
+  function showWarning(message, duration) {
+    showToast(message, "warning", duration);
+  }
+  function showInfo(message, duration) {
+    showToast(message, "info", duration);
+  }
+  var init_toast = __esm({
+    "js/ui/toast.js"() {
+    }
+  });
+
   // js/helpers/tableHelpers.js
   var tableHelpers_exports = {};
   __export(tableHelpers_exports, {
@@ -153,71 +218,6 @@ var App = (() => {
   }
   var init_tableHelpers = __esm({
     "js/helpers/tableHelpers.js"() {
-    }
-  });
-
-  // js/ui/toast.js
-  var toast_exports = {};
-  __export(toast_exports, {
-    showError: () => showError,
-    showInfo: () => showInfo,
-    showSuccess: () => showSuccess,
-    showToast: () => showToast,
-    showWarning: () => showWarning
-  });
-  function showToast(message, type = "info", duration = 3e3) {
-    if (typeof document === "undefined") return;
-    let container = document.getElementById("toast-container");
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "toast-container";
-      container.className = "toast-container";
-      document.body.appendChild(container);
-    }
-    const toast = document.createElement("div");
-    toast.className = `toast toast-${type}`;
-    const icons = {
-      success: "\u2713",
-      error: "\u2717",
-      warning: "\u26A0",
-      info: "\u2139"
-    };
-    const icon = icons[type] || icons.info;
-    toast.innerHTML = `
-        <span class="toast-icon">${icon}</span>
-        <span class="toast-message">${message}</span>
-        <button class="toast-close" aria-label="Close">&times;</button>
-    `;
-    container.appendChild(toast);
-    setTimeout(() => toast.classList.add("toast-show"), 10);
-    const closeBtn = toast.querySelector(".toast-close");
-    closeBtn.addEventListener("click", () => removeToast(toast));
-    setTimeout(() => removeToast(toast), duration);
-  }
-  function removeToast(toast) {
-    if (!toast || !toast.parentElement) return;
-    toast.classList.remove("toast-show");
-    toast.classList.add("toast-hide");
-    setTimeout(() => {
-      if (toast.parentElement) {
-        toast.parentElement.removeChild(toast);
-      }
-    }, 300);
-  }
-  function showSuccess(message, duration) {
-    showToast(message, "success", duration);
-  }
-  function showError(message, duration) {
-    showToast(message, "error", duration);
-  }
-  function showWarning(message, duration) {
-    showToast(message, "warning", duration);
-  }
-  function showInfo(message, duration) {
-    showToast(message, "info", duration);
-  }
-  var init_toast = __esm({
-    "js/ui/toast.js"() {
     }
   });
 
@@ -1005,6 +1005,125 @@ var App = (() => {
   }
 
   // js/views/peopleView.js
+  init_toast();
+
+  // js/helpers/undoManager.js
+  var MAX_HISTORY = 20;
+  var undoStack = [];
+  var redoStack = [];
+  var isApplyingState = false;
+  async function saveState(actionName) {
+    if (isApplyingState) return;
+    try {
+      const state = await exportData();
+      undoStack.push({
+        data: state,
+        action: actionName,
+        timestamp: Date.now()
+      });
+      if (undoStack.length > MAX_HISTORY) {
+        undoStack.shift();
+      }
+      redoStack = [];
+      updateUndoRedoButtons();
+    } catch (error) {
+      console.error("Failed to save state:", error);
+    }
+  }
+  async function undo() {
+    if (undoStack.length === 0) return false;
+    try {
+      isApplyingState = true;
+      const currentState = await exportData();
+      const lastAction = undoStack.pop();
+      redoStack.push({
+        data: currentState,
+        action: lastAction.action,
+        timestamp: Date.now()
+      });
+      await importData(lastAction.data, false);
+      updateUndoRedoButtons();
+      return true;
+    } catch (error) {
+      console.error("Undo failed:", error);
+      return false;
+    } finally {
+      isApplyingState = false;
+    }
+  }
+  async function redo() {
+    if (redoStack.length === 0) return false;
+    try {
+      isApplyingState = true;
+      const currentState = await exportData();
+      const nextAction = redoStack.pop();
+      undoStack.push({
+        data: currentState,
+        action: nextAction.action,
+        timestamp: Date.now()
+      });
+      await importData(nextAction.data, false);
+      updateUndoRedoButtons();
+      return true;
+    } catch (error) {
+      console.error("Redo failed:", error);
+      return false;
+    } finally {
+      isApplyingState = false;
+    }
+  }
+  function canUndo() {
+    return undoStack.length > 0;
+  }
+  function canRedo() {
+    return redoStack.length > 0;
+  }
+  function getLastAction() {
+    if (undoStack.length === 0) return null;
+    return undoStack[undoStack.length - 1].action;
+  }
+  function getNextRedoAction() {
+    if (redoStack.length === 0) return null;
+    return redoStack[redoStack.length - 1].action;
+  }
+  function updateUndoRedoButtons() {
+    if (typeof document === "undefined") return;
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    if (undoBtn) {
+      undoBtn.disabled = !canUndo();
+      const lastAction = getLastAction();
+      undoBtn.title = lastAction ? `Undo: ${lastAction}` : "Nothing to undo";
+    }
+    if (redoBtn) {
+      redoBtn.disabled = !canRedo();
+      const nextAction = getNextRedoAction();
+      redoBtn.title = nextAction ? `Redo: ${nextAction}` : "Nothing to redo";
+    }
+  }
+  function initUndoRedoShortcuts() {
+    if (typeof document === "undefined") return;
+    document.addEventListener("keydown", async (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const success = await undo();
+        if (success) {
+          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
+          showSuccess2("Undo successful");
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey || (e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        const success = await redo();
+        if (success) {
+          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
+          showSuccess2("Redo successful");
+        }
+      }
+    });
+  }
+
+  // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
     const table = document.querySelector("#peopleTable");
@@ -1133,6 +1252,13 @@ var App = (() => {
     document.querySelectorAll(".delete-person").forEach((btn) => {
       btn.addEventListener("click", async function() {
         const id = this.dataset.id;
+        const people = await getPeople();
+        const person = people.find((p) => p.id === id);
+        const personName = person ? person.name : id;
+        if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
+          return;
+        }
+        await saveState(`Delete person: ${personName}`);
         const fteValues = await getFteValues();
         const personFteValues = fteValues.filter((v) => v.personId === id);
         for (const value of personFteValues) {
@@ -1142,6 +1268,7 @@ var App = (() => {
         scheduleAutoBackup();
         renderPeople();
         renderFteValues();
+        showSuccess(`Deleted ${personName}`);
       });
     });
   }
@@ -1228,6 +1355,7 @@ var App = (() => {
     });
   }
   async function addPersonAuto(name) {
+    await saveState(`Add person: ${name}`);
     const id = await generatePersonId();
     const defaults = peopleSchema.getDefaults();
     await addPerson({
@@ -1247,6 +1375,7 @@ var App = (() => {
     scheduleAutoBackup();
     renderPeople();
     renderFteValues();
+    showSuccess(`Added person: ${name}`);
   }
   function initPeopleView() {
     if (typeof document === "undefined") return;
@@ -1508,6 +1637,24 @@ var App = (() => {
         renderBudgetValues();
       });
     }
+    Promise.resolve().then(() => (init_tableHelpers(), tableHelpers_exports)).then(({ makeTableSortable: makeTableSortable2, addTableFilter: addTableFilter2 }) => {
+      const projectsTable = document.getElementById("projectsTable");
+      const budgetValuesTable = document.getElementById("budgetValuesTable");
+      const projectsSearchInput = document.getElementById("projectsSearchInput");
+      const budgetSearchInput = document.getElementById("budgetSearchInput");
+      if (projectsTable) {
+        makeTableSortable2(projectsTable);
+      }
+      if (budgetValuesTable) {
+        makeTableSortable2(budgetValuesTable);
+      }
+      if (projectsTable && projectsSearchInput) {
+        addTableFilter2(projectsTable, projectsSearchInput);
+      }
+      if (budgetValuesTable && budgetSearchInput) {
+        addTableFilter2(budgetValuesTable, budgetSearchInput);
+      }
+    });
   }
 
   // js/helpers/dateHelper.js
@@ -2059,6 +2206,24 @@ Click OK to proceed with overlap, or Cancel to abort.`
         renderAllocationOverrides();
       });
     }
+    Promise.resolve().then(() => (init_tableHelpers(), tableHelpers_exports)).then(({ makeTableSortable: makeTableSortable2, addTableFilter: addTableFilter2 }) => {
+      const allocationsTable = document.getElementById("allocationsTable");
+      const overridesTable = document.getElementById("allocationOverridesTable");
+      const allocationsSearchInput = document.getElementById("allocationsSearchInput");
+      const overridesSearchInput = document.getElementById("overridesSearchInput");
+      if (allocationsTable) {
+        makeTableSortable2(allocationsTable);
+      }
+      if (overridesTable) {
+        makeTableSortable2(overridesTable);
+      }
+      if (allocationsTable && allocationsSearchInput) {
+        addTableFilter2(allocationsTable, allocationsSearchInput);
+      }
+      if (overridesTable && overridesSearchInput) {
+        addTableFilter2(overridesTable, overridesSearchInput);
+      }
+    });
   }
 
   // js/helpers/classUtil.js
@@ -2281,6 +2446,110 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const year = document.getElementById("overviewYearInput").value;
       await renderProjectMonthlyOverview(year);
     });
+  }
+
+  // js/views/timelineView.js
+  function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = hash % 360;
+    const s = 65;
+    const l = 55;
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  }
+  function parseMonth(monthStr) {
+    const [year, month] = monthStr.split("-").map(Number);
+    return new Date(year, month - 1, 1);
+  }
+  function formatMonth(monthStr) {
+    const date = parseMonth(monthStr);
+    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  }
+  async function renderTimeline(containerId, year) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+    const allocations = await getAllocations();
+    const people = await getPeople();
+    const projects = await getProjects();
+    const yearStart = `${year}-01`;
+    const yearEnd = `${year}-12`;
+    const relevantAllocations = allocations.filter((a) => {
+      const start = a.startMonth;
+      const end = a.endMonth || "9999-12";
+      return start <= yearEnd && end >= yearStart;
+    });
+    if (relevantAllocations.length === 0) {
+      container.innerHTML = "<p>No allocations found for this year.</p>";
+      return;
+    }
+    const months = [];
+    for (let m = 1; m <= 12; m++) {
+      months.push(`${year}-${String(m).padStart(2, "0")}`);
+    }
+    const html = `
+        <div class="timeline-container">
+            <h3>Allocation Timeline for ${year}</h3>
+            <div class="timeline-grid">
+                <div class="timeline-row timeline-header-row">
+                    <div class="timeline-label">Person \u2192 Project</div>
+                    ${months.map((m) => `<div class="timeline-month-header">${formatMonth(m)}</div>`).join("")}
+                </div>
+                ${relevantAllocations.map((alloc) => {
+      const person = people.find((p) => p.id === alloc.personId);
+      const project = projects.find((p) => p.id === alloc.projectId);
+      const personName = person ? person.name : alloc.personId;
+      const projectName = project ? project.name : alloc.projectId;
+      const color = stringToColor(alloc.projectId);
+      return `
+                        <div class="timeline-row">
+                            <div class="timeline-label" title="${personName} \u2192 ${projectName}">${personName} \u2192 ${projectName}</div>
+                            ${months.map((m) => {
+        const start = alloc.startMonth;
+        const end = alloc.endMonth || "9999-12";
+        const isActive = m >= start && m <= end;
+        const pm = alloc.pm;
+        return `
+                                    <div class="timeline-cell ${isActive ? "timeline-active" : ""}" 
+                                         style="${isActive ? `background-color: ${color}; opacity: ${Math.min(pm * 0.5 + 0.3, 1)}` : ""}"
+                                         title="${isActive ? `${personName} \u2192 ${projectName}: ${pm} PM` : ""}">
+                                        ${isActive ? pm.toFixed(1) : ""}
+                                    </div>
+                                `;
+      }).join("")}
+                        </div>
+                    `;
+    }).join("")}
+            </div>
+            <div class="timeline-legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ccc;"></div>
+                    <span>No allocation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: hsl(200, 65%, 55%); opacity: 0.5;"></div>
+                    <span>Low allocation (&lt;0.5 PM)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: hsl(200, 65%, 55%);"></div>
+                    <span>High allocation (\u22650.5 PM)</span>
+                </div>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+  }
+  function initTimelineView() {
+    if (typeof document === "undefined") return;
+    const showTimelineBtn = document.getElementById("showTimelineBtn");
+    if (showTimelineBtn) {
+      showTimelineBtn.addEventListener("click", async () => {
+        const year = parseInt(document.getElementById("timelineYearInput")?.value || (/* @__PURE__ */ new Date()).getFullYear());
+        await renderTimeline("timelineOutput", year);
+      });
+    }
   }
 
   // js/views/dataManagement.js
@@ -2506,103 +2775,6 @@ The file will be saved to your browser's default Downloads folder.
     }, AUTO_BACKUP_DELAY_MS);
   }
 
-  // js/helpers/undoManager.js
-  var undoStack = [];
-  var redoStack = [];
-  var isApplyingState = false;
-  async function undo() {
-    if (undoStack.length === 0) return false;
-    try {
-      isApplyingState = true;
-      const currentState = await exportData();
-      const lastAction = undoStack.pop();
-      redoStack.push({
-        data: currentState,
-        action: lastAction.action,
-        timestamp: Date.now()
-      });
-      await importData(lastAction.data, false);
-      updateUndoRedoButtons();
-      return true;
-    } catch (error) {
-      console.error("Undo failed:", error);
-      return false;
-    } finally {
-      isApplyingState = false;
-    }
-  }
-  async function redo() {
-    if (redoStack.length === 0) return false;
-    try {
-      isApplyingState = true;
-      const currentState = await exportData();
-      const nextAction = redoStack.pop();
-      undoStack.push({
-        data: currentState,
-        action: nextAction.action,
-        timestamp: Date.now()
-      });
-      await importData(nextAction.data, false);
-      updateUndoRedoButtons();
-      return true;
-    } catch (error) {
-      console.error("Redo failed:", error);
-      return false;
-    } finally {
-      isApplyingState = false;
-    }
-  }
-  function canUndo() {
-    return undoStack.length > 0;
-  }
-  function canRedo() {
-    return redoStack.length > 0;
-  }
-  function getLastAction() {
-    if (undoStack.length === 0) return null;
-    return undoStack[undoStack.length - 1].action;
-  }
-  function getNextRedoAction() {
-    if (redoStack.length === 0) return null;
-    return redoStack[redoStack.length - 1].action;
-  }
-  function updateUndoRedoButtons() {
-    if (typeof document === "undefined") return;
-    const undoBtn = document.getElementById("undoBtn");
-    const redoBtn = document.getElementById("redoBtn");
-    if (undoBtn) {
-      undoBtn.disabled = !canUndo();
-      const lastAction = getLastAction();
-      undoBtn.title = lastAction ? `Undo: ${lastAction}` : "Nothing to undo";
-    }
-    if (redoBtn) {
-      redoBtn.disabled = !canRedo();
-      const nextAction = getNextRedoAction();
-      redoBtn.title = nextAction ? `Redo: ${nextAction}` : "Nothing to redo";
-    }
-  }
-  function initUndoRedoShortcuts() {
-    if (typeof document === "undefined") return;
-    document.addEventListener("keydown", async (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        const success = await undo();
-        if (success) {
-          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
-          showSuccess2("Undo successful");
-        }
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey || (e.ctrlKey || e.metaKey) && e.key === "y") {
-        e.preventDefault();
-        const success = await redo();
-        if (success) {
-          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
-          showSuccess2("Redo successful");
-        }
-      }
-    });
-  }
-
   // js/ui/enhancements.js
   init_toast();
   function initUndoRedoButtons() {
@@ -2795,6 +2967,67 @@ The file will be saved to your browser's default Downloads folder.
     initAutoSaveIndicator();
   }
 
+  // js/helpers/smartDefaults.js
+  function getCurrentMonth() {
+    const now = /* @__PURE__ */ new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  }
+  function getCurrentYear() {
+    return (/* @__PURE__ */ new Date()).getFullYear();
+  }
+  function initSmartDefaults() {
+    if (typeof document === "undefined") return;
+    const startMonthInputs = [
+      "fteStartMonthInput",
+      "budgetStartMonthInput",
+      "startMonthInput",
+      "overrideMonthInput"
+    ];
+    const currentMonth = getCurrentMonth();
+    startMonthInputs.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input && !input.value) {
+        input.value = currentMonth;
+      }
+    });
+    const yearInputs = [
+      "yearInput",
+      "overviewYearInput"
+    ];
+    const currentYear = getCurrentYear();
+    yearInputs.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input && !input.value) {
+        input.value = currentYear;
+      }
+    });
+    const monthInput = document.getElementById("monthInput");
+    if (monthInput && !monthInput.value) {
+      monthInput.value = currentMonth;
+    }
+    setupValueMemory();
+  }
+  function setupValueMemory() {
+    const inputsToRemember = [
+      { id: "fteValueInput", key: "lastFTE", default: 1 },
+      { id: "budgetValueInput", key: "lastBudget", default: 5 },
+      { id: "pmInput", key: "lastPM", default: 1 }
+    ];
+    inputsToRemember.forEach(({ id, key, default: defaultValue }) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        input.value = saved;
+      }
+      input.addEventListener("change", () => {
+        localStorage.setItem(key, input.value);
+      });
+    });
+  }
+
   // js/main.js
   async function rerenderAllViews() {
     await renderPeople();
@@ -2814,6 +3047,7 @@ The file will be saved to your browser's default Downloads folder.
       await openDatabase();
       initTabs();
       initUIEnhancements();
+      initSmartDefaults();
       initPeopleView();
       initProjectsView();
       initAllocationsView();
@@ -2821,6 +3055,7 @@ The file will be saved to your browser's default Downloads folder.
       initMonthlyReport();
       initYearlyReport();
       initProjectOverview();
+      initTimelineView();
       initUndoRedoShortcuts();
       await rerenderAllViews();
       document.addEventListener("dataImported", async () => {

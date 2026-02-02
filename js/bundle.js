@@ -2474,8 +2474,14 @@ Click OK to proceed with overlap, or Cancel to abort.`
     const resultsOutput = document.getElementById("resultsOutput");
     resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
     const personTable = document.createElement("table");
-    const pHeader = ["Person", ...projects.map((p) => p.name), "Total", "FTE", "Delta"];
-    personTable.innerHTML = `<thead><tr>${pHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
+    const headerRow1 = document.createElement("tr");
+    headerRow1.innerHTML = `<th rowspan="2">Person</th>` + projects.map((p) => `<th colspan="2">${p.name}</th>`).join("") + `<th colspan="2">Total</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th>`;
+    const headerRow2 = document.createElement("tr");
+    headerRow2.innerHTML = projects.map(() => `<th class="sub-header">PM</th><th class="sub-header">%</th>`).join("") + `<th class="sub-header">PM</th><th class="sub-header">%</th>`;
+    const thead = document.createElement("thead");
+    thead.appendChild(headerRow1);
+    thead.appendChild(headerRow2);
+    personTable.appendChild(thead);
     const pTbody = document.createElement("tbody");
     people.forEach((p) => {
       const fte = getEffectiveFte(p.id, month, fteValues);
@@ -2485,26 +2491,17 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => {
         const pct = pmToPercentage(c, fte);
-        return `<td class="${cellClass(c, fte / projects.length)}">
-                    <div class="split-cell">
-                        <div class="split-cell-pm">${c.toFixed(2)}</div>
-                        <div class="split-cell-pct">${pct.toFixed(1)}%</div>
-                    </div>
-                </td>`;
-      }).join("") + `<td class="${cellClass(total, fte)}">
-                <div class="split-cell">
-                    <div class="split-cell-pm">${total.toFixed(2)}</div>
-                    <div class="split-cell-pct">${pmToPercentage(total, fte).toFixed(1)}%</div>
-                </div>
-            </td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+        return `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td><td class="pct-cell">${pct.toFixed(1)}%</td>`;
+      }).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td class="pct-cell">${pmToPercentage(total, fte).toFixed(1)}%</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
-    sumRow.innerHTML = `<td><strong>Total</strong></td>` + projects.map((proj) => {
+    const projectTotalCells = projects.map((proj) => {
       const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
-      return `<td><strong>${sum.toFixed(2)}</strong></td>`;
-    }).join("") + `<td colspan="3"></td>`;
+      return `<td colspan="2"><strong>${sum.toFixed(2)}</strong></td>`;
+    }).join("");
+    sumRow.innerHTML = `<td><strong>Total</strong></td>` + projectTotalCells + `<td colspan="5"></td>`;
     tfoot.appendChild(sumRow);
     personTable.appendChild(pTbody);
     personTable.appendChild(tfoot);

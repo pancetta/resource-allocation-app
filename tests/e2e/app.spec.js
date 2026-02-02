@@ -125,7 +125,7 @@ test.describe('Resource Allocation App - E2E Tests', () => {
   });
 
   test('should delete a person', async ({ page }) => {
-    // Handle the prompt dialog
+    // Handle the prompt dialog for adding person
     page.once('dialog', async dialog => {
       await dialog.accept('Person to Delete');
     });
@@ -138,6 +138,13 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     await page.waitForTimeout(500);
     
     const initialCount = await page.locator('#peopleTable tbody tr').count();
+    
+    // Handle the confirmation dialog for deletion
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Delete');
+      await dialog.accept();
+    });
     
     // Click delete button
     const deleteBtn = page.locator('#peopleTable tbody tr .delete-person').first();

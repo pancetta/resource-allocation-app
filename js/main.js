@@ -7,6 +7,24 @@ import { initMonthlyReport } from './views/monthlyReport.js';
 import { initYearlyReport } from './views/yearlyReport.js';
 import { initProjectOverview } from './views/projectOverview.js';
 import { init as initDataManagement, scheduleAutoBackup, updateAutoBackupStatus } from './views/dataManagement.js';
+import { initUndoRedoShortcuts, updateUndoRedoButtons } from './helpers/undoManager.js';
+import { initUIEnhancements } from './ui/enhancements.js';
+
+// Function to re-render all views (used after undo/redo)
+async function rerenderAllViews() {
+    await renderPeople();
+    await renderFteValues();
+    await renderProjects();
+    await renderBudgetValues();
+    await renderAllocations();
+    await renderAllocationOverrides();
+    
+    await populatePersonSelect();
+    await populateFtePersonSelect();
+    await populateProjectSelect();
+    await populateBudgetProjectSelect();
+    await populateAllocationSelect();
+}
 
 // Application initialization - only run if we're in a browser environment with DOM
 if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.readyState !== undefined) {
@@ -16,6 +34,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         
         // Initialize tabs
         initTabs();
+        
+        // Initialize UI enhancements (undo/redo, help, etc.)
+        initUIEnhancements();
         
         // Initialize views
         initPeopleView();
@@ -28,20 +49,16 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         initYearlyReport();
         initProjectOverview();
         
-        // Render initial data
-        await renderPeople();
-        await renderFteValues();
-        await renderProjects();
-        await renderBudgetValues();
-        await renderAllocations();
-        await renderAllocationOverrides();
+        // Initialize undo/redo keyboard shortcuts
+        initUndoRedoShortcuts();
         
-        // Populate selects
-        await populatePersonSelect();
-        await populateFtePersonSelect();
-        await populateProjectSelect();
-        await populateBudgetProjectSelect();
-        await populateAllocationSelect();
+        // Render initial data
+        await rerenderAllViews();
+        
+        // Listen for data imported events (from undo/redo)
+        document.addEventListener('dataImported', async () => {
+            await rerenderAllViews();
+        });
         
         // Create initial backup if none exists
         try {

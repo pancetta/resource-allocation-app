@@ -911,3 +911,36 @@ export function getEffectiveAllocationPM(allocationId, month, allocations, alloc
     const allocation = allocations.find(a => a.id === allocationId);
     return allocation ? allocation.pm : 0;
 }
+
+/**
+ * Export data for undo/redo functionality
+ * @returns {Promise<Object>} The exported data
+ */
+export async function exportData() {
+    return await exportAllData();
+}
+
+/**
+ * Import data for undo/redo functionality
+ * @param {Object} data - The data to import
+ * @param {boolean} reload - Whether to reload the page after import (default: true)
+ * @returns {Promise<void>}
+ */
+export async function importData(data, reload = true) {
+    await importAllData(data);
+    
+    // Invalidate cache after import
+    invalidateCache();
+    
+    // Reload page if requested
+    if (reload && typeof window !== 'undefined') {
+        window.location.reload();
+    } else if (!reload) {
+        // Re-render views after data import without reload
+        // This will be handled by the undo/redo manager
+        const event = new CustomEvent('dataImported');
+        if (typeof document !== 'undefined') {
+            document.dispatchEvent(event);
+        }
+    }
+}

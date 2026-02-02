@@ -3,6 +3,9 @@ var App = (() => {
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __esm = (fn, res) => function __init() {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
@@ -16,6 +19,207 @@ var App = (() => {
     return to;
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // js/helpers/tableHelpers.js
+  var tableHelpers_exports = {};
+  __export(tableHelpers_exports, {
+    addBatchSelection: () => addBatchSelection,
+    addTableFilter: () => addTableFilter,
+    getSelectedRows: () => getSelectedRows,
+    makeTableSortable: () => makeTableSortable
+  });
+  function makeTableSortable(table, sortableColumns = []) {
+    if (!table) return;
+    const thead = table.querySelector("thead");
+    if (!thead) return;
+    const headers = thead.querySelectorAll("th");
+    const tbody = table.querySelector("tbody");
+    headers.forEach((header, index) => {
+      if (sortableColumns.length > 0 && !sortableColumns.includes(index)) {
+        return;
+      }
+      header.classList.add("sortable");
+      header.style.cursor = "pointer";
+      header.addEventListener("click", () => {
+        sortTable(table, index, header);
+      });
+    });
+  }
+  function sortTable(table, columnIndex, header) {
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    let ascending = true;
+    if (header.classList.contains("sort-asc")) {
+      ascending = false;
+    }
+    table.querySelectorAll("th").forEach((th) => {
+      th.classList.remove("sort-asc", "sort-desc");
+    });
+    header.classList.add(ascending ? "sort-asc" : "sort-desc");
+    rows.sort((a, b) => {
+      const aCell = a.cells[columnIndex];
+      const bCell = b.cells[columnIndex];
+      if (!aCell || !bCell) return 0;
+      let aValue = getCellValue(aCell);
+      let bValue = getCellValue(bCell);
+      const aNum = parseFloat(aValue);
+      const bNum = parseFloat(bValue);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return ascending ? aNum - bNum : bNum - aNum;
+      }
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+      if (aValue < bValue) return ascending ? -1 : 1;
+      if (aValue > bValue) return ascending ? 1 : -1;
+      return 0;
+    });
+    rows.forEach((row) => tbody.appendChild(row));
+  }
+  function getCellValue(cell) {
+    const input = cell.querySelector('input[type="text"], input[type="number"]');
+    if (input) return input.value;
+    const select = cell.querySelector("select");
+    if (select) return select.options[select.selectedIndex]?.text || "";
+    const checkbox = cell.querySelector('input[type="checkbox"]');
+    if (checkbox) return checkbox.checked ? "1" : "0";
+    return cell.textContent.trim();
+  }
+  function addTableFilter(table, searchInput) {
+    if (!table || !searchInput) return;
+    searchInput.addEventListener("input", () => {
+      filterTable(table, searchInput.value);
+    });
+  }
+  function filterTable(table, searchTerm) {
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll("tr");
+    const term = searchTerm.toLowerCase();
+    rows.forEach((row) => {
+      if (row.classList.contains("quick-add-row")) {
+        return;
+      }
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(term) ? "" : "none";
+    });
+  }
+  function addBatchSelection(table, onSelectionChange) {
+    if (!table) return;
+    const thead = table.querySelector("thead tr");
+    const tbody = table.querySelector("tbody");
+    if (!thead || !tbody) return;
+    const selectAllTh = document.createElement("th");
+    selectAllTh.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
+    thead.insertBefore(selectAllTh, thead.firstChild);
+    const selectAllCheckbox = selectAllTh.querySelector(".select-all-checkbox");
+    selectAllCheckbox.addEventListener("change", () => {
+      const checkboxes = tbody.querySelectorAll(".row-select-checkbox");
+      checkboxes.forEach((cb) => {
+        cb.checked = selectAllCheckbox.checked;
+      });
+      updateSelection();
+    });
+    const rows = tbody.querySelectorAll("tr");
+    rows.forEach((row) => {
+      const selectTd = document.createElement("td");
+      selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
+      row.insertBefore(selectTd, row.firstChild);
+      const checkbox = selectTd.querySelector(".row-select-checkbox");
+      checkbox.addEventListener("change", updateSelection);
+    });
+    function updateSelection() {
+      const checkboxes = Array.from(tbody.querySelectorAll(".row-select-checkbox"));
+      const selected = checkboxes.filter((cb) => cb.checked);
+      if (onSelectionChange) {
+        onSelectionChange(selected.length, checkboxes.length);
+      }
+    }
+  }
+  function getSelectedRows(table) {
+    if (!table) return [];
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return [];
+    const selected = [];
+    const checkboxes = tbody.querySelectorAll(".row-select-checkbox:checked");
+    checkboxes.forEach((checkbox) => {
+      const row = checkbox.closest("tr");
+      const deleteBtn = row.querySelector("[data-id]");
+      if (deleteBtn) {
+        selected.push(deleteBtn.getAttribute("data-id"));
+      }
+    });
+    return selected;
+  }
+  var init_tableHelpers = __esm({
+    "js/helpers/tableHelpers.js"() {
+    }
+  });
+
+  // js/ui/toast.js
+  var toast_exports = {};
+  __export(toast_exports, {
+    showError: () => showError,
+    showInfo: () => showInfo,
+    showSuccess: () => showSuccess,
+    showToast: () => showToast,
+    showWarning: () => showWarning
+  });
+  function showToast(message, type = "info", duration = 3e3) {
+    if (typeof document === "undefined") return;
+    let container = document.getElementById("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    const icons = {
+      success: "\u2713",
+      error: "\u2717",
+      warning: "\u26A0",
+      info: "\u2139"
+    };
+    const icon = icons[type] || icons.info;
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" aria-label="Close">&times;</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add("toast-show"), 10);
+    const closeBtn = toast.querySelector(".toast-close");
+    closeBtn.addEventListener("click", () => removeToast(toast));
+    setTimeout(() => removeToast(toast), duration);
+  }
+  function removeToast(toast) {
+    if (!toast || !toast.parentElement) return;
+    toast.classList.remove("toast-show");
+    toast.classList.add("toast-hide");
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.parentElement.removeChild(toast);
+      }
+    }, 300);
+  }
+  function showSuccess(message, duration) {
+    showToast(message, "success", duration);
+  }
+  function showError(message, duration) {
+    showToast(message, "error", duration);
+  }
+  function showWarning(message, duration) {
+    showToast(message, "warning", duration);
+  }
+  function showInfo(message, duration) {
+    showToast(message, "info", duration);
+  }
+  var init_toast = __esm({
+    "js/ui/toast.js"() {
+    }
+  });
 
   // js/main.js
   var main_exports = {};
@@ -654,6 +858,21 @@ var App = (() => {
   async function deleteAllocationOverride(id) {
     return deleteRecord(db, "allocationOverrides", id, () => invalidateCache("allocationOverrides"));
   }
+  async function exportData() {
+    return await exportAllData();
+  }
+  async function importData(data, reload = true) {
+    await importAllData(data);
+    invalidateCache();
+    if (reload && typeof window !== "undefined") {
+      window.location.reload();
+    } else if (!reload) {
+      const event = new CustomEvent("dataImported");
+      if (typeof document !== "undefined") {
+        document.dispatchEvent(event);
+      }
+    }
+  }
 
   // js/ui/tabs.js
   function initTabs() {
@@ -1059,6 +1278,24 @@ var App = (() => {
         renderFteValues();
       });
     }
+    Promise.resolve().then(() => (init_tableHelpers(), tableHelpers_exports)).then(({ makeTableSortable: makeTableSortable2, addTableFilter: addTableFilter2 }) => {
+      const peopleTable = document.getElementById("peopleTable");
+      const fteValuesTable = document.getElementById("fteValuesTable");
+      const peopleSearchInput = document.getElementById("peopleSearchInput");
+      const fteSearchInput = document.getElementById("fteSearchInput");
+      if (peopleTable) {
+        makeTableSortable2(peopleTable);
+      }
+      if (fteValuesTable) {
+        makeTableSortable2(fteValuesTable);
+      }
+      if (peopleTable && peopleSearchInput) {
+        addTableFilter2(peopleTable, peopleSearchInput);
+      }
+      if (fteValuesTable && fteSearchInput) {
+        addTableFilter2(fteValuesTable, fteSearchInput);
+      }
+    });
   }
 
   // js/views/projectsView.js
@@ -2269,11 +2506,314 @@ The file will be saved to your browser's default Downloads folder.
     }, AUTO_BACKUP_DELAY_MS);
   }
 
+  // js/helpers/undoManager.js
+  var undoStack = [];
+  var redoStack = [];
+  var isApplyingState = false;
+  async function undo() {
+    if (undoStack.length === 0) return false;
+    try {
+      isApplyingState = true;
+      const currentState = await exportData();
+      const lastAction = undoStack.pop();
+      redoStack.push({
+        data: currentState,
+        action: lastAction.action,
+        timestamp: Date.now()
+      });
+      await importData(lastAction.data, false);
+      updateUndoRedoButtons();
+      return true;
+    } catch (error) {
+      console.error("Undo failed:", error);
+      return false;
+    } finally {
+      isApplyingState = false;
+    }
+  }
+  async function redo() {
+    if (redoStack.length === 0) return false;
+    try {
+      isApplyingState = true;
+      const currentState = await exportData();
+      const nextAction = redoStack.pop();
+      undoStack.push({
+        data: currentState,
+        action: nextAction.action,
+        timestamp: Date.now()
+      });
+      await importData(nextAction.data, false);
+      updateUndoRedoButtons();
+      return true;
+    } catch (error) {
+      console.error("Redo failed:", error);
+      return false;
+    } finally {
+      isApplyingState = false;
+    }
+  }
+  function canUndo() {
+    return undoStack.length > 0;
+  }
+  function canRedo() {
+    return redoStack.length > 0;
+  }
+  function getLastAction() {
+    if (undoStack.length === 0) return null;
+    return undoStack[undoStack.length - 1].action;
+  }
+  function getNextRedoAction() {
+    if (redoStack.length === 0) return null;
+    return redoStack[redoStack.length - 1].action;
+  }
+  function updateUndoRedoButtons() {
+    if (typeof document === "undefined") return;
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    if (undoBtn) {
+      undoBtn.disabled = !canUndo();
+      const lastAction = getLastAction();
+      undoBtn.title = lastAction ? `Undo: ${lastAction}` : "Nothing to undo";
+    }
+    if (redoBtn) {
+      redoBtn.disabled = !canRedo();
+      const nextAction = getNextRedoAction();
+      redoBtn.title = nextAction ? `Redo: ${nextAction}` : "Nothing to redo";
+    }
+  }
+  function initUndoRedoShortcuts() {
+    if (typeof document === "undefined") return;
+    document.addEventListener("keydown", async (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const success = await undo();
+        if (success) {
+          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
+          showSuccess2("Undo successful");
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey || (e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        const success = await redo();
+        if (success) {
+          const { showSuccess: showSuccess2 } = await Promise.resolve().then(() => (init_toast(), toast_exports));
+          showSuccess2("Redo successful");
+        }
+      }
+    });
+  }
+
+  // js/ui/enhancements.js
+  init_toast();
+  function initUndoRedoButtons() {
+    if (typeof document === "undefined") return;
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    if (undoBtn) {
+      undoBtn.addEventListener("click", async () => {
+        const success = await undo();
+        if (success) {
+          showSuccess("Undo successful");
+        } else {
+          showError("Nothing to undo");
+        }
+      });
+    }
+    if (redoBtn) {
+      redoBtn.addEventListener("click", async () => {
+        const success = await redo();
+        if (success) {
+          showSuccess("Redo successful");
+        } else {
+          showError("Nothing to redo");
+        }
+      });
+    }
+    updateUndoRedoButtons();
+  }
+  function initHelpPanel() {
+    if (typeof document === "undefined") return;
+    const helpBtn = document.getElementById("helpBtn");
+    const helpPanel = document.getElementById("helpPanel");
+    const closeHelpBtn = document.getElementById("closeHelpBtn");
+    if (helpBtn && helpPanel) {
+      helpBtn.addEventListener("click", () => {
+        helpPanel.classList.add("open");
+      });
+    }
+    if (closeHelpBtn && helpPanel) {
+      closeHelpBtn.addEventListener("click", () => {
+        helpPanel.classList.remove("open");
+      });
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && helpPanel && helpPanel.classList.contains("open")) {
+        helpPanel.classList.remove("open");
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("tab-button")) {
+        updateHelpContent(e.target.dataset.tab);
+      }
+    });
+  }
+  function updateHelpContent(tabName) {
+    const helpContent = document.getElementById("helpPanelContent");
+    if (!helpContent) return;
+    const helpData = {
+      people: {
+        title: "People Tab Help",
+        sections: [
+          {
+            heading: "Adding People",
+            content: 'Click "Add Person" to add a new team member. Fill in their name and details.'
+          },
+          {
+            heading: "FTE (Full-Time Equivalent)",
+            content: "FTE represents work capacity: 1.0 = full-time, 0.5 = half-time, 0.0 = on leave. You can set different FTE values for different time periods."
+          },
+          {
+            heading: "Active Status",
+            content: 'Uncheck "Active" to hide people from allocations (e.g., former employees) without deleting them.'
+          }
+        ]
+      },
+      projects: {
+        title: "Projects Tab Help",
+        sections: [
+          {
+            heading: "Adding Projects",
+            content: 'Click "Add Project" to create a new project.'
+          },
+          {
+            heading: "Budget Values",
+            content: "Set planned person-months (PM) for different time periods. This helps track if projects are over or under allocated."
+          }
+        ]
+      },
+      allocations: {
+        title: "Allocations Tab Help",
+        sections: [
+          {
+            heading: "Creating Allocations",
+            content: "Assign people to projects with specific PM (person-months) per month. Example: 0.5 PM = half a person's time."
+          },
+          {
+            heading: "Date Ranges",
+            content: "Set start and end months. Leave end month empty for ongoing allocations."
+          },
+          {
+            heading: "Overrides",
+            content: "Create month-specific exceptions for special cases (e.g., vacation, partial month)."
+          }
+        ]
+      },
+      results: {
+        title: "Results Tab Help",
+        sections: [
+          {
+            heading: "Monthly Report",
+            content: "View person and project allocations for a specific month. Green = matches budget, Yellow = slight mismatch, Red = significant mismatch."
+          },
+          {
+            heading: "Yearly Overview",
+            content: "See allocation trends across an entire year month-by-month."
+          },
+          {
+            heading: "Project \xD7 Month",
+            content: "View all projects across months in a grid format."
+          }
+        ]
+      },
+      data: {
+        title: "Data Management Help",
+        sections: [
+          {
+            heading: "Export Data",
+            content: "Download all your data as a JSON file. Do this regularly to prevent data loss!"
+          },
+          {
+            heading: "Import Data",
+            content: "Restore data from a previously exported JSON file. This replaces ALL current data."
+          },
+          {
+            heading: "Automatic Backups",
+            content: 'Backups are saved in browser storage. Use "Download Latest Auto-Backup" for instant access to your latest changes.'
+          }
+        ]
+      }
+    };
+    const data = helpData[tabName];
+    if (!data) return;
+    let html = `<div class="help-section"><h3>${data.title}</h3></div>`;
+    data.sections.forEach((section) => {
+      html += `
+            <div class="help-section">
+                <h3>${section.heading}</h3>
+                <p>${section.content}</p>
+            </div>
+        `;
+    });
+    html += `
+        <div class="help-section">
+            <h3>Keyboard Shortcuts</h3>
+            <p><kbd>Ctrl/Cmd + Z</kbd> - Undo last change</p>
+            <p><kbd>Ctrl/Cmd + Shift + Z</kbd> or <kbd>Ctrl/Cmd + Y</kbd> - Redo</p>
+        </div>
+        
+        <div class="help-section">
+            <h3>General Tips</h3>
+            <p>\u2022 Click column headers to sort tables</p>
+            <p>\u2022 Use search boxes to quickly find items</p>
+            <p>\u2022 Hover over \u2139\uFE0F icons for field-specific help</p>
+            <p>\u2022 Export data regularly to prevent loss</p>
+        </div>
+    `;
+    helpContent.innerHTML = html;
+  }
+  function initAutoSaveIndicator() {
+    if (typeof document === "undefined") return;
+    const indicator = document.getElementById("autoSaveIndicator");
+    if (!indicator) return;
+    indicator.style.display = "flex";
+    let saveTimeout;
+    document.addEventListener("dataChanged", () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
+      indicator.classList.remove("saved");
+      indicator.classList.add("saving");
+      indicator.querySelector("#autoSaveText").textContent = "Saving...";
+      saveTimeout = setTimeout(() => {
+        indicator.classList.remove("saving");
+        indicator.classList.add("saved");
+        indicator.querySelector("#autoSaveText").textContent = "All changes saved";
+      }, 1e3);
+    });
+  }
+  function initUIEnhancements() {
+    initUndoRedoButtons();
+    initHelpPanel();
+    initAutoSaveIndicator();
+  }
+
   // js/main.js
+  async function rerenderAllViews() {
+    await renderPeople();
+    await renderFteValues();
+    await renderProjects();
+    await renderBudgetValues();
+    await renderAllocations();
+    await renderAllocationOverrides();
+    await populatePersonSelect();
+    await populateFtePersonSelect();
+    await populateProjectSelect();
+    await populateBudgetProjectSelect();
+    await populateAllocationSelect();
+  }
   if (typeof window !== "undefined" && typeof document !== "undefined" && document.readyState !== void 0) {
     (async () => {
       await openDatabase();
       initTabs();
+      initUIEnhancements();
       initPeopleView();
       initProjectsView();
       initAllocationsView();
@@ -2281,17 +2821,11 @@ The file will be saved to your browser's default Downloads folder.
       initMonthlyReport();
       initYearlyReport();
       initProjectOverview();
-      await renderPeople();
-      await renderFteValues();
-      await renderProjects();
-      await renderBudgetValues();
-      await renderAllocations();
-      await renderAllocationOverrides();
-      await populatePersonSelect();
-      await populateFtePersonSelect();
-      await populateProjectSelect();
-      await populateBudgetProjectSelect();
-      await populateAllocationSelect();
+      initUndoRedoShortcuts();
+      await rerenderAllViews();
+      document.addEventListener("dataImported", async () => {
+        await rerenderAllViews();
+      });
       try {
         await createBackup();
         console.log("Initial backup created");

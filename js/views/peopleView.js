@@ -371,4 +371,25 @@ export function initPeopleView() {
             renderFteValues();
         });
     }
+    
+    // Initialize table enhancements
+    import('../helpers/tableHelpers.js').then(({ makeTableSortable, addTableFilter }) => {
+        const peopleTable = document.getElementById("peopleTable");
+        const fteValuesTable = document.getElementById("fteValuesTable");
+        const peopleSearchInput = document.getElementById("peopleSearchInput");
+        const fteSearchInput = document.getElementById("fteSearchInput");
+        
+        if (peopleTable) {
+            makeTableSortable(peopleTable);
+        }
+        if (fteValuesTable) {
+            makeTableSortable(fteValuesTable);
+        }
+        if (peopleTable && peopleSearchInput) {
+            addTableFilter(peopleTable, peopleSearchInput);
+        }
+        if (fteValuesTable && fteSearchInput) {
+            addTableFilter(fteValuesTable, fteSearchInput);
+        }
+    });
 }

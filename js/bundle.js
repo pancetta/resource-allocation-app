@@ -316,6 +316,23 @@ var App = (() => {
       active: true
     })
   };
+  var projectsSchema = {
+    fields: [
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 1
+      }
+    ],
+    // Default values for new project
+    getDefaults: () => ({
+      name: ""
+    })
+  };
   function getTableHeaders(schema) {
     return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order).map((f) => f.label);
   }
@@ -1584,8 +1601,15 @@ var App = (() => {
   init_tableHelpers();
   async function renderProjects() {
     if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#projectsTable tbody");
+    const table = document.querySelector("#projectsTable");
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    const thead = table.querySelector("thead");
+    if (thead) {
+      const headers = getTableHeaders(projectsSchema);
+      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}<th>Actions</th></tr>`;
+    }
     tbody.innerHTML = "";
     const projects = await getProjects();
     projects.forEach((p) => {

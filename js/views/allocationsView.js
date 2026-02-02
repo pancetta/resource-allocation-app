@@ -12,11 +12,11 @@ export async function renderAllocations() {
     if (!tbody) return;
     
     tbody.innerHTML = "";
-    const allocs = await getAllocations();
+    const allocations = await getAllocations();
     const people = await getPeople();
     const projects = await getProjects();
     
-    allocs.forEach(a => {
+    allocations.forEach(a => {
         const tr = document.createElement("tr");
         const personOptions = people.filter(p => p.active).map(p =>
             `<option value="${p.id}" ${p.id === a.personId ? 'selected' : ''}>${p.name}</option>`
@@ -68,8 +68,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-person").forEach(select => {
         select.addEventListener("change", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             alloc.personId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -82,8 +86,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-project").forEach(select => {
         select.addEventListener("change", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             alloc.projectId = this.value;
             await updateAllocation(alloc);
             scheduleAutoBackup();
@@ -94,8 +102,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-pm").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             
             const pm = parseFloat(this.value);
             if (isNaN(pm) || pm < MIN_PM) {
@@ -117,8 +129,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-start").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             const newStartMonth = this.value;
             
             // Check for overlaps with the new start date
@@ -164,8 +180,12 @@ function attachAllocationsEventListeners() {
     document.querySelectorAll(".alloc-end").forEach(input => {
         input.addEventListener("blur", async function() {
             const id = parseInt(this.dataset.id);
-            const allocs = await getAllocations();
-            const alloc = allocs.find(a => a.id === id);
+            const allocations = await getAllocations();
+            const alloc = allocations.find(a => a.id === id);
+            if (!alloc) {
+                console.error(`Allocation with id ${id} not found`);
+                return;
+            }
             const newEndMonth = this.value || null;
             
             // Check for overlaps with the new end date

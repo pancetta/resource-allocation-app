@@ -125,6 +125,10 @@ function attachPeopleEventListeners() {
             
             const people = await getPeople();
             const person = people.find(p => p.id === id);
+            if (!person) {
+                console.error(`Person with id ${id} not found`);
+                return;
+            }
             
             // Find field definition for validation
             const fieldDef = peopleSchema.fields.find(f => f.key === field);
@@ -153,6 +157,10 @@ function attachPeopleEventListeners() {
             
             const people = await getPeople();
             const person = people.find(p => p.id === id);
+            if (!person) {
+                console.error(`Person with id ${id} not found`);
+                return;
+            }
             person[field] = checked;
             
             await updatePerson(person);

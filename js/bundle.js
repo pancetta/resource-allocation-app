@@ -874,6 +874,10 @@ var App = (() => {
         const value = this.value;
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
+        if (!person) {
+          console.error(`Person with id ${id} not found`);
+          return;
+        }
         const fieldDef = peopleSchema.fields.find((f) => f.key === field);
         if (fieldDef && fieldDef.validate) {
           const validation = fieldDef.validate(value);
@@ -895,6 +899,10 @@ var App = (() => {
         const checked = this.checked;
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
+        if (!person) {
+          console.error(`Person with id ${id} not found`);
+          return;
+        }
         person[field] = checked;
         await updatePerson(person);
         scheduleAutoBackup();
@@ -1108,6 +1116,10 @@ var App = (() => {
         const value = this.textContent;
         const projects = await getProjects();
         const project = projects.find((p) => p.id === id);
+        if (!project) {
+          console.error(`Project with id ${id} not found`);
+          return;
+        }
         if (field === "name") {
           project.name = value;
           populateProjectSelect();
@@ -1402,10 +1414,10 @@ var App = (() => {
     const tbody = document.querySelector("#allocationsTable tbody");
     if (!tbody) return;
     tbody.innerHTML = "";
-    const allocs = await getAllocations();
+    const allocations = await getAllocations();
     const people = await getPeople();
     const projects = await getProjects();
-    allocs.forEach((a) => {
+    allocations.forEach((a) => {
       const tr = document.createElement("tr");
       const personOptions = people.filter((p) => p.active).map(
         (p) => `<option value="${p.id}" ${p.id === a.personId ? "selected" : ""}>${p.name}</option>`
@@ -1442,8 +1454,12 @@ var App = (() => {
     document.querySelectorAll(".alloc-person").forEach((select) => {
       select.addEventListener("change", async function() {
         const id = parseInt(this.dataset.id);
-        const allocs = await getAllocations();
-        const alloc = allocs.find((a) => a.id === id);
+        const allocations = await getAllocations();
+        const alloc = allocations.find((a) => a.id === id);
+        if (!alloc) {
+          console.error(`Allocation with id ${id} not found`);
+          return;
+        }
         alloc.personId = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1453,8 +1469,12 @@ var App = (() => {
     document.querySelectorAll(".alloc-project").forEach((select) => {
       select.addEventListener("change", async function() {
         const id = parseInt(this.dataset.id);
-        const allocs = await getAllocations();
-        const alloc = allocs.find((a) => a.id === id);
+        const allocations = await getAllocations();
+        const alloc = allocations.find((a) => a.id === id);
+        if (!alloc) {
+          console.error(`Allocation with id ${id} not found`);
+          return;
+        }
         alloc.projectId = this.value;
         await updateAllocation(alloc);
         scheduleAutoBackup();
@@ -1463,8 +1483,12 @@ var App = (() => {
     document.querySelectorAll(".alloc-pm").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
-        const allocs = await getAllocations();
-        const alloc = allocs.find((a) => a.id === id);
+        const allocations = await getAllocations();
+        const alloc = allocations.find((a) => a.id === id);
+        if (!alloc) {
+          console.error(`Allocation with id ${id} not found`);
+          return;
+        }
         const pm = parseFloat(this.value);
         if (isNaN(pm) || pm < MIN_PM) {
           alert("PM must be a positive number");
@@ -1480,8 +1504,12 @@ var App = (() => {
     document.querySelectorAll(".alloc-start").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
-        const allocs = await getAllocations();
-        const alloc = allocs.find((a) => a.id === id);
+        const allocations = await getAllocations();
+        const alloc = allocations.find((a) => a.id === id);
+        if (!alloc) {
+          console.error(`Allocation with id ${id} not found`);
+          return;
+        }
         const newStartMonth = this.value;
         const overlapping = await findOverlappingAllocations(
           alloc.personId,
@@ -1520,8 +1548,12 @@ Are you sure you want to continue?`
     document.querySelectorAll(".alloc-end").forEach((input) => {
       input.addEventListener("blur", async function() {
         const id = parseInt(this.dataset.id);
-        const allocs = await getAllocations();
-        const alloc = allocs.find((a) => a.id === id);
+        const allocations = await getAllocations();
+        const alloc = allocations.find((a) => a.id === id);
+        if (!alloc) {
+          console.error(`Allocation with id ${id} not found`);
+          return;
+        }
         const newEndMonth = this.value || null;
         const overlapping = await findOverlappingAllocations(
           alloc.personId,

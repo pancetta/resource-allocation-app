@@ -75,6 +75,10 @@ function attachProjectsEventListeners() {
             
             const projects = await getProjects();
             const project = projects.find(p => p.id === id);
+            if (!project) {
+                console.error(`Project with id ${id} not found`);
+                return;
+            }
             
             if (field === "name") {
                 project.name = value;

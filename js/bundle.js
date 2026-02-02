@@ -119,6 +119,21 @@ var App = (() => {
     return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
   }
 
+  // js/config/constants.js
+  var MILLISECONDS_PER_SECOND = 1e3;
+  var SECONDS_PER_MINUTE = 60;
+  var MINUTES_PER_HOUR = 60;
+  var HOURS_PER_DAY = 24;
+  var MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+  var AUTO_BACKUP_DELAY_MS = 5e3;
+  var DEFAULT_START_MONTH = "2020-01";
+  var DEFAULT_FTE = 1;
+  var MIN_FTE = 0;
+  var MAX_FTE = 1;
+  var MIN_PM = 0;
+  var PM_STEP = 0.01;
+  var MONTHS_PER_YEAR = 12;
+
   // js/data/database.js
   var DB_NAME = "resource-planning";
   var DB_VERSION = 5;
@@ -218,7 +233,7 @@ var App = (() => {
                 fteValuesStore.add({
                   personId: person.id,
                   fte: person.fte,
-                  startMonth: "2020-01",
+                  startMonth: DEFAULT_START_MONTH,
                   // Use a reasonable start date
                   endMonth: null
                   // Open-ended
@@ -238,7 +253,7 @@ var App = (() => {
                 budgetValuesStore.add({
                   projectId: project.id,
                   plannedPM: project.plannedPM,
-                  startMonth: "2020-01",
+                  startMonth: DEFAULT_START_MONTH,
                   // Use a reasonable start date
                   endMonth: null
                   // Open-ended
@@ -268,7 +283,7 @@ var App = (() => {
                 fteValuesStore.add({
                   personId: person.id,
                   fte: person.fte,
-                  startMonth: "2020-01",
+                  startMonth: DEFAULT_START_MONTH,
                   endMonth: null
                 });
                 delete person.fte;
@@ -286,7 +301,7 @@ var App = (() => {
                 budgetValuesStore.add({
                   projectId: project.id,
                   plannedPM: project.plannedPM,
-                  startMonth: "2020-01",
+                  startMonth: DEFAULT_START_MONTH,
                   endMonth: null
                 });
                 delete project.plannedPM;
@@ -678,11 +693,11 @@ var App = (() => {
     if (isNaN(value)) {
       return { valid: false, message: "FTE must be a valid number" };
     }
-    if (value < 0) {
-      return { valid: false, message: "FTE cannot be below 0" };
+    if (value < MIN_FTE) {
+      return { valid: false, message: `FTE cannot be below ${MIN_FTE}` };
     }
-    if (value > 1) {
-      return { valid: false, message: "FTE cannot be above 1" };
+    if (value > MAX_FTE) {
+      return { valid: false, message: `FTE cannot be above ${MAX_FTE}` };
     }
     return { valid: true, message: "" };
   }
@@ -691,7 +706,7 @@ var App = (() => {
     if (isNaN(value)) {
       return { valid: false, message: "Planned PM must be a valid number" };
     }
-    if (value < 0) {
+    if (value < MIN_PM) {
       return { valid: false, message: "Planned PM cannot be negative" };
     }
     return { valid: true, message: "" };
@@ -997,7 +1012,7 @@ var App = (() => {
     const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
     await addFteValue({
       personId: id,
-      fte: 1,
+      fte: DEFAULT_FTE,
       startMonth: currentMonth,
       endMonth: null
       // Open-ended
@@ -1249,7 +1264,7 @@ var App = (() => {
   // js/helpers/dateHelper.js
   function getMonthsInYear(year) {
     return Array.from(
-      { length: 12 },
+      { length: MONTHS_PER_YEAR },
       (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`
     );
   }
@@ -1378,7 +1393,7 @@ var App = (() => {
     return arr.reduce((sum, val) => sum + val, 0);
   }
   function pmPerMonthToYear(pmPerMonth) {
-    return pmPerMonth * 12;
+    return pmPerMonth * MONTHS_PER_YEAR;
   }
 
   // js/views/allocationsView.js
@@ -1403,7 +1418,7 @@ var App = (() => {
       tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
-            <td><input type="number" class="alloc-pm" step="0.01" min="0" value="${a.pm}" data-id="${a.id}"></td>
+            <td><input type="number" class="alloc-pm" step="${PM_STEP}" min="${MIN_PM}" value="${a.pm}" data-id="${a.id}"></td>
             <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
             <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
@@ -1451,7 +1466,7 @@ var App = (() => {
         const allocs = await getAllocations();
         const alloc = allocs.find((a) => a.id === id);
         const pm = parseFloat(this.value);
-        if (isNaN(pm) || pm < 0) {
+        if (isNaN(pm) || pm < MIN_PM) {
           alert("PM must be a positive number");
           this.value = alloc.pm;
           return;
@@ -2141,13 +2156,13 @@ The file will be saved to your browser's default Downloads folder.
     }
   }
   function getTimeAgo(date) {
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1e3);
-    if (seconds < 60) return `${seconds} second${seconds !== 1 ? "s" : ""} ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-    const days = Math.floor(hours / 24);
+    const seconds = Math.floor((Date.now() - date.getTime()) / MILLISECONDS_PER_SECOND);
+    if (seconds < SECONDS_PER_MINUTE) return `${seconds} second${seconds !== 1 ? "s" : ""} ago`;
+    const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
+    if (minutes < MINUTES_PER_HOUR) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+    const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+    if (hours < HOURS_PER_DAY) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+    const days = Math.floor(hours / HOURS_PER_DAY);
     return `${days} day${days !== 1 ? "s" : ""} ago`;
   }
   async function renderBackups() {
@@ -2219,7 +2234,7 @@ The file will be saved to your browser's default Downloads folder.
       } catch (e) {
         console.error("Auto-backup failed:", e);
       }
-    }, 5e3);
+    }, AUTO_BACKUP_DELAY_MS);
   }
 
   // js/main.js

@@ -2,6 +2,7 @@ import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getP
 import { scheduleAutoBackup } from '../main.js';
 import { pmPerMonthToYear } from '../helpers/allocationHelper.js';
 import { findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore } from '../helpers/validationHelper.js';
+import { PM_STEP, MIN_PM } from '../config/constants.js';
 
 // Render allocations table
 export async function renderAllocations() {
@@ -31,7 +32,7 @@ export async function renderAllocations() {
         tr.innerHTML = `
             <td><select class="alloc-person" data-id="${a.id}">${personOptions}</select></td>
             <td><select class="alloc-project" data-id="${a.id}">${projectOptions}</select></td>
-            <td><input type="number" class="alloc-pm" step="0.01" min="0" value="${a.pm}" data-id="${a.id}"></td>
+            <td><input type="number" class="alloc-pm" step="${PM_STEP}" min="${MIN_PM}" value="${a.pm}" data-id="${a.id}"></td>
             <td class="pm-display">${pmPerMonth.toFixed(2)}</td>
             <td class="pm-display">${pmPerYear.toFixed(2)}</td>
             <td><input type="month" class="alloc-start" value="${a.startMonth}" data-id="${a.id}"></td>
@@ -97,7 +98,7 @@ function attachAllocationsEventListeners() {
             const alloc = allocs.find(a => a.id === id);
             
             const pm = parseFloat(this.value);
-            if (isNaN(pm) || pm < 0) {
+            if (isNaN(pm) || pm < MIN_PM) {
                 alert("PM must be a positive number");
                 // Revert to original value
                 this.value = alloc.pm;

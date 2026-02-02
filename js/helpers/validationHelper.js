@@ -4,6 +4,7 @@
  */
 
 import { getFteValues, getBudgetValues, getAllocations } from '../data/database.js';
+import { MIN_FTE, MAX_FTE, MIN_PM } from '../config/constants.js';
 
 /**
  * Check if a person has at least one FTE value
@@ -57,12 +58,12 @@ export function validateFteValue(fte) {
         return { valid: false, message: 'FTE must be a valid number' };
     }
     
-    if (value < 0) {
-        return { valid: false, message: 'FTE cannot be below 0' };
+    if (value < MIN_FTE) {
+        return { valid: false, message: `FTE cannot be below ${MIN_FTE}` };
     }
     
-    if (value > 1) {
-        return { valid: false, message: 'FTE cannot be above 1' };
+    if (value > MAX_FTE) {
+        return { valid: false, message: `FTE cannot be above ${MAX_FTE}` };
     }
     
     return { valid: true, message: '' };
@@ -80,7 +81,7 @@ export function validatePlannedPM(plannedPM) {
         return { valid: false, message: 'Planned PM must be a valid number' };
     }
     
-    if (value < 0) {
+    if (value < MIN_PM) {
         return { valid: false, message: 'Planned PM cannot be negative' };
     }
     

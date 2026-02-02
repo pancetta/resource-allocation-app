@@ -12,6 +12,13 @@ import {
     deleteBackup,
     getAutoPreparedBackup
 } from '../data/database.js';
+import {
+    MILLISECONDS_PER_SECOND,
+    SECONDS_PER_MINUTE,
+    MINUTES_PER_HOUR,
+    HOURS_PER_DAY,
+    AUTO_BACKUP_DELAY_MS
+} from '../config/constants.js';
 
 export async function init() {
     // Guard against running in non-DOM environments (like tests)
@@ -209,17 +216,17 @@ export function updateAutoBackupStatus() {
 
 // Get human-readable time ago
 export function getTimeAgo(date) {
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    const seconds = Math.floor((Date.now() - date.getTime()) / MILLISECONDS_PER_SECOND);
     
-    if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+    if (seconds < SECONDS_PER_MINUTE) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
     
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
+    if (minutes < MINUTES_PER_HOUR) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
     
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+    if (hours < HOURS_PER_DAY) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
     
-    const days = Math.floor(hours / 24);
+    const days = Math.floor(hours / HOURS_PER_DAY);
     return `${days} day${days !== 1 ? 's' : ''} ago`;
 }
 
@@ -317,5 +324,5 @@ export function scheduleAutoBackup() {
             /* c8 ignore next 1 */
             console.error("Auto-backup failed:", e);
         }
-    }, 5000);
+    }, AUTO_BACKUP_DELAY_MS);
 }

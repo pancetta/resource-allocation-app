@@ -2,6 +2,7 @@ import { getPeople, updatePerson, deletePerson, addPerson, generatePersonId, get
 import { scheduleAutoBackup } from '../main.js';
 import { validateFteValueDeletion, validateFteValue } from '../helpers/validationHelper.js';
 import { peopleSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
+import { MIN_FTE, MAX_FTE, FTE_STEP, DEFAULT_FTE } from '../config/constants.js';
 
 // Render people table (basic person info)
 export async function renderPeople() {
@@ -306,7 +307,7 @@ export async function addPersonAuto(name) {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
     await addFteValue({
         personId: id,
-        fte: 1.0,
+        fte: DEFAULT_FTE,
         startMonth: currentMonth,
         endMonth: null // Open-ended
     });

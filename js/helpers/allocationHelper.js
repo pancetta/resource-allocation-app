@@ -7,6 +7,7 @@
 
 import { isMonthInRange, compareMonths } from './dateHelper.js';
 import { getEffectiveFte } from './overrideHelper.js';
+import { MONTHS_PER_YEAR } from '../config/constants.js';
 
 /**
  * Build an index map for fast allocation lookups by person and project
@@ -186,7 +187,7 @@ export function sumArray(arr) {
  * @returns {number} Person-months per year
  */
 export function pmPerMonthToYear(pmPerMonth) {
-    return pmPerMonth * 12;
+    return pmPerMonth * MONTHS_PER_YEAR;
 }
 
 /**

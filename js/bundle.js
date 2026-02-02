@@ -1154,11 +1154,17 @@ var App = (() => {
     }
     const tr = document.createElement("tr");
     tr.className = "quick-add-row";
+    const thead = table.querySelector("thead");
+    const headerRow = thead ? thead.querySelector("tr") : null;
+    const totalColumns = headerRow ? headerRow.querySelectorAll("th").length : placeholders.length + 1;
     const cells = placeholders.map((placeholder, index) => {
       return `<td><input type="text" class="quick-add-input" data-index="${index}" placeholder="${placeholder}"></td>`;
     }).join("");
+    const emptyCellsNeeded = totalColumns - placeholders.length - 1;
+    const emptyCells = emptyCellsNeeded > 0 ? "<td></td>".repeat(emptyCellsNeeded) : "";
     tr.innerHTML = `
         ${cells}
+        ${emptyCells}
         <td class="quick-add-actions">
             <button class="quick-add-save" title="Save (Enter)">\u2713</button>
             <button class="quick-add-cancel" title="Cancel (Esc)">\u2717</button>

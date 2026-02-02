@@ -103,11 +103,10 @@ tfoot td {
     letter-spacing: 0.3px;
 }
 
-/* Percentage cell styling */
+/* Percentage cell styling - same font as PM cells */
 .pct-cell {
-    color: #666;
-    font-style: italic;
     font-size: 13px;
+}
 }
 
 /* First column styling */

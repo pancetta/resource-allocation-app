@@ -2475,9 +2475,9 @@ Click OK to proceed with overlap, or Cancel to abort.`
     resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
     const personTable = document.createElement("table");
     const headerRow1 = document.createElement("tr");
-    headerRow1.innerHTML = `<th rowspan="2">Person</th>` + projects.map((p) => `<th colspan="2">${p.name}</th>`).join("") + `<th colspan="2">Total</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th>`;
+    headerRow1.innerHTML = `<th rowspan="2">Person</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th><th colspan="2">Total</th>` + projects.map((p) => `<th colspan="2">${p.name}</th>`).join("");
     const headerRow2 = document.createElement("tr");
-    headerRow2.innerHTML = projects.map(() => `<th class="sub-header">PM</th><th class="sub-header">%</th>`).join("") + `<th class="sub-header">PM</th><th class="sub-header">%</th>`;
+    headerRow2.innerHTML = `<th class="sub-header">%</th><th class="sub-header">PM</th>` + projects.map(() => `<th class="sub-header">%</th><th class="sub-header">PM</th>`).join("");
     const thead = document.createElement("thead");
     thead.appendChild(headerRow1);
     thead.appendChild(headerRow2);
@@ -2489,19 +2489,34 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const total = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
       const delta = total - fte;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c) => {
+      tr.innerHTML = `<td>${p.name}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td><td class="pct-cell">${pmToPercentage(total, fte).toFixed(1)}%</td><td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` + cells.map((c) => {
         const pct = pmToPercentage(c, fte);
-        return `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td><td class="pct-cell">${pct.toFixed(1)}%</td>`;
-      }).join("") + `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td><td class="pct-cell">${pmToPercentage(total, fte).toFixed(1)}%</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+        return `<td class="pct-cell">${pct.toFixed(1)}%</td><td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`;
+      }).join("");
       pTbody.appendChild(tr);
     });
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
+    const totalFte = people.reduce((sum, p) => {
+      const fte = getEffectiveFte(p.id, month, fteValues);
+      return sum + fte;
+    }, 0);
+    const totalDelta = people.reduce((sum, p) => {
+      const fte = getEffectiveFte(p.id, month, fteValues);
+      const personTotal = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
+      return sum + (personTotal - fte);
+    }, 0);
+    const overallTotal = people.reduce((sum, p) => {
+      const fte = getEffectiveFte(p.id, month, fteValues);
+      return sum + calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
+    }, 0);
+    const overallPct = totalFte > 0 ? pmToPercentage(overallTotal, totalFte) : 0;
     const projectTotalCells = projects.map((proj) => {
       const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
-      return `<td colspan="2"><strong>${sum.toFixed(2)}</strong></td>`;
+      const sumPct = totalFte > 0 ? pmToPercentage(sum, totalFte) : 0;
+      return `<td class="pct-cell"><strong>${sumPct.toFixed(1)}%</strong></td><td><strong>${sum.toFixed(2)}</strong></td>`;
     }).join("");
-    sumRow.innerHTML = `<td><strong>Total</strong></td>` + projectTotalCells + `<td colspan="5"></td>`;
+    sumRow.innerHTML = `<td><strong>Total</strong></td><td><strong>${totalFte.toFixed(2)}</strong></td><td class="${cellClass(totalDelta, 0)}"><strong>${totalDelta.toFixed(2)}</strong></td><td class="pct-cell"><strong>${overallPct.toFixed(1)}%</strong></td><td><strong>${overallTotal.toFixed(2)}</strong></td>` + projectTotalCells;
     tfoot.appendChild(sumRow);
     personTable.appendChild(pTbody);
     personTable.appendChild(tfoot);

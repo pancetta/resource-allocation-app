@@ -78,6 +78,11 @@ td:first-child {
     font-weight: 500;
 }
 
+/* Center-align checkboxes in first column */
+td:first-child:has(input[type="checkbox"]) {
+    text-align: center;
+}
+
 /* Tabs */
 .tabs {
     margin-bottom: 0;

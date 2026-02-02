@@ -72,12 +72,13 @@ tfoot td {
     font-weight: 500;
 }
 
-/* Split cell layout for PM/Percentage display */
+/* Split cell layout for PM/Percentage display - side by side */
 .split-cell {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    gap: 8px;
     align-items: center;
+    justify-content: center;
     padding: 2px 0;
 }
 
@@ -87,9 +88,10 @@ tfoot td {
 }
 
 .split-cell-pct {
-    font-size: 11px;
-    color: #666;
+    font-size: 12px;
+    color: #999;
     font-weight: 400;
+    font-style: italic;
 }
 
 /* First column styling */

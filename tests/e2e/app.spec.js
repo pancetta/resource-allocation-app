@@ -99,8 +99,8 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     
     await page.waitForSelector('#peopleTable tbody tr:not(.quick-add-row)', { timeout: 10000 });
     
-    // Click on the name cell (should be contenteditable)
-    const nameCell = page.locator('#peopleTable tbody tr:not(.quick-add-row)').first().locator('td').first();
+    // Click on the name cell (second td, after checkbox column)
+    const nameCell = page.locator('#peopleTable tbody tr:not(.quick-add-row)').first().locator('td').nth(1);
     await nameCell.click();
     
     // Clear existing text and type new name
@@ -119,7 +119,7 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     await page.reload();
     await page.waitForSelector('.tab-button', { timeout: 5000 });
     
-    const savedName = await page.locator('#peopleTable tbody tr:not(.quick-add-row)').first().locator('td').first().textContent();
+    const savedName = await page.locator('#peopleTable tbody tr:not(.quick-add-row)').first().locator('td').nth(1).textContent();
     expect(savedName).toContain('John Doe');
   });
 

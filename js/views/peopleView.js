@@ -193,8 +193,11 @@ function attachPeopleEventListeners() {
             const person = people.find(p => p.id === id);
             const personName = person ? person.name : id;
             
-            if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
-                return;
+            // Confirm deletion (if confirm is available)
+            if (typeof window !== 'undefined' && window.confirm) {
+                if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
+                    return;
+                }
             }
             
             // Save state for undo

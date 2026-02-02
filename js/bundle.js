@@ -1255,8 +1255,10 @@ var App = (() => {
         const people = await getPeople();
         const person = people.find((p) => p.id === id);
         const personName = person ? person.name : id;
-        if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
-          return;
+        if (typeof window !== "undefined" && window.confirm) {
+          if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
+            return;
+          }
         }
         await saveState(`Delete person: ${personName}`);
         const fteValues = await getFteValues();

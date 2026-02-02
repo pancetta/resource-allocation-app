@@ -25,14 +25,13 @@ test.describe('Data Management', () => {
   });
 
   test('should export data', async ({ page }) => {
-    // Add some test data first by handling the prompt dialog
+    // Add some test data first using quick-add row
     await page.click('.tab-button[data-tab="people"]');
     
-    page.once('dialog', async dialog => {
-      expect(dialog.type()).toBe('prompt');
-      await dialog.accept('Test Person');
-    });
     await page.click('#addPersonBtn');
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Test Person');
+    await page.press('.quick-add-row input', 'Enter');
     await page.waitForTimeout(500);
 
     // Go to Data tab
@@ -118,18 +117,17 @@ test.describe('Data Management', () => {
     // Note: This test is skipped because page reload after restore is inconsistent in E2E tests
     // The restore functionality is tested in unit tests instead
     
-    // Add a person by handling the prompt dialog
+    // Add a person using quick-add row
     await page.click('.tab-button[data-tab="people"]');
     
-    page.once('dialog', async dialog => {
-      expect(dialog.type()).toBe('prompt');
-      await dialog.accept('Original Person');
-    });
     await page.click('#addPersonBtn');
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Original Person');
+    await page.press('.quick-add-row input', 'Enter');
     await page.waitForTimeout(1000);
 
     // Verify person was added
-    let peopleCount = await page.locator('#peopleTable tbody tr').count();
+    let peopleCount = await page.locator('#peopleTable tbody tr:not(.quick-add-row)').count();
     expect(peopleCount).toBe(1);
 
     // Create a backup
@@ -151,7 +149,7 @@ test.describe('Data Management', () => {
     await page.waitForTimeout(1000);
 
     // Verify person is gone
-    peopleCount = await page.locator('#peopleTable tbody tr').count();
+    peopleCount = await page.locator('#peopleTable tbody tr:not(.quick-add-row)').count();
     expect(peopleCount).toBe(0);
 
     // Restore from backup - the page will reload
@@ -175,7 +173,7 @@ test.describe('Data Management', () => {
     }
 
     // Verify person is restored
-    peopleCount = await page.locator('#peopleTable tbody tr').count();
+    peopleCount = await page.locator('#peopleTable tbody tr:not(.quick-add-row)').count();
     expect(peopleCount).toBe(1);
   });
 
@@ -211,11 +209,10 @@ test.describe('Data Management', () => {
     // Add a person (should trigger auto-backup after 5 seconds)
     await page.click('.tab-button[data-tab="people"]');
     
-    page.once('dialog', async dialog => {
-      expect(dialog.type()).toBe('prompt');
-      await dialog.accept('Auto Backup Test');
-    });
     await page.click('#addPersonBtn');
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Auto Backup Test');
+    await page.press('.quick-add-row input', 'Enter');
     await page.waitForTimeout(1000);
     
     // Wait for auto-backup (5 seconds debounce + 2 second buffer)

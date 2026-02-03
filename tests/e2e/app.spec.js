@@ -123,7 +123,7 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     expect(savedName).toContain('John Doe');
   });
 
-  test('should delete a person', async ({ page }) => {
+  test('should delete a person using batch delete', async ({ page }) => {
     // Add a person first using quick-add row
     await page.click('#addPersonBtn');
     await page.waitForSelector('.quick-add-row', { timeout: 5000 });
@@ -137,6 +137,14 @@ test.describe('Resource Allocation App - E2E Tests', () => {
     
     const initialCount = await page.locator('#peopleTable tbody tr').count();
     
+    // Select the row using checkbox
+    const checkbox = page.locator('#peopleTable tbody tr .row-select-checkbox').first();
+    await checkbox.waitFor({ state: 'visible', timeout: 10000 });
+    await checkbox.check();
+    
+    // Wait for batch toolbar to appear
+    await page.waitForSelector('.batch-toolbar', { state: 'visible', timeout: 5000 });
+    
     // Handle the confirmation dialog for deletion
     page.once('dialog', async dialog => {
       expect(dialog.type()).toBe('confirm');
@@ -144,9 +152,8 @@ test.describe('Resource Allocation App - E2E Tests', () => {
       await dialog.accept();
     });
     
-    // Click delete button
-    const deleteBtn = page.locator('#peopleTable tbody tr .delete-person').first();
-    await deleteBtn.waitFor({ state: 'visible', timeout: 10000 });
+    // Click batch delete button
+    const deleteBtn = page.locator('.batch-action-btn').first();
     await deleteBtn.click();
     
     // Wait for deletion

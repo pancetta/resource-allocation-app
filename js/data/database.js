@@ -467,7 +467,7 @@ export async function getAllocations() {
 
 /**
  * Add a new allocation to the database
- * @param {Object} a - Allocation object with personId, projectId, pct, startMonth, endMonth
+ * @param {Object} a - Allocation object with personId, projectId, pm, startMonth, endMonth
  * @returns {Promise<void>}
  */
 export async function addAllocation(a) {
@@ -548,6 +548,88 @@ export async function exportAllData() {
     };
 }
 
+/**
+ * Convert allocation from old pct format to new pm format
+ * @param {Object} allocation - Allocation object (may have pct or pm)
+ * @param {Array} fteValues - Array of FTE value objects for conversion
+ * @returns {Object} - Allocation with pm field
+ */
+function convertAllocationToPm(allocation, fteValues) {
+    // If already has pm, return as-is
+    if (allocation.pm !== undefined && allocation.pm !== null) {
+        return allocation;
+    }
+    
+    // If has pct, convert to pm
+    if (allocation.pct !== undefined && allocation.pct !== null) {
+        // Find effective FTE for this person at allocation start
+        let fte = 1; // default
+        const applicableFteValues = fteValues.filter(fv => 
+            fv.personId === allocation.personId &&
+            fv.startMonth <= allocation.startMonth &&
+            (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
+        );
+        
+        if (applicableFteValues.length > 0) {
+            // Use the most recent one
+            applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+            fte = applicableFteValues[0].fte;
+        }
+        
+        // Convert pct to pm: pm = pct * fte
+        const converted = { ...allocation };
+        converted.pm = allocation.pct * fte;
+        delete converted.pct;
+        return converted;
+    }
+    
+    // Neither pct nor pm - set pm to 0 to avoid NaN
+    return { ...allocation, pm: 0 };
+}
+
+/**
+ * Convert allocation override from old pct format to new pm format
+ * @param {Object} override - Override object (may have pct or pm)
+ * @param {Array} fteValues - Array of FTE value objects for conversion
+ * @param {Array} allocations - Array of allocation objects to find person
+ * @returns {Object} - Override with pm field
+ */
+function convertOverrideToPm(override, fteValues, allocations) {
+    // If already has pm, return as-is
+    if (override.pm !== undefined && override.pm !== null) {
+        return override;
+    }
+    
+    // If has pct, convert to pm
+    if (override.pct !== undefined && override.pct !== null) {
+        // Find the allocation to get the person
+        const allocation = allocations.find(a => a.id === override.allocationId);
+        if (allocation) {
+            // Find effective FTE for this person at override month
+            let fte = 1; // default
+            const applicableFteValues = fteValues.filter(fv => 
+                fv.personId === allocation.personId &&
+                fv.startMonth <= override.month &&
+                (fv.endMonth === null || fv.endMonth >= override.month)
+            );
+            
+            if (applicableFteValues.length > 0) {
+                applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+                fte = applicableFteValues[0].fte;
+            }
+            
+            // Convert pct to pm
+            const converted = { ...override };
+            converted.pm = override.pct * fte;
+            delete converted.pct;
+            return converted;
+        }
+    }
+    
+    // Neither pct nor pm - set pm to 0 to avoid NaN
+    return { ...override, pm: 0 };
+}
+
 // Import all data (clears existing data first)
 export async function importAllData(importedData) {
     if (!importedData || !importedData.data) {
@@ -596,14 +678,8 @@ export async function importAllData(importedData) {
         }
     }
     
-    // Import allocations
-    if (allocations && Array.isArray(allocations)) {
-        for (const allocation of allocations) {
-            await addAllocation(allocation);
-        }
-    }
-    
-    // Import FTE values (support both new and old format)
+    // Import FTE values first (needed for allocation conversion)
+    // Support both new and old format
     const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
     if (fteData && Array.isArray(fteData)) {
         for (const value of fteData) {
@@ -619,10 +695,28 @@ export async function importAllData(importedData) {
         }
     }
     
-    // Import allocation overrides
+    // Import allocations (convert from pct to pm if needed)
+    if (allocations && Array.isArray(allocations)) {
+        // Get FTE values for conversion
+        const currentFteValues = await getFteValues();
+        
+        for (const allocation of allocations) {
+            // Convert old pct format to new pm format
+            const converted = convertAllocationToPm(allocation, currentFteValues);
+            await addAllocation(converted);
+        }
+    }
+    
+    // Import allocation overrides (convert from pct to pm if needed)
     if (allocationOverrides && Array.isArray(allocationOverrides)) {
+        // Get current data for conversion
+        const currentFteValues = await getFteValues();
+        const currentAllocations = await getAllocations();
+        
         for (const override of allocationOverrides) {
-            await addAllocationOverride(override);
+            // Convert old pct format to new pm format
+            const converted = convertOverrideToPm(override, currentFteValues, currentAllocations);
+            await addAllocationOverride(converted);
         }
     }
 }
@@ -806,7 +900,7 @@ export async function getAllocationOverrides() {
 
 /**
  * Add a new allocation override to the database
- * @param {Object} override - Allocation override object with allocationId, pct, month
+ * @param {Object} override - Allocation override object with allocationId, pm, month
  * @returns {Promise<void>}
  */
 export async function addAllocationOverride(override) {

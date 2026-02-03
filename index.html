@@ -46,7 +46,7 @@
     </table>
     <button id="addPersonBtn">Add Person</button>
     
-    <h3>FTE Values (Time-Based) <span class="tooltip-icon" data-tooltip="FTE = Full-Time Equivalent. 1.0 = full-time, 0.5 = half-time, 0.0 = on leave">ℹ️</span></h3>
+    <h3>FTE Values (Time-Based) <span class="tooltip-icon" data-tooltip="FTE = Full-Time Equivalent. Defines a person's work capacity. 1.0 = full-time (1 PM/month capacity), 0.5 = half-time (0.5 PM/month capacity), 0.0 = on leave">ℹ️</span></h3>
     <p>Define FTE values for specific time periods. Each person can have different FTE values over time (e.g., full-time, part-time, leave).</p>
     
     <div class="table-controls">
@@ -60,7 +60,7 @@
     
     <select id="ftePersonSelect"></select>
     <input type="number" id="fteValueInput" step="0.01" min="0" max="1" value="1.0" placeholder="FTE">
-    <span class="tooltip-icon" data-tooltip="1.0 = full-time, 0.5 = half-time, 0.0 = on leave">ℹ️</span>
+    <span class="tooltip-icon" data-tooltip="FTE = capacity. 1.0 = 1 PM/month, 0.5 = 0.5 PM/month. This defines how much capacity a person has.">ℹ️</span>
     <input type="month" id="fteStartMonthInput" value="2025-01" placeholder="Start">
     <input type="month" id="fteEndMonthInput" value="" placeholder="End (leave empty for ongoing)">
     <button id="addFteValueBtn">Add FTE Value</button>
@@ -81,7 +81,7 @@
     </table>
     <button id="addProjectBtn">Add Project</button>
     
-    <h3>Budget Values (Time-Based Planned PM) <span class="tooltip-icon" data-tooltip="PM = Person-Months. Example: 5 PM = 5 person-months of work">ℹ️</span></h3>
+    <h3>Budget Values (Time-Based Planned PM) <span class="tooltip-icon" data-tooltip="PM = Person-Months (source of truth). Example: 5 PM = 5 person-months of work budgeted for this project per month">ℹ️</span></h3>
     <p>Define planned person-months (PM) for specific time periods. Each project can have different budgets over time.</p>
     
     <div class="table-controls">
@@ -103,7 +103,7 @@
 
 <!-- ALLOCATIONS -->
 <div id="allocations" class="tab-content">
-    <h2>Default / Monthly Allocations <span class="tooltip-icon" data-tooltip="Assign people to projects with specific PM (person-months) per month">ℹ️</span></h2>
+    <h2>Default / Monthly Allocations <span class="tooltip-icon" data-tooltip="Assign people to projects with specific PM per month. PM is the source of truth; percentages are calculated from PM/FTE.">ℹ️</span></h2>
     
     <div class="table-controls">
         <input type="text" id="allocationsSearchInput" class="search-input" placeholder="🔍 Search allocations...">
@@ -117,7 +117,7 @@
     <select id="personSelect"></select>
     <select id="projectSelect"></select>
     <input type="number" id="pmInput" step="0.01" min="0" value="1" placeholder="PM per month">
-    <span class="tooltip-icon" data-tooltip="Person-months per month. 0.5 = half a person's time">ℹ️</span>
+    <span class="tooltip-icon" data-tooltip="Person-months per month (source of truth). 0.5 PM = half a person's time. Percentage is calculated as (PM/FTE)×100.">ℹ️</span>
     <input type="month" id="startMonthInput" value="2025-01">
     <input type="month" id="endMonthInput" value="" placeholder="End (leave empty for ongoing)">
     <span class="tooltip-icon" data-tooltip="Leave empty for ongoing allocations">ℹ️</span>
@@ -258,6 +258,48 @@
             <p>2. Add projects in the <strong>Projects</strong> tab</p>
             <p>3. Create allocations in the <strong>Allocations</strong> tab</p>
             <p>4. View reports in the <strong>Results</strong> tab</p>
+        </div>
+        
+        <div class="help-section glossary-section">
+            <h3>📖 Glossary: FTE, PM, and %</h3>
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 10px;">
+                <p style="margin-top: 0;"><strong>Understanding the three units in this app:</strong></p>
+                
+                <div style="margin: 12px 0; padding: 10px; background: white; border-left: 4px solid #007bff;">
+                    <strong>FTE (Full-Time Equivalent)</strong> — Capacity
+                    <ul style="margin: 5px 0 0 20px;">
+                        <li><strong>What:</strong> A person's work capacity/availability</li>
+                        <li><strong>Range:</strong> 0.0 to 1.0 (1.0 = full-time, 0.5 = half-time)</li>
+                        <li><strong>For a month:</strong> 1.0 FTE = 1 PM of capacity</li>
+                        <li><strong>Example:</strong> Someone working part-time has 0.5 FTE</li>
+                    </ul>
+                </div>
+                
+                <div style="margin: 12px 0; padding: 10px; background: white; border-left: 4px solid #28a745;">
+                    <strong>PM (Person-Months)</strong> — Allocation (Source of Truth)
+                    <ul style="margin: 5px 0 0 20px;">
+                        <li><strong>What:</strong> Amount of work allocated to a project</li>
+                        <li><strong>Unit:</strong> Person-months (time-based effort)</li>
+                        <li><strong>Source of truth:</strong> This is the primary value stored</li>
+                        <li><strong>Example:</strong> 0.5 PM = half a person's month of work</li>
+                    </ul>
+                </div>
+                
+                <div style="margin: 12px 0; padding: 10px; background: white; border-left: 4px solid #ffc107;">
+                    <strong>% (Percentage)</strong> — Utilization (Calculated)
+                    <ul style="margin: 5px 0 0 20px;">
+                        <li><strong>What:</strong> How much of a person's capacity is used</li>
+                        <li><strong>Formula:</strong> % = (PM / FTE) × 100</li>
+                        <li><strong>Derived:</strong> Always calculated from PM and FTE</li>
+                        <li><strong>Example:</strong> 0.5 PM on 1.0 FTE = 50% utilization</li>
+                        <li><strong>Example:</strong> 0.5 PM on 0.5 FTE = 100% utilization</li>
+                    </ul>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px;">
+                    <strong>💡 Key Insight:</strong> PM is the single source of truth. FTE defines capacity, and % shows utilization. For a single month: <code>1.0 FTE = 1 PM of capacity</code>
+                </div>
+            </div>
         </div>
         
         <div class="help-section">

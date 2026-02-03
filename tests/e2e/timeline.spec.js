@@ -18,32 +18,32 @@ test.describe('Timeline Button Functionality', () => {
     await expect(showTimelineBtn).toBeVisible();
     await expect(showTimelineBtn).toHaveText('Show/Hide Timeline');
     
-    // Timeline should be initially hidden or empty
-    const initialDisplay = await timelineOutput.evaluate(el => el.style.display);
-    const initialContent = await timelineOutput.innerHTML();
-    console.log('Initial display:', initialDisplay);
-    console.log('Initial content length:', initialContent.length);
-    
     // Click to show timeline
     await showTimelineBtn.click();
-    
-    // Wait a moment for async rendering
     await page.waitForTimeout(500);
     
-    // Check if timeline is now visible
-    const afterClickDisplay = await timelineOutput.evaluate(el => el.style.display);
-    const afterClickContent = await timelineOutput.innerHTML();
-    console.log('After click display:', afterClickDisplay);
-    console.log('After click content length:', afterClickContent.length);
+    // Timeline should now be visible
+    const displayAfterShow = await timelineOutput.evaluate(el => el.style.display);
+    const contentAfterShow = await timelineOutput.innerHTML();
     
-    // Timeline should either be visible or have content
-    const isVisible = afterClickDisplay !== 'none';
-    const hasContent = afterClickContent.trim().length > 0;
+    expect(displayAfterShow).toBe('block');
+    expect(contentAfterShow.trim().length).toBeGreaterThan(0);
     
-    console.log('Is visible:', isVisible);
-    console.log('Has content:', hasContent);
+    // Click again to hide timeline
+    await showTimelineBtn.click();
+    await page.waitForTimeout(500);
     
-    expect(isVisible || hasContent).toBe(true);
+    // Timeline should now be hidden
+    const displayAfterHide = await timelineOutput.evaluate(el => el.style.display);
+    expect(displayAfterHide).toBe('none');
+    
+    // Click again to show timeline
+    await showTimelineBtn.click();
+    await page.waitForTimeout(500);
+    
+    // Timeline should be visible again
+    const displayAfterSecondShow = await timelineOutput.evaluate(el => el.style.display);
+    expect(displayAfterSecondShow).toBe('block');
   });
 
   test('should show timeline with year from input', async ({ page }) => {
@@ -51,20 +51,22 @@ test.describe('Timeline Button Functionality', () => {
     const showTimelineBtn = page.locator('#showTimelineBtn');
     const timelineOutput = page.locator('#timelineOutput');
     
-    // Set a year
+    // Year input should have a default value set by smartDefaults
+    const defaultYear = await timelineYearInput.inputValue();
+    expect(defaultYear).toBeTruthy();
+    
+    // Set a specific year
     await timelineYearInput.fill('2025');
     
     // Click to show timeline
     await showTimelineBtn.click();
-    
-    // Wait for async rendering
     await page.waitForTimeout(500);
     
-    // Check if timeline rendered
+    // Timeline should render (either with allocations or "no allocations" message)
     const content = await timelineOutput.innerHTML();
-    console.log('Content includes 2025:', content.includes('2025'));
+    const display = await timelineOutput.evaluate(el => el.style.display);
     
-    // If there are allocations, it should show the year; if not, it shows a message
-    expect(content.length).toBeGreaterThan(0);
+    expect(display).toBe('block');
+    expect(content.trim().length).toBeGreaterThan(0);
   });
 });

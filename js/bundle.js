@@ -764,10 +764,7 @@ var App = (() => {
       allocations,
       fteValues = [],
       budgetValues = [],
-      allocationOverrides = [],
-      // Support old format for backward compatibility
-      fteOverrides = [],
-      projectBudgetOverrides = []
+      allocationOverrides = []
     } = importedData.data;
     const tx = db.transaction([
       "people",
@@ -793,15 +790,13 @@ var App = (() => {
         await addProject(project);
       }
     }
-    const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
-    if (fteData && Array.isArray(fteData)) {
-      for (const value of fteData) {
+    if (fteValues && Array.isArray(fteValues)) {
+      for (const value of fteValues) {
         await addFteValue(value);
       }
     }
-    const budgetData = budgetValues.length > 0 ? budgetValues : projectBudgetOverrides;
-    if (budgetData && Array.isArray(budgetData)) {
-      for (const value of budgetData) {
+    if (budgetValues && Array.isArray(budgetValues)) {
+      for (const value of budgetValues) {
         await addBudgetValue(value);
       }
     }

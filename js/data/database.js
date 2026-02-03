@@ -642,10 +642,7 @@ export async function importAllData(importedData) {
         allocations,
         fteValues = [],
         budgetValues = [],
-        allocationOverrides = [],
-        // Support old format for backward compatibility
-        fteOverrides = [],
-        projectBudgetOverrides = []
+        allocationOverrides = []
     } = importedData.data;
     
     // Clear existing data
@@ -679,18 +676,15 @@ export async function importAllData(importedData) {
     }
     
     // Import FTE values first (needed for allocation conversion)
-    // Support both new and old format
-    const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
-    if (fteData && Array.isArray(fteData)) {
-        for (const value of fteData) {
+    if (fteValues && Array.isArray(fteValues)) {
+        for (const value of fteValues) {
             await addFteValue(value);
         }
     }
     
-    // Import budget values (support both new and old format)
-    const budgetData = budgetValues.length > 0 ? budgetValues : projectBudgetOverrides;
-    if (budgetData && Array.isArray(budgetData)) {
-        for (const value of budgetData) {
+    // Import budget values
+    if (budgetValues && Array.isArray(budgetValues)) {
+        for (const value of budgetValues) {
             await addBudgetValue(value);
         }
     }

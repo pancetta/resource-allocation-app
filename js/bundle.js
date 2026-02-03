@@ -265,99 +265,6 @@ var App = (() => {
     return performTransaction(db2, storeName, "delete", id, invalidateCache2);
   }
 
-  // js/config/entitySchemas.js
-  var peopleSchema = {
-    fields: [
-      {
-        key: "name",
-        label: "Name",
-        type: "text",
-        required: true,
-        editable: true,
-        showInTable: true,
-        order: 1
-      },
-      {
-        key: "type",
-        label: "Type",
-        type: "select",
-        required: true,
-        editable: true,
-        showInTable: true,
-        order: 2,
-        options: [
-          { value: "210", label: "210" },
-          { value: "220", label: "220" },
-          { value: "230", label: "230" },
-          { value: "240", label: "240" },
-          { value: "250", label: "250" }
-        ],
-        defaultValue: "210",
-        validate: (value) => {
-          const validValues = ["210", "220", "230", "240", "250"];
-          if (!validValues.includes(value)) {
-            return { valid: false, message: `Type must be one of: ${validValues.join(", ")}` };
-          }
-          return { valid: true, message: "" };
-        }
-      },
-      {
-        key: "active",
-        label: "Active",
-        type: "checkbox",
-        required: false,
-        editable: true,
-        showInTable: true,
-        order: 3,
-        defaultValue: true
-      }
-    ],
-    // Default values for new person
-    getDefaults: () => ({
-      name: "",
-      type: "210",
-      active: true
-    })
-  };
-  var projectsSchema = {
-    fields: [
-      {
-        key: "name",
-        label: "Name",
-        type: "text",
-        required: true,
-        editable: true,
-        showInTable: true,
-        order: 1
-      }
-    ],
-    // Default values for new project
-    getDefaults: () => ({
-      name: ""
-    })
-  };
-  function getTableHeaders(schema) {
-    return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order).map((f) => f.label);
-  }
-  function getEditableFields(schema) {
-    return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
-  }
-
-  // js/config/constants.js
-  var MILLISECONDS_PER_SECOND = 1e3;
-  var SECONDS_PER_MINUTE = 60;
-  var MINUTES_PER_HOUR = 60;
-  var HOURS_PER_DAY = 24;
-  var MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
-  var AUTO_BACKUP_DELAY_MS = 5e3;
-  var DEFAULT_START_MONTH = "2020-01";
-  var DEFAULT_FTE = 1;
-  var MIN_FTE = 0;
-  var MAX_FTE = 1;
-  var MIN_PM = 0;
-  var PM_STEP = 0.01;
-  var MONTHS_PER_YEAR = 12;
-
   // js/data/database.js
   var DB_NAME = "resource-planning";
   var DB_VERSION = 5;
@@ -413,194 +320,14 @@ var App = (() => {
         if (!db2.objectStoreNames.contains("defaultAllocations")) {
           db2.createObjectStore("defaultAllocations", { keyPath: "id", autoIncrement: true });
         }
-        if (oldVersion < 3) {
-          if (!db2.objectStoreNames.contains("fteOverrides")) {
-            db2.createObjectStore("fteOverrides", { keyPath: "id", autoIncrement: true });
-          }
-          if (!db2.objectStoreNames.contains("projectBudgetOverrides")) {
-            db2.createObjectStore("projectBudgetOverrides", { keyPath: "id", autoIncrement: true });
-          }
-          if (!db2.objectStoreNames.contains("allocationOverrides")) {
-            db2.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
-          }
+        if (!db2.objectStoreNames.contains("fteValues")) {
+          db2.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
         }
-        if (oldVersion < 4 && oldVersion >= 3) {
-          if (db2.objectStoreNames.contains("fteOverrides")) {
-            const fteValuesStore = db2.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
-            const oldFteStore = transaction.objectStore("fteOverrides");
-            const fteRequest = oldFteStore.getAll();
-            fteRequest.onsuccess = () => {
-              const records = fteRequest.result;
-              records.forEach((record) => {
-                fteValuesStore.add(record);
-              });
-            };
-          }
-          if (db2.objectStoreNames.contains("projectBudgetOverrides")) {
-            const budgetValuesStore = db2.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
-            const oldBudgetStore = transaction.objectStore("projectBudgetOverrides");
-            const budgetRequest = oldBudgetStore.getAll();
-            budgetRequest.onsuccess = () => {
-              const records = budgetRequest.result;
-              records.forEach((record) => {
-                budgetValuesStore.add(record);
-              });
-            };
-          }
-          const peopleStore = transaction.objectStore("people");
-          const peopleRequest = peopleStore.getAll();
-          peopleRequest.onsuccess = () => {
-            const people = peopleRequest.result;
-            const fteValuesStore = transaction.objectStore("fteValues");
-            people.forEach((person) => {
-              if (person.fte !== void 0 && person.fte !== null) {
-                fteValuesStore.add({
-                  personId: person.id,
-                  fte: person.fte,
-                  startMonth: DEFAULT_START_MONTH,
-                  // Use a reasonable start date
-                  endMonth: null
-                  // Open-ended
-                });
-                delete person.fte;
-                peopleStore.put(person);
-              }
-            });
-          };
-          const projectsStore = transaction.objectStore("projects");
-          const projectsRequest = projectsStore.getAll();
-          projectsRequest.onsuccess = () => {
-            const projects = projectsRequest.result;
-            const budgetValuesStore = transaction.objectStore("budgetValues");
-            projects.forEach((project) => {
-              if (project.plannedPM !== void 0 && project.plannedPM !== null) {
-                budgetValuesStore.add({
-                  projectId: project.id,
-                  plannedPM: project.plannedPM,
-                  startMonth: DEFAULT_START_MONTH,
-                  // Use a reasonable start date
-                  endMonth: null
-                  // Open-ended
-                });
-                delete project.plannedPM;
-                projectsStore.put(project);
-              }
-            });
-          };
-        } else if (oldVersion < 4 && oldVersion < 3) {
-          if (!db2.objectStoreNames.contains("fteValues")) {
-            db2.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
-          }
-          if (!db2.objectStoreNames.contains("budgetValues")) {
-            db2.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
-          }
-          if (!db2.objectStoreNames.contains("allocationOverrides")) {
-            db2.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
-          }
-          const peopleStore = transaction.objectStore("people");
-          const peopleRequest = peopleStore.getAll();
-          peopleRequest.onsuccess = () => {
-            const people = peopleRequest.result;
-            const fteValuesStore = transaction.objectStore("fteValues");
-            people.forEach((person) => {
-              if (person.fte !== void 0 && person.fte !== null) {
-                fteValuesStore.add({
-                  personId: person.id,
-                  fte: person.fte,
-                  startMonth: DEFAULT_START_MONTH,
-                  endMonth: null
-                });
-                delete person.fte;
-                peopleStore.put(person);
-              }
-            });
-          };
-          const projectsStore = transaction.objectStore("projects");
-          const projectsRequest = projectsStore.getAll();
-          projectsRequest.onsuccess = () => {
-            const projects = projectsRequest.result;
-            const budgetValuesStore = transaction.objectStore("budgetValues");
-            projects.forEach((project) => {
-              if (project.plannedPM !== void 0 && project.plannedPM !== null) {
-                budgetValuesStore.add({
-                  projectId: project.id,
-                  plannedPM: project.plannedPM,
-                  startMonth: DEFAULT_START_MONTH,
-                  endMonth: null
-                });
-                delete project.plannedPM;
-                projectsStore.put(project);
-              }
-            });
-          };
+        if (!db2.objectStoreNames.contains("budgetValues")) {
+          db2.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
         }
-        if (oldVersion < 5) {
-          const peopleStore = transaction.objectStore("people");
-          const peopleRequest = peopleStore.getAll();
-          peopleRequest.onsuccess = () => {
-            const people = peopleRequest.result;
-            const defaults = peopleSchema.getDefaults();
-            people.forEach((person) => {
-              if (!person.type) {
-                person.type = defaults.type;
-                peopleStore.put(person);
-              }
-            });
-          };
-          const allocationsStore = transaction.objectStore("defaultAllocations");
-          const fteValuesStore = transaction.objectStore("fteValues");
-          const allocationsRequest = allocationsStore.getAll();
-          const fteValuesRequest = fteValuesStore.getAll();
-          allocationsRequest.onsuccess = () => {
-            fteValuesRequest.onsuccess = () => {
-              const allocations = allocationsRequest.result;
-              const fteValues = fteValuesRequest.result;
-              allocations.forEach((allocation) => {
-                if (allocation.pct !== void 0 && allocation.pct !== null) {
-                  let fte = 1;
-                  const applicableFteValues = fteValues.filter(
-                    (fv) => fv.personId === allocation.personId && fv.startMonth <= allocation.startMonth && (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
-                  );
-                  if (applicableFteValues.length > 0) {
-                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                    fte = applicableFteValues[0].fte;
-                  }
-                  allocation.pm = allocation.pct * fte;
-                  delete allocation.pct;
-                  allocationsStore.put(allocation);
-                }
-              });
-              if (db2.objectStoreNames.contains("allocationOverrides")) {
-                const overridesStore = transaction.objectStore("allocationOverrides");
-                const overridesRequest = overridesStore.getAll();
-                overridesRequest.onsuccess = () => {
-                  const overrides = overridesRequest.result;
-                  overrides.forEach((override) => {
-                    if (override.pct !== void 0 && override.pct !== null) {
-                      const allocationId = override.allocationId;
-                      const allocRequest = allocationsStore.get(allocationId);
-                      allocRequest.onsuccess = () => {
-                        const allocation = allocRequest.result;
-                        if (allocation) {
-                          let fte = 1;
-                          const applicableFteValues = fteValues.filter(
-                            (fv) => fv.personId === allocation.personId && fv.startMonth <= override.month && (fv.endMonth === null || fv.endMonth >= override.month)
-                          );
-                          if (applicableFteValues.length > 0) {
-                            applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                            fte = applicableFteValues[0].fte;
-                          }
-                          override.pm = override.pct * fte;
-                          delete override.pct;
-                          overridesStore.put(override);
-                        }
-                      };
-                    }
-                  });
-                };
-              }
-            };
-          };
+        if (!db2.objectStoreNames.contains("allocationOverrides")) {
+          db2.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
         }
       };
       request.onsuccess = (e) => {
@@ -745,49 +472,6 @@ var App = (() => {
       }
     };
   }
-  function convertAllocationToPm(allocation, fteValues) {
-    if (allocation.pm !== void 0 && allocation.pm !== null) {
-      return allocation;
-    }
-    if (allocation.pct !== void 0 && allocation.pct !== null) {
-      let fte = 1;
-      const applicableFteValues = fteValues.filter(
-        (fv) => fv.personId === allocation.personId && fv.startMonth <= allocation.startMonth && (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
-      );
-      if (applicableFteValues.length > 0) {
-        applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-        fte = applicableFteValues[0].fte;
-      }
-      const converted = { ...allocation };
-      converted.pm = allocation.pct * fte;
-      delete converted.pct;
-      return converted;
-    }
-    return { ...allocation, pm: 0 };
-  }
-  function convertOverrideToPm(override, fteValues, allocations) {
-    if (override.pm !== void 0 && override.pm !== null) {
-      return override;
-    }
-    if (override.pct !== void 0 && override.pct !== null) {
-      const allocation = allocations.find((a) => a.id === override.allocationId);
-      if (allocation) {
-        let fte = 1;
-        const applicableFteValues = fteValues.filter(
-          (fv) => fv.personId === allocation.personId && fv.startMonth <= override.month && (fv.endMonth === null || fv.endMonth >= override.month)
-        );
-        if (applicableFteValues.length > 0) {
-          applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-          fte = applicableFteValues[0].fte;
-        }
-        const converted = { ...override };
-        converted.pm = override.pct * fte;
-        delete converted.pct;
-        return converted;
-      }
-    }
-    return { ...override, pm: 0 };
-  }
   async function importAllData(importedData) {
     if (!importedData || !importedData.data) {
       throw new Error("Invalid data format");
@@ -798,10 +482,7 @@ var App = (() => {
       allocations,
       fteValues = [],
       budgetValues = [],
-      allocationOverrides = [],
-      // Support old format for backward compatibility
-      fteOverrides = [],
-      projectBudgetOverrides = []
+      allocationOverrides = []
     } = importedData.data;
     const tx = db.transaction([
       "people",
@@ -827,31 +508,24 @@ var App = (() => {
         await addProject(project);
       }
     }
-    const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
-    if (fteData && Array.isArray(fteData)) {
-      for (const value of fteData) {
+    if (fteValues && Array.isArray(fteValues)) {
+      for (const value of fteValues) {
         await addFteValue(value);
       }
     }
-    const budgetData = budgetValues.length > 0 ? budgetValues : projectBudgetOverrides;
-    if (budgetData && Array.isArray(budgetData)) {
-      for (const value of budgetData) {
+    if (budgetValues && Array.isArray(budgetValues)) {
+      for (const value of budgetValues) {
         await addBudgetValue(value);
       }
     }
     if (allocations && Array.isArray(allocations)) {
-      const currentFteValues = await getFteValues();
       for (const allocation of allocations) {
-        const converted = convertAllocationToPm(allocation, currentFteValues);
-        await addAllocation(converted);
+        await addAllocation(allocation);
       }
     }
     if (allocationOverrides && Array.isArray(allocationOverrides)) {
-      const currentFteValues = await getFteValues();
-      const currentAllocations = await getAllocations();
       for (const override of allocationOverrides) {
-        const converted = convertOverrideToPm(override, currentFteValues, currentAllocations);
-        await addAllocationOverride(converted);
+        await addAllocationOverride(override);
       }
     }
   }
@@ -1008,6 +682,20 @@ var App = (() => {
     }
   }
 
+  // js/config/constants.js
+  var MILLISECONDS_PER_SECOND = 1e3;
+  var SECONDS_PER_MINUTE = 60;
+  var MINUTES_PER_HOUR = 60;
+  var HOURS_PER_DAY = 24;
+  var MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+  var AUTO_BACKUP_DELAY_MS = 5e3;
+  var DEFAULT_FTE = 1;
+  var MIN_FTE = 0;
+  var MAX_FTE = 1;
+  var MIN_PM = 0;
+  var PM_STEP = 0.01;
+  var MONTHS_PER_YEAR = 12;
+
   // js/helpers/validationHelper.js
   function validateFteValue(fte) {
     const value = parseFloat(fte);
@@ -1104,6 +792,84 @@ var App = (() => {
       }
       return alloc.startMonth < startMonth;
     });
+  }
+
+  // js/config/entitySchemas.js
+  var peopleSchema = {
+    fields: [
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 1
+      },
+      {
+        key: "type",
+        label: "Type",
+        type: "select",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 2,
+        options: [
+          { value: "210", label: "210" },
+          { value: "220", label: "220" },
+          { value: "230", label: "230" },
+          { value: "240", label: "240" },
+          { value: "250", label: "250" }
+        ],
+        defaultValue: "210",
+        validate: (value) => {
+          const validValues = ["210", "220", "230", "240", "250"];
+          if (!validValues.includes(value)) {
+            return { valid: false, message: `Type must be one of: ${validValues.join(", ")}` };
+          }
+          return { valid: true, message: "" };
+        }
+      },
+      {
+        key: "active",
+        label: "Active",
+        type: "checkbox",
+        required: false,
+        editable: true,
+        showInTable: true,
+        order: 3,
+        defaultValue: true
+      }
+    ],
+    // Default values for new person
+    getDefaults: () => ({
+      name: "",
+      type: "210",
+      active: true
+    })
+  };
+  var projectsSchema = {
+    fields: [
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        editable: true,
+        showInTable: true,
+        order: 1
+      }
+    ],
+    // Default values for new project
+    getDefaults: () => ({
+      name: ""
+    })
+  };
+  function getTableHeaders(schema) {
+    return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order).map((f) => f.label);
+  }
+  function getEditableFields(schema) {
+    return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
   }
 
   // js/views/peopleView.js

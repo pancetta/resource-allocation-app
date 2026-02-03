@@ -172,35 +172,18 @@ export const projectsSchema = {
 };
 ```
 
-## Database Migration
+## Database Schema Changes
 
-When adding new fields, you must:
+When adding new fields to the database:
 
 1. **Increment DB_VERSION** in `/js/data/database.js`
-2. **Add migration logic** in the `onupgradeneeded` handler:
+2. **Add new field to schema** in `/js/config/entitySchemas.js`
+3. **New users** will automatically get the new field from the schema defaults
+4. **Existing records** should be updated through the UI or import/export
 
-```javascript
-// Version 6 migration - add new field to people
-if (oldVersion < 6) {
-    const peopleStore = transaction.objectStore("people");
-    const peopleRequest = peopleStore.getAll();
-    
-    peopleRequest.onsuccess = () => {
-        const people = peopleRequest.result;
-        const defaults = peopleSchema.getDefaults();
-        
-        people.forEach(person => {
-            // Add new field if it doesn't exist
-            if (!person.yourNewField) {
-                person.yourNewField = defaults.yourNewField;
-                peopleStore.put(person);
-            }
-        });
-    };
-}
-```
+Note: The database initialization creates all required object stores if they don't exist. No migration logic is needed as the app assumes the current schema is the only version.
 
-## Example: The Type Field
+## Example: Adding a New Field
 
 The "type" field for people was added as follows:
 
@@ -232,28 +215,7 @@ The "type" field for people was added as follows:
 }
 ```
 
-2. **Database Migration** (`js/data/database.js`):
-```javascript
-// Version 5 migration - add type field to people
-if (oldVersion < 5) {
-    const peopleStore = transaction.objectStore("people");
-    const peopleRequest = peopleStore.getAll();
-    
-    peopleRequest.onsuccess = () => {
-        const people = peopleRequest.result;
-        const defaults = peopleSchema.getDefaults();
-        
-        people.forEach(person => {
-            if (!person.type) {
-                person.type = defaults.type;
-                peopleStore.put(person);
-            }
-        });
-    };
-}
-```
-
-3. **No changes needed** in UI code - it automatically renders based on schema!
+2. **No changes needed** in UI code - it automatically renders based on schema!
 
 ## Testing
 

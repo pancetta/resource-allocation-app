@@ -3,8 +3,6 @@
 **********************/
 
 import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
-import { peopleSchema } from '../config/entitySchemas.js';
-import { DEFAULT_START_MONTH } from '../config/constants.js';
 
 const DB_NAME = "resource-planning";
 const DB_VERSION = 5;
@@ -75,7 +73,7 @@ export async function openDatabase() {
             const oldVersion = e.oldVersion;
             const transaction = e.target.transaction;
             
-            // Version 1 stores
+            // Create required object stores
             if (!db.objectStoreNames.contains("people")) {
                 db.createObjectStore("people", { keyPath: "id" });
             }
@@ -85,259 +83,14 @@ export async function openDatabase() {
             if (!db.objectStoreNames.contains("defaultAllocations")) {
                 db.createObjectStore("defaultAllocations", { keyPath: "id", autoIncrement: true });
             }
-            
-            // Version 3 stores - override tables (created if upgrading from v1 or v2)
-            if (oldVersion < 3) {
-                if (!db.objectStoreNames.contains("fteOverrides")) {
-                    db.createObjectStore("fteOverrides", { keyPath: "id", autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains("projectBudgetOverrides")) {
-                    db.createObjectStore("projectBudgetOverrides", { keyPath: "id", autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains("allocationOverrides")) {
-                    db.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
-                }
+            if (!db.objectStoreNames.contains("fteValues")) {
+                db.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
             }
-            
-            // Version 4 migration - rename override tables and migrate default values
-            if (oldVersion < 4 && oldVersion >= 3) {
-                // Rename fteOverrides to fteValues
-                if (db.objectStoreNames.contains("fteOverrides")) {
-                    // Create new store
-                    const fteValuesStore = db.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
-                    
-                    // Copy data from old store
-                    const oldFteStore = transaction.objectStore("fteOverrides");
-                    const fteRequest = oldFteStore.getAll();
-                    
-                    fteRequest.onsuccess = () => {
-                        const records = fteRequest.result;
-                        records.forEach(record => {
-                            fteValuesStore.add(record);
-                        });
-                    };
-                }
-                
-                // Rename projectBudgetOverrides to budgetValues
-                if (db.objectStoreNames.contains("projectBudgetOverrides")) {
-                    // Create new store
-                    const budgetValuesStore = db.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
-                    
-                    // Copy data from old store
-                    const oldBudgetStore = transaction.objectStore("projectBudgetOverrides");
-                    const budgetRequest = oldBudgetStore.getAll();
-                    
-                    budgetRequest.onsuccess = () => {
-                        const records = budgetRequest.result;
-                        records.forEach(record => {
-                            budgetValuesStore.add(record);
-                        });
-                    };
-                }
-                
-                // Migrate default FTE values from people table to fteValues
-                const peopleStore = transaction.objectStore("people");
-                const peopleRequest = peopleStore.getAll();
-                
-                peopleRequest.onsuccess = () => {
-                    const people = peopleRequest.result;
-                    const fteValuesStore = transaction.objectStore("fteValues");
-                    
-                    people.forEach(person => {
-                        if (person.fte !== undefined && person.fte !== null) {
-                            // Create an initial FTE value entry
-                            fteValuesStore.add({
-                                personId: person.id,
-                                fte: person.fte,
-                                startMonth: DEFAULT_START_MONTH, // Use a reasonable start date
-                                endMonth: null // Open-ended
-                            });
-                            
-                            // Remove fte field from person
-                            delete person.fte;
-                            peopleStore.put(person);
-                        }
-                    });
-                };
-                
-                // Migrate default plannedPM values from projects table to budgetValues
-                const projectsStore = transaction.objectStore("projects");
-                const projectsRequest = projectsStore.getAll();
-                
-                projectsRequest.onsuccess = () => {
-                    const projects = projectsRequest.result;
-                    const budgetValuesStore = transaction.objectStore("budgetValues");
-                    
-                    projects.forEach(project => {
-                        if (project.plannedPM !== undefined && project.plannedPM !== null) {
-                            // Create an initial budget value entry
-                            budgetValuesStore.add({
-                                projectId: project.id,
-                                plannedPM: project.plannedPM,
-                                startMonth: DEFAULT_START_MONTH, // Use a reasonable start date
-                                endMonth: null // Open-ended
-                            });
-                            
-                            // Remove plannedPM field from project
-                            delete project.plannedPM;
-                            projectsStore.put(project);
-                        }
-                    });
-                };
-            } else if (oldVersion < 4 && oldVersion < 3) {
-                // Direct upgrade from v1/v2 to v4 - create new stores directly
-                if (!db.objectStoreNames.contains("fteValues")) {
-                    db.createObjectStore("fteValues", { keyPath: "id", autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains("budgetValues")) {
-                    db.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains("allocationOverrides")) {
-                    db.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
-                }
-                
-                // Migrate default values even when upgrading from v1/v2
-                const peopleStore = transaction.objectStore("people");
-                const peopleRequest = peopleStore.getAll();
-                
-                peopleRequest.onsuccess = () => {
-                    const people = peopleRequest.result;
-                    const fteValuesStore = transaction.objectStore("fteValues");
-                    
-                    people.forEach(person => {
-                        if (person.fte !== undefined && person.fte !== null) {
-                            fteValuesStore.add({
-                                personId: person.id,
-                                fte: person.fte,
-                                startMonth: DEFAULT_START_MONTH,
-                                endMonth: null
-                            });
-                            delete person.fte;
-                            peopleStore.put(person);
-                        }
-                    });
-                };
-                
-                const projectsStore = transaction.objectStore("projects");
-                const projectsRequest = projectsStore.getAll();
-                
-                projectsRequest.onsuccess = () => {
-                    const projects = projectsRequest.result;
-                    const budgetValuesStore = transaction.objectStore("budgetValues");
-                    
-                    projects.forEach(project => {
-                        if (project.plannedPM !== undefined && project.plannedPM !== null) {
-                            budgetValuesStore.add({
-                                projectId: project.id,
-                                plannedPM: project.plannedPM,
-                                startMonth: DEFAULT_START_MONTH,
-                                endMonth: null
-                            });
-                            delete project.plannedPM;
-                            projectsStore.put(project);
-                        }
-                    });
-                };
+            if (!db.objectStoreNames.contains("budgetValues")) {
+                db.createObjectStore("budgetValues", { keyPath: "id", autoIncrement: true });
             }
-            
-            // Version 5 migration - add type field to people AND convert allocations from pct to pm
-            if (oldVersion < 5) {
-                const peopleStore = transaction.objectStore("people");
-                const peopleRequest = peopleStore.getAll();
-                
-                peopleRequest.onsuccess = () => {
-                    const people = peopleRequest.result;
-                    const defaults = peopleSchema.getDefaults();
-                    
-                    people.forEach(person => {
-                        // Add type field if it doesn't exist
-                        if (!person.type) {
-                            person.type = defaults.type;
-                            peopleStore.put(person);
-                        }
-                    });
-                };
-                
-                // Also convert allocations from pct to pm
-                const allocationsStore = transaction.objectStore("defaultAllocations");
-                const fteValuesStore = transaction.objectStore("fteValues");
-                
-                // Get all data needed for conversion
-                const allocationsRequest = allocationsStore.getAll();
-                const fteValuesRequest = fteValuesStore.getAll();
-                
-                allocationsRequest.onsuccess = () => {
-                    fteValuesRequest.onsuccess = () => {
-                        const allocations = allocationsRequest.result;
-                        const fteValues = fteValuesRequest.result;
-                        
-                        allocations.forEach(allocation => {
-                            if (allocation.pct !== undefined && allocation.pct !== null) {
-                                // Find effective FTE for this person at allocation start
-                                let fte = 1; // default
-                                const applicableFteValues = fteValues.filter(fv => 
-                                    fv.personId === allocation.personId &&
-                                    fv.startMonth <= allocation.startMonth &&
-                                    (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
-                                );
-                                
-                                if (applicableFteValues.length > 0) {
-                                    // Use the most recent one
-                                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                                    fte = applicableFteValues[0].fte;
-                                }
-                                
-                                // Convert pct to pm: pm = pct * fte
-                                allocation.pm = allocation.pct * fte;
-                                delete allocation.pct;
-                                
-                                allocationsStore.put(allocation);
-                            }
-                        });
-                        
-                        // Also convert allocation overrides
-                        if (db.objectStoreNames.contains("allocationOverrides")) {
-                            const overridesStore = transaction.objectStore("allocationOverrides");
-                            const overridesRequest = overridesStore.getAll();
-                            
-                            overridesRequest.onsuccess = () => {
-                                const overrides = overridesRequest.result;
-                                
-                                overrides.forEach(override => {
-                                    if (override.pct !== undefined && override.pct !== null) {
-                                        // For overrides, find the allocation to get the person
-                                        const allocationId = override.allocationId;
-                                        const allocRequest = allocationsStore.get(allocationId);
-                                        
-                                        allocRequest.onsuccess = () => {
-                                            const allocation = allocRequest.result;
-                                            if (allocation) {
-                                                // Find effective FTE for this person at override month
-                                                let fte = 1;
-                                                const applicableFteValues = fteValues.filter(fv => 
-                                                    fv.personId === allocation.personId &&
-                                                    fv.startMonth <= override.month &&
-                                                    (fv.endMonth === null || fv.endMonth >= override.month)
-                                                );
-                                                
-                                                if (applicableFteValues.length > 0) {
-                                                    applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                                                    fte = applicableFteValues[0].fte;
-                                                }
-                                                
-                                                // Convert pct to pm
-                                                override.pm = override.pct * fte;
-                                                delete override.pct;
-                                                
-                                                overridesStore.put(override);
-                                            }
-                                        };
-                                    }
-                                });
-                            };
-                        }
-                    };
-                };
+            if (!db.objectStoreNames.contains("allocationOverrides")) {
+                db.createObjectStore("allocationOverrides", { keyPath: "id", autoIncrement: true });
             }
         };
         
@@ -611,88 +364,6 @@ export async function exportAllData() {
     };
 }
 
-/**
- * Convert allocation from old pct format to new pm format
- * @param {Object} allocation - Allocation object (may have pct or pm)
- * @param {Array} fteValues - Array of FTE value objects for conversion
- * @returns {Object} - Allocation with pm field
- */
-function convertAllocationToPm(allocation, fteValues) {
-    // If already has pm, return as-is
-    if (allocation.pm !== undefined && allocation.pm !== null) {
-        return allocation;
-    }
-    
-    // If has pct, convert to pm
-    if (allocation.pct !== undefined && allocation.pct !== null) {
-        // Find effective FTE for this person at allocation start
-        let fte = 1; // default
-        const applicableFteValues = fteValues.filter(fv => 
-            fv.personId === allocation.personId &&
-            fv.startMonth <= allocation.startMonth &&
-            (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
-        );
-        
-        if (applicableFteValues.length > 0) {
-            // Use the most recent one
-            applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-            fte = applicableFteValues[0].fte;
-        }
-        
-        // Convert pct to pm: pm = pct * fte
-        const converted = { ...allocation };
-        converted.pm = allocation.pct * fte;
-        delete converted.pct;
-        return converted;
-    }
-    
-    // Neither pct nor pm - set pm to 0 to avoid NaN
-    return { ...allocation, pm: 0 };
-}
-
-/**
- * Convert allocation override from old pct format to new pm format
- * @param {Object} override - Override object (may have pct or pm)
- * @param {Array} fteValues - Array of FTE value objects for conversion
- * @param {Array} allocations - Array of allocation objects to find person
- * @returns {Object} - Override with pm field
- */
-function convertOverrideToPm(override, fteValues, allocations) {
-    // If already has pm, return as-is
-    if (override.pm !== undefined && override.pm !== null) {
-        return override;
-    }
-    
-    // If has pct, convert to pm
-    if (override.pct !== undefined && override.pct !== null) {
-        // Find the allocation to get the person
-        const allocation = allocations.find(a => a.id === override.allocationId);
-        if (allocation) {
-            // Find effective FTE for this person at override month
-            let fte = 1; // default
-            const applicableFteValues = fteValues.filter(fv => 
-                fv.personId === allocation.personId &&
-                fv.startMonth <= override.month &&
-                (fv.endMonth === null || fv.endMonth >= override.month)
-            );
-            
-            if (applicableFteValues.length > 0) {
-                applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
-                fte = applicableFteValues[0].fte;
-            }
-            
-            // Convert pct to pm
-            const converted = { ...override };
-            converted.pm = override.pct * fte;
-            delete converted.pct;
-            return converted;
-        }
-    }
-    
-    // Neither pct nor pm - set pm to 0 to avoid NaN
-    return { ...override, pm: 0 };
-}
-
 // Import all data (clears existing data first)
 export async function importAllData(importedData) {
     if (!importedData || !importedData.data) {
@@ -705,10 +376,7 @@ export async function importAllData(importedData) {
         allocations,
         fteValues = [],
         budgetValues = [],
-        allocationOverrides = [],
-        // Support old format for backward compatibility
-        fteOverrides = [],
-        projectBudgetOverrides = []
+        allocationOverrides = []
     } = importedData.data;
     
     // Clear existing data
@@ -742,44 +410,30 @@ export async function importAllData(importedData) {
     }
     
     // Import FTE values first (needed for allocation conversion)
-    // Support both new and old format
-    const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
-    if (fteData && Array.isArray(fteData)) {
-        for (const value of fteData) {
+    if (fteValues && Array.isArray(fteValues)) {
+        for (const value of fteValues) {
             await addFteValue(value);
         }
     }
     
-    // Import budget values (support both new and old format)
-    const budgetData = budgetValues.length > 0 ? budgetValues : projectBudgetOverrides;
-    if (budgetData && Array.isArray(budgetData)) {
-        for (const value of budgetData) {
+    // Import budget values
+    if (budgetValues && Array.isArray(budgetValues)) {
+        for (const value of budgetValues) {
             await addBudgetValue(value);
         }
     }
     
-    // Import allocations (convert from pct to pm if needed)
+    // Import allocations
     if (allocations && Array.isArray(allocations)) {
-        // Get FTE values for conversion
-        const currentFteValues = await getFteValues();
-        
         for (const allocation of allocations) {
-            // Convert old pct format to new pm format
-            const converted = convertAllocationToPm(allocation, currentFteValues);
-            await addAllocation(converted);
+            await addAllocation(allocation);
         }
     }
     
-    // Import allocation overrides (convert from pct to pm if needed)
+    // Import allocation overrides
     if (allocationOverrides && Array.isArray(allocationOverrides)) {
-        // Get current data for conversion
-        const currentFteValues = await getFteValues();
-        const currentAllocations = await getAllocations();
-        
         for (const override of allocationOverrides) {
-            // Convert old pct format to new pm format
-            const converted = convertOverrideToPm(override, currentFteValues, currentAllocations);
-            await addAllocationOverride(converted);
+            await addAllocationOverride(override);
         }
     }
 }

@@ -648,6 +648,22 @@ var App = (() => {
   async function getProjects() {
     return getAll("projects");
   }
+  async function migrateProjectPlannedPM(projectId, plannedPM) {
+    const existingBudgetValues = await getBudgetValues();
+    const existingBudget = existingBudgetValues.find((bv) => bv.projectId === projectId);
+    if (existingBudget) {
+      existingBudget.plannedPM = plannedPM;
+      await updateBudgetValue(existingBudget);
+    } else {
+      await addBudgetValue({
+        projectId,
+        plannedPM,
+        startMonth: DEFAULT_START_MONTH,
+        endMonth: null
+        // Open-ended
+      });
+    }
+  }
   async function addProject(p) {
     if (p.plannedPM !== void 0 && p.plannedPM !== null) {
       const plannedPM = p.plannedPM;
@@ -655,19 +671,7 @@ var App = (() => {
       const cleanProject = { ...p };
       delete cleanProject.plannedPM;
       await addRecord(db, "projects", cleanProject, () => invalidateCache("projects"));
-      const existingBudgetValues = await getBudgetValues();
-      const existingBudget = existingBudgetValues.find((bv) => bv.projectId === projectId);
-      if (existingBudget) {
-        existingBudget.plannedPM = plannedPM;
-        await updateBudgetValue(existingBudget);
-      } else {
-        await addBudgetValue({
-          projectId,
-          plannedPM,
-          startMonth: DEFAULT_START_MONTH,
-          endMonth: null
-        });
-      }
+      await migrateProjectPlannedPM(projectId, plannedPM);
     } else {
       return addRecord(db, "projects", p, () => invalidateCache("projects"));
     }
@@ -679,19 +683,7 @@ var App = (() => {
       const cleanProject = { ...p };
       delete cleanProject.plannedPM;
       await updateRecord(db, "projects", cleanProject, () => invalidateCache("projects"));
-      const existingBudgetValues = await getBudgetValues();
-      const existingBudget = existingBudgetValues.find((bv) => bv.projectId === projectId);
-      if (existingBudget) {
-        existingBudget.plannedPM = plannedPM;
-        await updateBudgetValue(existingBudget);
-      } else {
-        await addBudgetValue({
-          projectId,
-          plannedPM,
-          startMonth: DEFAULT_START_MONTH,
-          endMonth: null
-        });
-      }
+      await migrateProjectPlannedPM(projectId, plannedPM);
     } else {
       return updateRecord(db, "projects", p, () => invalidateCache("projects"));
     }

@@ -90,7 +90,7 @@ export async function calculateYear(year) {
 
     // --- Project × Months Table ---
     const projTable = document.createElement("table");
-    const projHeader = ["Project", ...months, "Total"];
+    const projHeader = ["Project", "", ...months, "Total"];
     projTable.innerHTML = `<thead><tr>${projHeader.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
     const projTbody = document.createElement("tbody");
 
@@ -107,9 +107,17 @@ export async function calculateYear(year) {
         const plannedCells = months.map(month => getEffectiveProjectBudget(p.id, month, budgetValues));
         const deltaCells = cells.map((c, idx) => c - plannedCells[idx]);
         
-        // Allocated row
+        // Planned row (first row with project name spanning 3 rows)
+        const trPlanned = document.createElement("tr");
+        trPlanned.innerHTML = `<td rowspan="3">${p.name}</td>` +
+            `<td><em class="project-row-label-main">Planned</em></td>` +
+            plannedCells.map(plannedValue => `<td>${plannedValue.toFixed(2)}</td>`).join('') +
+            `<td>${expectedPlannedYearly.toFixed(2)}</td>`;
+        projTbody.appendChild(trPlanned);
+        
+        // Allocated row (second row, no project name cell)
         const trAllocated = document.createElement("tr");
-        trAllocated.innerHTML = `<td>${p.name}<br/><em class="project-row-label-main">Allocated</em></td>` +
+        trAllocated.innerHTML = `<td><em class="project-row-label-main">Allocated</em></td>` +
             cells.map((c, idx) => {
                 const monthPlanned = plannedCells[idx];
                 return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
@@ -117,16 +125,9 @@ export async function calculateYear(year) {
             `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>`;
         projTbody.appendChild(trAllocated);
         
-        // Planned row
-        const trPlanned = document.createElement("tr");
-        trPlanned.innerHTML = `<td class="project-row-label"><em class="project-row-label-main">Planned</em></td>` +
-            plannedCells.map(plannedValue => `<td>${plannedValue.toFixed(2)}</td>`).join('') +
-            `<td>${expectedPlannedYearly.toFixed(2)}</td>`;
-        projTbody.appendChild(trPlanned);
-        
-        // Delta row
+        // Delta row (third row, no project name cell)
         const trDelta = document.createElement("tr");
-        trDelta.innerHTML = `<td class="project-row-label project-row-delimiter"><em class="project-row-label-main">Delta</em></td>` +
+        trDelta.innerHTML = `<td class="project-row-delimiter"><em class="project-row-label-main">Delta</em></td>` +
             deltaCells.map(d => `<td class="${cellClass(d, 0)} project-row-delimiter">${d.toFixed(2)}</td>`).join('') +
             `<td class="${cellClass(delta, 0)} project-row-delimiter">${delta.toFixed(2)}</td>`;
         projTbody.appendChild(trDelta);
@@ -148,8 +149,8 @@ export async function calculateYear(year) {
     // Calculate total sum
     const totalSumProj = sumArray(monthlySumsProj);
 
-    // Build the total row HTML in one statement
-    sumRowProj.innerHTML = `<td><strong>Total</strong></td>` +
+    // Build the total row HTML in one statement (with colspan for project name and label columns)
+    sumRowProj.innerHTML = `<td colspan="2"><strong>Total</strong></td>` +
         monthlySumsProj.map(sum => `<td><strong>${sum.toFixed(2)}</strong></td>`).join('') +
         `<td><strong>${totalSumProj.toFixed(2)}</strong></td>`;
     tfootProj.appendChild(sumRowProj);

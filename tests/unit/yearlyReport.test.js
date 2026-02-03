@@ -91,6 +91,37 @@ describe('Yearly Report', () => {
       
       const projectTable = tables[1];
       expect(projectTable.innerHTML).toContain('Project Alpha');
+      
+      // Verify new table structure with rowspan
+      const tbody = projectTable.querySelector('tbody');
+      const rows = tbody.querySelectorAll('tr');
+      
+      // Should have 3 rows per project (Planned, Allocated, Delta)
+      expect(rows.length).toBeGreaterThanOrEqual(3);
+      
+      // First row should have project name with rowspan=3
+      const firstRow = rows[0];
+      const firstCell = firstRow.querySelector('td[rowspan="3"]');
+      expect(firstCell).toBeTruthy();
+      expect(firstCell.textContent).toContain('Project Alpha');
+      
+      // First row should be Planned
+      expect(firstRow.innerHTML).toContain('Planned');
+      
+      // Second row should be Allocated (no project name cell)
+      const secondRow = rows[1];
+      expect(secondRow.innerHTML).toContain('Allocated');
+      expect(secondRow.querySelectorAll('td[rowspan]').length).toBe(0);
+      
+      // Third row should be Delta (no project name cell)
+      const thirdRow = rows[2];
+      expect(thirdRow.innerHTML).toContain('Delta');
+      expect(thirdRow.querySelectorAll('td[rowspan]').length).toBe(0);
+      
+      // Verify table header has extra empty column
+      const headers = projectTable.querySelectorAll('thead th');
+      // Should have Project + empty + 12 months + Total = 15 columns
+      expect(headers.length).toBe(15);
     });
 
     it('should handle project budget overrides', async () => {

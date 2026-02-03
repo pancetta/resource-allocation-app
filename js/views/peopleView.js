@@ -16,6 +16,7 @@ import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
 import { addBatchSelection, getSelectedRows } from '../helpers/tableHelpers.js';
 import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchOperations.js';
+import { createValidatedBatchDeleteHandler, createCascadeBatchDeleteHandler } from '../helpers/batchDeleteHelpers.js';
 
 /**
  * Render people table (basic person info)
@@ -35,7 +36,7 @@ export async function renderPeople() {
     // Render headers from schema if thead exists
     if (thead) {
         const headers = getTableHeaders(peopleSchema);
-        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Actions</th></tr>`;
+        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
     }
     
     tbody.innerHTML = "";
@@ -59,7 +60,7 @@ export async function renderPeople() {
             }
         }).join('');
         
-        tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
+        tr.innerHTML = cells;
         tbody.appendChild(tr);
     });
     
@@ -81,8 +82,18 @@ export async function renderPeople() {
 export async function renderFteValues() {
     if (typeof document === 'undefined') return;
     
-    const tbody = document.querySelector("#fteValuesTable tbody");
+    const table = document.querySelector("#fteValuesTable");
+    if (!table) return;
+    
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    
+    const thead = table.querySelector("thead");
+    
+    // Render headers if thead exists
+    if (thead) {
+        thead.innerHTML = `<tr><th>Person</th><th>FTE</th><th>Start Month</th><th>End Month</th></tr>`;
+    }
     
     tbody.innerHTML = "";
     const fteValues = await getFteValues();
@@ -101,14 +112,22 @@ export async function renderFteValues() {
         const personName = person ? person.name : value.personId;
         
         const tr = document.createElement("tr");
+        tr.dataset.id = value.id; // Add data-id for batch selection
         tr.innerHTML = `
             <td>${personName}</td>
             <td contenteditable="true" data-id="${value.id}" data-field="fte">${value.fte}</td>
             <td><input type="month" class="fte-start" value="${value.startMonth}" data-id="${value.id}"></td>
             <td><input type="month" class="fte-end" value="${value.endMonth || ''}" data-id="${value.id}"></td>
-            <td><button class="delete-fte-value" data-id="${value.id}">Delete</button></td>
         `;
         tbody.appendChild(tr);
+    });
+    
+    // Add batch selection checkbox column after rendering
+    addBatchSelection(table, (selectedCount, totalCount) => {
+        const toolbar = table.previousElementSibling;
+        if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+        }
     });
     
     // Attach event listeners
@@ -197,39 +216,7 @@ function attachPeopleEventListeners() {
         });
     });
     
-    // Delete button handlers
-    document.querySelectorAll(".delete-person").forEach(btn => {
-        btn.addEventListener("click", async function() {
-            const id = this.dataset.id;
-            const people = await getPeople();
-            const person = people.find(p => p.id === id);
-            const personName = person ? person.name : id;
-            
-            // Confirm deletion (if confirm is available)
-            if (typeof window !== 'undefined' && window.confirm) {
-                if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
-                    return;
-                }
-            }
-            
-            // Save state for undo
-            await saveState(`Delete person: ${personName}`);
-            
-            // Delete person's FTE values first
-            const fteValues = await getFteValues();
-            const personFteValues = fteValues.filter(v => v.personId === id);
-            for (const value of personFteValues) {
-                await deleteFteValue(value.id);
-            }
-            
-            // Then delete the person
-            await deletePerson(id);
-            scheduleAutoBackup();
-            renderPeople();
-            renderFteValues();
-            showSuccess(`Deleted ${personName}`);
-        });
-    });
+
 }
 
 function attachFteValueEventListeners() {
@@ -285,23 +272,7 @@ function attachFteValueEventListeners() {
         });
     });
     
-    // Delete button handlers
-    document.querySelectorAll(".delete-fte-value").forEach(btn => {
-        btn.addEventListener("click", async function() {
-            const id = parseInt(this.dataset.id);
-            
-            // Validate deletion
-            const validation = await validateFteValueDeletion(id);
-            if (!validation.valid) {
-                alert(validation.message);
-                return;
-            }
-            
-            await deleteFteValue(id);
-            scheduleAutoBackup();
-            renderFteValues();
-        });
-    });
+
 }
 
 // Populate person select dropdown
@@ -432,33 +403,32 @@ export function initPeopleView() {
             
             // Add batch operations toolbar
             addBatchOperationsToolbar(peopleTable, {
-                'Delete Selected': async (selectedIds) => {
-                    if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
-                        return;
-                    }
-                    
-                    await saveState(`Batch delete ${selectedIds.length} people`);
-                    
-                    for (const id of selectedIds) {
-                        // Delete FTE values first
-                        const fteValues = await getFteValues();
-                        const personFteValues = fteValues.filter(v => v.personId === id);
-                        for (const value of personFteValues) {
-                            await deleteFteValue(value.id);
-                        }
-                        // Then delete the person
-                        await deletePerson(id);
-                    }
-                    
-                    scheduleAutoBackup();
-                    renderPeople();
-                    renderFteValues();
-                    showSuccess(`Deleted ${selectedIds.length} people`);
-                }
+                'Delete Selected': createCascadeBatchDeleteHandler({
+                    getChildRecords: getFteValues,
+                    filterChildRecords: (childRecords, parentId) => childRecords.filter(v => v.personId === parentId),
+                    deleteChildRecord: deleteFteValue,
+                    deleteParent: deletePerson,
+                    renderParent: renderPeople,
+                    renderChild: renderFteValues,
+                    parentName: 'person',
+                    parentNamePlural: 'people',
+                    childNamePlural: 'FTE values'
+                })
             });
         }
         if (fteValuesTable) {
             makeTableSortable(fteValuesTable);
+            
+            // Add batch operations toolbar for FTE values
+            addBatchOperationsToolbar(fteValuesTable, {
+                'Delete Selected': createValidatedBatchDeleteHandler({
+                    validateDeletion: validateFteValueDeletion,
+                    deleteFunc: deleteFteValue,
+                    renderFunc: renderFteValues,
+                    entityName: 'FTE value',
+                    entityNamePlural: 'FTE values'
+                })
+            });
         }
         if (peopleTable && peopleSearchInput) {
             addTableFilter(peopleTable, peopleSearchInput);

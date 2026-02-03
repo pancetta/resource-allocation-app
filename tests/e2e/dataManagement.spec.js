@@ -143,9 +143,19 @@ test.describe('Data Management', () => {
     const backupCount = await page.locator('#backupsTable tbody tr').count();
     expect(backupCount).toBeGreaterThan(0);
 
-    // Delete the person
+    // Delete the person using batch delete
     await page.click('.tab-button[data-tab="people"]');
-    await page.click('.delete-person');
+    
+    // Select the row using checkbox
+    const checkbox = page.locator('#peopleTable tbody tr .row-select-checkbox').first();
+    await checkbox.check();
+    
+    // Wait for batch toolbar to appear
+    await page.waitForSelector('.batch-toolbar', { state: 'visible', timeout: 5000 });
+    
+    // Click batch delete button
+    const deleteBtn = page.locator('.batch-action-btn').first();
+    await deleteBtn.click();
     await page.waitForTimeout(1000);
 
     // Verify person is gone

@@ -174,15 +174,15 @@ export function initTimelineView() {
     
     if (showTimelineBtn) {
         showTimelineBtn.addEventListener('click', async () => {
-            // Toggle visibility
-            if (timelineOutput.innerHTML && timelineOutput.style.display !== 'none') {
-                // Hide timeline if it's currently visible
-                timelineOutput.style.display = 'none';
-            } else {
+            // Toggle visibility based on display style
+            if (timelineOutput.style.display === 'none' || !timelineOutput.innerHTML.trim()) {
                 // Show timeline
                 timelineOutput.style.display = 'block';
                 const year = parseInt(document.getElementById('timelineYearInput')?.value || new Date().getFullYear());
                 await renderTimeline('timelineOutput', year);
+            } else {
+                // Hide timeline if it's currently visible
+                timelineOutput.style.display = 'none';
             }
         });
     }

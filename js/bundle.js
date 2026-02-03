@@ -2490,17 +2490,16 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const plannedCells = months.map((month) => getEffectiveProjectBudget(p.id, month, budgetValues));
       const deltaCells = cells.map((c, idx) => c - plannedCells[idx]);
       const trAllocated = document.createElement("tr");
-      trAllocated.innerHTML = `<td>${p.name}<br/><em style="font-weight:normal; color: #666;">Allocated</em></td>` + cells.map((c, idx) => {
-        const month = months[idx];
-        const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
+      trAllocated.innerHTML = `<td>${p.name}<br/><em class="project-row-label-main">Allocated</em></td>` + cells.map((c, idx) => {
+        const monthPlanned = plannedCells[idx];
         return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
       }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>`;
       projTbody.appendChild(trAllocated);
       const trPlanned = document.createElement("tr");
-      trPlanned.innerHTML = `<td style="padding-left: 20px;"><em style="font-weight:normal; color: #666;">Planned</em></td>` + plannedCells.map((p2) => `<td>${p2.toFixed(2)}</td>`).join("") + `<td>${expectedPlannedYearly.toFixed(2)}</td>`;
+      trPlanned.innerHTML = `<td class="project-row-label"><em class="project-row-label-main">Planned</em></td>` + plannedCells.map((plannedValue) => `<td>${plannedValue.toFixed(2)}</td>`).join("") + `<td>${expectedPlannedYearly.toFixed(2)}</td>`;
       projTbody.appendChild(trPlanned);
       const trDelta = document.createElement("tr");
-      trDelta.innerHTML = `<td style="padding-left: 20px; border-bottom: 2px solid #ddd;"><em style="font-weight:normal; color: #666;">Delta</em></td>` + deltaCells.map((d) => `<td class="${cellClass(d, 0)}" style="border-bottom: 2px solid #ddd;">${d.toFixed(2)}</td>`).join("") + `<td class="${cellClass(delta, 0)}" style="border-bottom: 2px solid #ddd;">${delta.toFixed(2)}</td>`;
+      trDelta.innerHTML = `<td class="project-row-label project-row-delimiter"><em class="project-row-label-main">Delta</em></td>` + deltaCells.map((d) => `<td class="${cellClass(d, 0)} project-row-delimiter">${d.toFixed(2)}</td>`).join("") + `<td class="${cellClass(delta, 0)} project-row-delimiter">${delta.toFixed(2)}</td>`;
       projTbody.appendChild(trDelta);
     });
     const tfootProj = document.createElement("tfoot");
@@ -2628,12 +2627,12 @@ Click OK to proceed with overlap, or Cancel to abort.`
     const timelineOutput = document.getElementById("timelineOutput");
     if (showTimelineBtn) {
       showTimelineBtn.addEventListener("click", async () => {
-        if (timelineOutput.innerHTML && timelineOutput.style.display !== "none") {
-          timelineOutput.style.display = "none";
-        } else {
+        if (timelineOutput.style.display === "none" || !timelineOutput.innerHTML.trim()) {
           timelineOutput.style.display = "block";
           const year = parseInt(document.getElementById("timelineYearInput")?.value || (/* @__PURE__ */ new Date()).getFullYear());
           await renderTimeline("timelineOutput", year);
+        } else {
+          timelineOutput.style.display = "none";
         }
       });
     }

@@ -109,10 +109,9 @@ export async function calculateYear(year) {
         
         // Allocated row
         const trAllocated = document.createElement("tr");
-        trAllocated.innerHTML = `<td>${p.name}<br/><em style="font-weight:normal; color: #666;">Allocated</em></td>` +
+        trAllocated.innerHTML = `<td>${p.name}<br/><em class="project-row-label-main">Allocated</em></td>` +
             cells.map((c, idx) => {
-                const month = months[idx];
-                const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
+                const monthPlanned = plannedCells[idx];
                 return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
             }).join('') +
             `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>`;
@@ -120,16 +119,16 @@ export async function calculateYear(year) {
         
         // Planned row
         const trPlanned = document.createElement("tr");
-        trPlanned.innerHTML = `<td style="padding-left: 20px;"><em style="font-weight:normal; color: #666;">Planned</em></td>` +
-            plannedCells.map(p => `<td>${p.toFixed(2)}</td>`).join('') +
+        trPlanned.innerHTML = `<td class="project-row-label"><em class="project-row-label-main">Planned</em></td>` +
+            plannedCells.map(plannedValue => `<td>${plannedValue.toFixed(2)}</td>`).join('') +
             `<td>${expectedPlannedYearly.toFixed(2)}</td>`;
         projTbody.appendChild(trPlanned);
         
         // Delta row
         const trDelta = document.createElement("tr");
-        trDelta.innerHTML = `<td style="padding-left: 20px; border-bottom: 2px solid #ddd;"><em style="font-weight:normal; color: #666;">Delta</em></td>` +
-            deltaCells.map(d => `<td class="${cellClass(d, 0)}" style="border-bottom: 2px solid #ddd;">${d.toFixed(2)}</td>`).join('') +
-            `<td class="${cellClass(delta, 0)}" style="border-bottom: 2px solid #ddd;">${delta.toFixed(2)}</td>`;
+        trDelta.innerHTML = `<td class="project-row-label project-row-delimiter"><em class="project-row-label-main">Delta</em></td>` +
+            deltaCells.map(d => `<td class="${cellClass(d, 0)} project-row-delimiter">${d.toFixed(2)}</td>`).join('') +
+            `<td class="${cellClass(delta, 0)} project-row-delimiter">${delta.toFixed(2)}</td>`;
         projTbody.appendChild(trDelta);
     });
 

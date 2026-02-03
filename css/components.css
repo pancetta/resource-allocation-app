@@ -1068,3 +1068,17 @@ button:disabled:hover {
     margin: 3px 0;
     font-size: 0.9em;
 }
+
+/* Yearly report project table row styles */
+.project-row-label {
+    padding-left: 20px;
+}
+
+.project-row-label-main {
+    font-weight: normal;
+    color: #666;
+}
+
+.project-row-delimiter {
+    border-bottom: 2px solid #ddd;
+}

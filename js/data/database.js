@@ -3,6 +3,7 @@
 **********************/
 
 import { addRecord, updateRecord, deleteRecord } from './crudHelper.js';
+import { DEFAULT_START_MONTH } from '../config/constants.js';
 
 const DB_NAME = "resource-planning";
 const DB_VERSION = 5;

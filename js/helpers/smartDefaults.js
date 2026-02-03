@@ -60,7 +60,8 @@ export function initSmartDefaults() {
     // Set current year for year inputs
     const yearInputs = [
         'yearInput',
-        'overviewYearInput'
+        'overviewYearInput',
+        'timelineYearInput'
     ];
     
     const currentYear = getCurrentYear();

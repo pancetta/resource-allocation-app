@@ -34,7 +34,7 @@ export async function renderProjects() {
     // Render headers from schema if thead exists
     if (thead) {
         const headers = getTableHeaders(projectsSchema);
-        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Actions</th></tr>`;
+        thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
     }
     
     tbody.innerHTML = "";
@@ -44,7 +44,6 @@ export async function renderProjects() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td><button class="delete-project" data-id="${p.id}">Delete</button></td>
         `;
         tbody.appendChild(tr);
     });
@@ -67,8 +66,18 @@ export async function renderProjects() {
 export async function renderBudgetValues() {
     if (typeof document === 'undefined') return;
     
-    const tbody = document.querySelector("#budgetValuesTable tbody");
+    const table = document.querySelector("#budgetValuesTable");
+    if (!table) return;
+    
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    
+    const thead = table.querySelector("thead");
+    
+    // Render headers if thead exists
+    if (thead) {
+        thead.innerHTML = `<tr><th>Project</th><th>Planned PM</th><th>Start Month</th><th>End Month</th></tr>`;
+    }
     
     tbody.innerHTML = "";
     const budgetValues = await getBudgetValues();
@@ -87,14 +96,22 @@ export async function renderBudgetValues() {
         const projectName = project ? project.name : value.projectId;
         
         const tr = document.createElement("tr");
+        tr.dataset.id = value.id; // Add data-id for batch selection
         tr.innerHTML = `
             <td>${projectName}</td>
             <td contenteditable="true" data-id="${value.id}" data-field="plannedPM">${value.plannedPM}</td>
             <td><input type="month" class="budget-start" value="${value.startMonth}" data-id="${value.id}"></td>
             <td><input type="month" class="budget-end" value="${value.endMonth || ''}" data-id="${value.id}"></td>
-            <td><button class="delete-budget-value" data-id="${value.id}">Delete</button></td>
         `;
         tbody.appendChild(tr);
+    });
+    
+    // Add batch selection checkbox column after rendering
+    addBatchSelection(table, (selectedCount, totalCount) => {
+        const toolbar = table.previousElementSibling;
+        if (toolbar && toolbar.classList.contains('batch-toolbar')) {
+            updateBatchToolbar(toolbar, selectedCount, totalCount);
+        }
     });
     
     // Attach event listeners
@@ -128,24 +145,7 @@ function attachProjectsEventListeners() {
         });
     });
     
-    // Delete button handlers
-    document.querySelectorAll(".delete-project").forEach(btn => {
-        btn.addEventListener("click", async function() {
-            const id = this.dataset.id;
-            // Delete project's budget values first
-            const budgetValues = await getBudgetValues();
-            const projectBudgetValues = budgetValues.filter(v => v.projectId === id);
-            for (const value of projectBudgetValues) {
-                await deleteBudgetValue(value.id);
-            }
-            
-            // Then delete the project
-            await deleteProject(id);
-            scheduleAutoBackup();
-            renderProjects();
-            renderBudgetValues();
-        });
-    });
+
 }
 
 function attachBudgetValueEventListeners() {
@@ -201,23 +201,7 @@ function attachBudgetValueEventListeners() {
         });
     });
     
-    // Delete button handlers
-    document.querySelectorAll(".delete-budget-value").forEach(btn => {
-        btn.addEventListener("click", async function() {
-            const id = parseInt(this.dataset.id);
-            
-            // Validate deletion
-            const validation = await validateBudgetValueDeletion(id);
-            if (!validation.valid) {
-                alert(validation.message);
-                return;
-            }
-            
-            await deleteBudgetValue(id);
-            scheduleAutoBackup();
-            renderBudgetValues();
-        });
-    });
+
 }
 
 // Populate project select dropdown
@@ -369,6 +353,40 @@ export function initProjectsView() {
         }
         if (budgetValuesTable) {
             makeTableSortable(budgetValuesTable);
+            
+            // Add batch operations toolbar for budget values
+            addBatchOperationsToolbar(budgetValuesTable, {
+                'Delete Selected': async (selectedIds) => {
+                    // Validate all deletions first
+                    const invalidDeletions = [];
+                    for (const id of selectedIds) {
+                        const validation = await validateBudgetValueDeletion(parseInt(id));
+                        if (!validation.valid) {
+                            invalidDeletions.push({ id, message: validation.message });
+                        }
+                    }
+                    
+                    if (invalidDeletions.length > 0) {
+                        const messages = invalidDeletions.map(d => `ID ${d.id}: ${d.message}`).join('\n');
+                        alert(`Cannot delete some budget values:\n${messages}`);
+                        return;
+                    }
+                    
+                    if (!confirm(`Delete ${selectedIds.length} selected budget values?`)) {
+                        return;
+                    }
+                    
+                    await saveState(`Batch delete ${selectedIds.length} budget values`);
+                    
+                    for (const id of selectedIds) {
+                        await deleteBudgetValue(parseInt(id));
+                    }
+                    
+                    scheduleAutoBackup();
+                    renderBudgetValues();
+                    showSuccess(`Deleted ${selectedIds.length} budget values`);
+                }
+            });
         }
         if (projectsTable && projectsSearchInput) {
             addTableFilter(projectsTable, projectsSearchInput);

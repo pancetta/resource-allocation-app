@@ -1321,7 +1321,7 @@ var App = (() => {
     const thead = table.querySelector("thead");
     if (thead) {
       const headers = getTableHeaders(peopleSchema);
-      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}<th>Actions</th></tr>`;
+      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>`;
     }
     tbody.innerHTML = "";
     const people = await getPeople();
@@ -1340,7 +1340,7 @@ var App = (() => {
           return `<td contenteditable="true" data-id="${p.id}" data-field="${field.key}">${p[field.key] || ""}</td>`;
         }
       }).join("");
-      tr.innerHTML = `${cells}<td><button class="delete-person" data-id="${p.id}">Delete</button></td>`;
+      tr.innerHTML = cells;
       tbody.appendChild(tr);
     });
     addBatchSelection(table, (selectedCount, totalCount) => {
@@ -1354,8 +1354,14 @@ var App = (() => {
   }
   async function renderFteValues() {
     if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#fteValuesTable tbody");
+    const table = document.querySelector("#fteValuesTable");
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    const thead = table.querySelector("thead");
+    if (thead) {
+      thead.innerHTML = `<tr><th>Person</th><th>FTE</th><th>Start Month</th><th>End Month</th></tr>`;
+    }
     tbody.innerHTML = "";
     const fteValues = await getFteValues();
     const people = await getPeople();
@@ -1369,14 +1375,20 @@ var App = (() => {
       const person = people.find((p) => p.id === value.personId);
       const personName = person ? person.name : value.personId;
       const tr = document.createElement("tr");
+      tr.dataset.id = value.id;
       tr.innerHTML = `
             <td>${personName}</td>
             <td contenteditable="true" data-id="${value.id}" data-field="fte">${value.fte}</td>
             <td><input type="month" class="fte-start" value="${value.startMonth}" data-id="${value.id}"></td>
             <td><input type="month" class="fte-end" value="${value.endMonth || ""}" data-id="${value.id}"></td>
-            <td><button class="delete-fte-value" data-id="${value.id}">Delete</button></td>
         `;
       tbody.appendChild(tr);
+    });
+    addBatchSelection(table, (selectedCount, totalCount) => {
+      const toolbar = table.previousElementSibling;
+      if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+        updateBatchToolbar(toolbar, selectedCount, totalCount);
+      }
     });
     attachFteValueEventListeners();
     populateFtePersonSelect();
@@ -1443,30 +1455,6 @@ var App = (() => {
         }
       });
     });
-    document.querySelectorAll(".delete-person").forEach((btn) => {
-      btn.addEventListener("click", async function() {
-        const id = this.dataset.id;
-        const people = await getPeople();
-        const person = people.find((p) => p.id === id);
-        const personName = person ? person.name : id;
-        if (typeof window !== "undefined" && window.confirm) {
-          if (!confirm(`Delete ${personName}? This will also delete their FTE values.`)) {
-            return;
-          }
-        }
-        await saveState(`Delete person: ${personName}`);
-        const fteValues = await getFteValues();
-        const personFteValues = fteValues.filter((v) => v.personId === id);
-        for (const value of personFteValues) {
-          await deleteFteValue(value.id);
-        }
-        await deletePerson(id);
-        scheduleAutoBackup();
-        renderPeople();
-        renderFteValues();
-        showSuccess(`Deleted ${personName}`);
-      });
-    });
   }
   function attachFteValueEventListeners() {
     if (typeof document === "undefined") return;
@@ -1508,19 +1496,6 @@ var App = (() => {
         fteValue.endMonth = this.value || null;
         await updateFteValue(fteValue);
         scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".delete-fte-value").forEach((btn) => {
-      btn.addEventListener("click", async function() {
-        const id = parseInt(this.dataset.id);
-        const validation = await validateFteValueDeletion(id);
-        if (!validation.valid) {
-          alert(validation.message);
-          return;
-        }
-        await deleteFteValue(id);
-        scheduleAutoBackup();
-        renderFteValues();
       });
     });
   }
@@ -1643,6 +1618,33 @@ var App = (() => {
       }
       if (fteValuesTable) {
         makeTableSortable2(fteValuesTable);
+        addBatchOperationsToolbar(fteValuesTable, {
+          "Delete Selected": async (selectedIds) => {
+            const invalidDeletions = [];
+            for (const id of selectedIds) {
+              const validation = await validateFteValueDeletion(parseInt(id));
+              if (!validation.valid) {
+                invalidDeletions.push({ id, message: validation.message });
+              }
+            }
+            if (invalidDeletions.length > 0) {
+              const messages = invalidDeletions.map((d) => `ID ${d.id}: ${d.message}`).join("\n");
+              alert(`Cannot delete some FTE values:
+${messages}`);
+              return;
+            }
+            if (!confirm(`Delete ${selectedIds.length} selected FTE values?`)) {
+              return;
+            }
+            await saveState(`Batch delete ${selectedIds.length} FTE values`);
+            for (const id of selectedIds) {
+              await deleteFteValue(parseInt(id));
+            }
+            scheduleAutoBackup();
+            renderFteValues();
+            showSuccess(`Deleted ${selectedIds.length} FTE values`);
+          }
+        });
       }
       if (peopleTable && peopleSearchInput) {
         addTableFilter2(peopleTable, peopleSearchInput);
@@ -1665,7 +1667,7 @@ var App = (() => {
     const thead = table.querySelector("thead");
     if (thead) {
       const headers = getTableHeaders(projectsSchema);
-      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}<th>Actions</th></tr>`;
+      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>`;
     }
     tbody.innerHTML = "";
     const projects = await getProjects();
@@ -1673,7 +1675,6 @@ var App = (() => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
             <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-            <td><button class="delete-project" data-id="${p.id}">Delete</button></td>
         `;
       tbody.appendChild(tr);
     });
@@ -1688,8 +1689,14 @@ var App = (() => {
   }
   async function renderBudgetValues() {
     if (typeof document === "undefined") return;
-    const tbody = document.querySelector("#budgetValuesTable tbody");
+    const table = document.querySelector("#budgetValuesTable");
+    if (!table) return;
+    const tbody = table.querySelector("tbody");
     if (!tbody) return;
+    const thead = table.querySelector("thead");
+    if (thead) {
+      thead.innerHTML = `<tr><th>Project</th><th>Planned PM</th><th>Start Month</th><th>End Month</th></tr>`;
+    }
     tbody.innerHTML = "";
     const budgetValues = await getBudgetValues();
     const projects = await getProjects();
@@ -1703,14 +1710,20 @@ var App = (() => {
       const project = projects.find((p) => p.id === value.projectId);
       const projectName = project ? project.name : value.projectId;
       const tr = document.createElement("tr");
+      tr.dataset.id = value.id;
       tr.innerHTML = `
             <td>${projectName}</td>
             <td contenteditable="true" data-id="${value.id}" data-field="plannedPM">${value.plannedPM}</td>
             <td><input type="month" class="budget-start" value="${value.startMonth}" data-id="${value.id}"></td>
             <td><input type="month" class="budget-end" value="${value.endMonth || ""}" data-id="${value.id}"></td>
-            <td><button class="delete-budget-value" data-id="${value.id}">Delete</button></td>
         `;
       tbody.appendChild(tr);
+    });
+    addBatchSelection(table, (selectedCount, totalCount) => {
+      const toolbar = table.previousElementSibling;
+      if (toolbar && toolbar.classList.contains("batch-toolbar")) {
+        updateBatchToolbar(toolbar, selectedCount, totalCount);
+      }
     });
     attachBudgetValueEventListeners();
     populateBudgetProjectSelect();
@@ -1734,20 +1747,6 @@ var App = (() => {
         }
         await updateProject(project);
         scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".delete-project").forEach((btn) => {
-      btn.addEventListener("click", async function() {
-        const id = this.dataset.id;
-        const budgetValues = await getBudgetValues();
-        const projectBudgetValues = budgetValues.filter((v) => v.projectId === id);
-        for (const value of projectBudgetValues) {
-          await deleteBudgetValue(value.id);
-        }
-        await deleteProject(id);
-        scheduleAutoBackup();
-        renderProjects();
-        renderBudgetValues();
       });
     });
   }
@@ -1791,19 +1790,6 @@ var App = (() => {
         budgetValue.endMonth = this.value || null;
         await updateBudgetValue(budgetValue);
         scheduleAutoBackup();
-      });
-    });
-    document.querySelectorAll(".delete-budget-value").forEach((btn) => {
-      btn.addEventListener("click", async function() {
-        const id = parseInt(this.dataset.id);
-        const validation = await validateBudgetValueDeletion(id);
-        if (!validation.valid) {
-          alert(validation.message);
-          return;
-        }
-        await deleteBudgetValue(id);
-        scheduleAutoBackup();
-        renderBudgetValues();
       });
     });
   }
@@ -1920,6 +1906,33 @@ var App = (() => {
       }
       if (budgetValuesTable) {
         makeTableSortable2(budgetValuesTable);
+        addBatchOperationsToolbar(budgetValuesTable, {
+          "Delete Selected": async (selectedIds) => {
+            const invalidDeletions = [];
+            for (const id of selectedIds) {
+              const validation = await validateBudgetValueDeletion(parseInt(id));
+              if (!validation.valid) {
+                invalidDeletions.push({ id, message: validation.message });
+              }
+            }
+            if (invalidDeletions.length > 0) {
+              const messages = invalidDeletions.map((d) => `ID ${d.id}: ${d.message}`).join("\n");
+              alert(`Cannot delete some budget values:
+${messages}`);
+              return;
+            }
+            if (!confirm(`Delete ${selectedIds.length} selected budget values?`)) {
+              return;
+            }
+            await saveState(`Batch delete ${selectedIds.length} budget values`);
+            for (const id of selectedIds) {
+              await deleteBudgetValue(parseInt(id));
+            }
+            scheduleAutoBackup();
+            renderBudgetValues();
+            showSuccess(`Deleted ${selectedIds.length} budget values`);
+          }
+        });
       }
       if (projectsTable && projectsSearchInput) {
         addTableFilter2(projectsTable, projectsSearchInput);

@@ -11,9 +11,11 @@ describe('People View', () => {
     // Setup DOM - now includes both people table and FTE values table
     document.body.innerHTML = `
       <table id="peopleTable">
+        <thead><tr></tr></thead>
         <tbody></tbody>
       </table>
       <table id="fteValuesTable">
+        <thead><tr></tr></thead>
         <tbody></tbody>
       </table>
       <select id="personSelect"></select>
@@ -187,23 +189,33 @@ describe('People View', () => {
       expect(people[0].active).toBe(false);
     });
 
-    it('should delete person and associated FTE values on delete button click', async () => {
+    it('should not have individual delete buttons (uses batch delete instead)', async () => {
       await db.addPerson({ id: 'p001', name: 'Alice', active: true });
-      await db.addFteValue({ personId: 'p001', fte: 1.0, startMonth: '2025-01', endMonth: null });
       await renderPeople();
       
+      // Verify no individual delete buttons exist
       const deleteBtn = document.querySelector('.delete-person');
-      deleteBtn.click();
+      expect(deleteBtn).toBeNull();
       
-      // Wait for async delete and re-render
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Verify batch selection checkboxes are added
+      const checkboxes = document.querySelectorAll('.row-select-checkbox');
+      expect(checkboxes.length).toBeGreaterThan(0);
+    });
+  });
+  
+  describe('FTE Values table', () => {
+    it('should not have individual delete buttons (uses batch delete instead)', async () => {
+      await db.addPerson({ id: 'p001', name: 'Alice', active: true });
+      await db.addFteValue({ personId: 'p001', fte: 1.0, startMonth: '2025-01', endMonth: null });
+      await renderFteValues();
       
-      const people = await db.getPeople();
-      expect(people.length).toBe(0);
+      // Verify no individual delete buttons exist
+      const deleteBtn = document.querySelector('.delete-fte-value');
+      expect(deleteBtn).toBeNull();
       
-      // FTE values should also be deleted
-      const fteValues = await db.getFteValues();
-      expect(fteValues.length).toBe(0);
+      // Verify batch selection checkboxes are added
+      const checkboxes = document.querySelectorAll('.row-select-checkbox');
+      expect(checkboxes.length).toBeGreaterThan(0);
     });
   });
 });

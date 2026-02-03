@@ -11,9 +11,11 @@ describe('Projects View', () => {
     // Setup DOM - now includes both projects table and budget values table
     document.body.innerHTML = `
       <table id="projectsTable">
+        <thead><tr></tr></thead>
         <tbody></tbody>
       </table>
       <table id="budgetValuesTable">
+        <thead><tr></tr></thead>
         <tbody></tbody>
       </table>
       <select id="projectSelect"></select>
@@ -171,23 +173,33 @@ describe('Projects View', () => {
       expect(projects[0].name).toBe('Project Alpha Updated');
     });
 
-    it('should delete project and associated budget values on delete button click', async () => {
+    it('should not have individual delete buttons (uses batch delete instead)', async () => {
       await db.addProject({ id: 'proj001', name: 'Project Alpha' });
-      await db.addBudgetValue({ projectId: 'proj001', plannedPM: 12, startMonth: '2025-01', endMonth: null });
       await renderProjects();
       
+      // Verify no individual delete buttons exist
       const deleteBtn = document.querySelector('.delete-project');
-      deleteBtn.click();
+      expect(deleteBtn).toBeNull();
       
-      // Wait for async delete and re-render
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Verify batch selection checkboxes are added
+      const checkboxes = document.querySelectorAll('.row-select-checkbox');
+      expect(checkboxes.length).toBeGreaterThan(0);
+    });
+  });
+  
+  describe('Budget Values table', () => {
+    it('should not have individual delete buttons (uses batch delete instead)', async () => {
+      await db.addProject({ id: 'proj001', name: 'Project Alpha' });
+      await db.addBudgetValue({ projectId: 'proj001', plannedPM: 12, startMonth: '2025-01', endMonth: null });
+      await renderBudgetValues();
       
-      const projects = await db.getProjects();
-      expect(projects.length).toBe(0);
+      // Verify no individual delete buttons exist
+      const deleteBtn = document.querySelector('.delete-budget-value');
+      expect(deleteBtn).toBeNull();
       
-      // Budget values should also be deleted
-      const budgetValues = await db.getBudgetValues();
-      expect(budgetValues.length).toBe(0);
+      // Verify batch selection checkboxes are added
+      const checkboxes = document.querySelectorAll('.row-select-checkbox');
+      expect(checkboxes.length).toBeGreaterThan(0);
     });
   });
 });

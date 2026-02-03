@@ -1311,6 +1311,72 @@ var App = (() => {
     }
   }
 
+  // js/helpers/batchDeleteHelpers.js
+  init_toast();
+  function createValidatedBatchDeleteHandler({
+    validateDeletion,
+    deleteFunc,
+    renderFunc,
+    entityName,
+    entityNamePlural
+  }) {
+    return async (selectedIds) => {
+      const invalidDeletions = [];
+      for (const id of selectedIds) {
+        const validation = await validateDeletion(parseInt(id));
+        if (!validation.valid) {
+          invalidDeletions.push({ id, message: validation.message });
+        }
+      }
+      if (invalidDeletions.length > 0) {
+        const messages = invalidDeletions.map((d) => `ID ${d.id}: ${d.message}`).join("\n");
+        alert(`Cannot delete some ${entityNamePlural}:
+${messages}`);
+        return;
+      }
+      if (!confirm(`Delete ${selectedIds.length} selected ${entityNamePlural}?`)) {
+        return;
+      }
+      await saveState(`Batch delete ${selectedIds.length} ${entityNamePlural}`);
+      for (const id of selectedIds) {
+        await deleteFunc(parseInt(id));
+      }
+      scheduleAutoBackup();
+      renderFunc();
+      showSuccess(`Deleted ${selectedIds.length} ${entityNamePlural}`);
+    };
+  }
+  function createCascadeBatchDeleteHandler({
+    getChildRecords,
+    filterChildRecords,
+    deleteChildRecord,
+    deleteParent,
+    renderParent,
+    renderChild,
+    parentName,
+    parentNamePlural,
+    childNamePlural
+  }) {
+    return async (selectedIds) => {
+      if (!confirm(`Delete ${selectedIds.length} selected ${parentNamePlural}? This will also delete their ${childNamePlural}.`)) {
+        return;
+      }
+      await saveState(`Batch delete ${selectedIds.length} ${parentNamePlural}`);
+      for (const id of selectedIds) {
+        const childRecords = await getChildRecords();
+        const parentChildRecords = filterChildRecords(childRecords, id);
+        for (const childRecord of parentChildRecords) {
+          await deleteChildRecord(childRecord.id);
+        }
+        await deleteParent(id);
+      }
+      scheduleAutoBackup();
+      renderParent();
+      renderChild();
+      showSuccess(`Deleted ${selectedIds.length} ${parentNamePlural}`);
+    };
+  }
+
   // js/views/peopleView.js
   async function renderPeople() {
     if (typeof document === "undefined") return;
@@ -1596,54 +1662,29 @@ var App = (() => {
       if (peopleTable) {
         makeTableSortable2(peopleTable);
         addBatchOperationsToolbar(peopleTable, {
-          "Delete Selected": async (selectedIds) => {
-            if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
-              return;
-            }
-            await saveState(`Batch delete ${selectedIds.length} people`);
-            for (const id of selectedIds) {
-              const fteValues = await getFteValues();
-              const personFteValues = fteValues.filter((v) => v.personId === id);
-              for (const value of personFteValues) {
-                await deleteFteValue(value.id);
-              }
-              await deletePerson(id);
-            }
-            scheduleAutoBackup();
-            renderPeople();
-            renderFteValues();
-            showSuccess(`Deleted ${selectedIds.length} people`);
-          }
+          "Delete Selected": createCascadeBatchDeleteHandler({
+            getChildRecords: getFteValues,
+            filterChildRecords: (childRecords, parentId) => childRecords.filter((v) => v.personId === parentId),
+            deleteChildRecord: deleteFteValue,
+            deleteParent: deletePerson,
+            renderParent: renderPeople,
+            renderChild: renderFteValues,
+            parentName: "person",
+            parentNamePlural: "people",
+            childNamePlural: "FTE values"
+          })
         });
       }
       if (fteValuesTable) {
         makeTableSortable2(fteValuesTable);
         addBatchOperationsToolbar(fteValuesTable, {
-          "Delete Selected": async (selectedIds) => {
-            const invalidDeletions = [];
-            for (const id of selectedIds) {
-              const validation = await validateFteValueDeletion(parseInt(id));
-              if (!validation.valid) {
-                invalidDeletions.push({ id, message: validation.message });
-              }
-            }
-            if (invalidDeletions.length > 0) {
-              const messages = invalidDeletions.map((d) => `ID ${d.id}: ${d.message}`).join("\n");
-              alert(`Cannot delete some FTE values:
-${messages}`);
-              return;
-            }
-            if (!confirm(`Delete ${selectedIds.length} selected FTE values?`)) {
-              return;
-            }
-            await saveState(`Batch delete ${selectedIds.length} FTE values`);
-            for (const id of selectedIds) {
-              await deleteFteValue(parseInt(id));
-            }
-            scheduleAutoBackup();
-            renderFteValues();
-            showSuccess(`Deleted ${selectedIds.length} FTE values`);
-          }
+          "Delete Selected": createValidatedBatchDeleteHandler({
+            validateDeletion: validateFteValueDeletion,
+            deleteFunc: deleteFteValue,
+            renderFunc: renderFteValues,
+            entityName: "FTE value",
+            entityNamePlural: "FTE values"
+          })
         });
       }
       if (peopleTable && peopleSearchInput) {
@@ -1884,54 +1925,29 @@ ${messages}`);
       if (projectsTable) {
         makeTableSortable2(projectsTable);
         addBatchOperationsToolbar(projectsTable, {
-          "Delete Selected": async (selectedIds) => {
-            if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {
-              return;
-            }
-            await saveState(`Batch delete ${selectedIds.length} projects`);
-            for (const id of selectedIds) {
-              const budgetValues = await getBudgetValues();
-              const projectBudgetValues = budgetValues.filter((v) => v.projectId === id);
-              for (const value of projectBudgetValues) {
-                await deleteBudgetValue(value.id);
-              }
-              await deleteProject(id);
-            }
-            scheduleAutoBackup();
-            renderProjects();
-            renderBudgetValues();
-            showSuccess(`Deleted ${selectedIds.length} projects`);
-          }
+          "Delete Selected": createCascadeBatchDeleteHandler({
+            getChildRecords: getBudgetValues,
+            filterChildRecords: (childRecords, parentId) => childRecords.filter((v) => v.projectId === parentId),
+            deleteChildRecord: deleteBudgetValue,
+            deleteParent: deleteProject,
+            renderParent: renderProjects,
+            renderChild: renderBudgetValues,
+            parentName: "project",
+            parentNamePlural: "projects",
+            childNamePlural: "budget values"
+          })
         });
       }
       if (budgetValuesTable) {
         makeTableSortable2(budgetValuesTable);
         addBatchOperationsToolbar(budgetValuesTable, {
-          "Delete Selected": async (selectedIds) => {
-            const invalidDeletions = [];
-            for (const id of selectedIds) {
-              const validation = await validateBudgetValueDeletion(parseInt(id));
-              if (!validation.valid) {
-                invalidDeletions.push({ id, message: validation.message });
-              }
-            }
-            if (invalidDeletions.length > 0) {
-              const messages = invalidDeletions.map((d) => `ID ${d.id}: ${d.message}`).join("\n");
-              alert(`Cannot delete some budget values:
-${messages}`);
-              return;
-            }
-            if (!confirm(`Delete ${selectedIds.length} selected budget values?`)) {
-              return;
-            }
-            await saveState(`Batch delete ${selectedIds.length} budget values`);
-            for (const id of selectedIds) {
-              await deleteBudgetValue(parseInt(id));
-            }
-            scheduleAutoBackup();
-            renderBudgetValues();
-            showSuccess(`Deleted ${selectedIds.length} budget values`);
-          }
+          "Delete Selected": createValidatedBatchDeleteHandler({
+            validateDeletion: validateBudgetValueDeletion,
+            deleteFunc: deleteBudgetValue,
+            renderFunc: renderBudgetValues,
+            entityName: "budget value",
+            entityNamePlural: "budget values"
+          })
         });
       }
       if (projectsTable && projectsSearchInput) {

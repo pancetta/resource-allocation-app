@@ -16,6 +16,7 @@ import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
 import { addBatchSelection, getSelectedRows } from '../helpers/tableHelpers.js';
 import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchOperations.js';
+import { createValidatedBatchDeleteHandler, createCascadeBatchDeleteHandler } from '../helpers/batchDeleteHelpers.js';
 
 /**
  * Render people table (basic person info)
@@ -402,29 +403,17 @@ export function initPeopleView() {
             
             // Add batch operations toolbar
             addBatchOperationsToolbar(peopleTable, {
-                'Delete Selected': async (selectedIds) => {
-                    if (!confirm(`Delete ${selectedIds.length} selected people? This will also delete their FTE values.`)) {
-                        return;
-                    }
-                    
-                    await saveState(`Batch delete ${selectedIds.length} people`);
-                    
-                    for (const id of selectedIds) {
-                        // Delete FTE values first
-                        const fteValues = await getFteValues();
-                        const personFteValues = fteValues.filter(v => v.personId === id);
-                        for (const value of personFteValues) {
-                            await deleteFteValue(value.id);
-                        }
-                        // Then delete the person
-                        await deletePerson(id);
-                    }
-                    
-                    scheduleAutoBackup();
-                    renderPeople();
-                    renderFteValues();
-                    showSuccess(`Deleted ${selectedIds.length} people`);
-                }
+                'Delete Selected': createCascadeBatchDeleteHandler({
+                    getChildRecords: getFteValues,
+                    filterChildRecords: (childRecords, parentId) => childRecords.filter(v => v.personId === parentId),
+                    deleteChildRecord: deleteFteValue,
+                    deleteParent: deletePerson,
+                    renderParent: renderPeople,
+                    renderChild: renderFteValues,
+                    parentName: 'person',
+                    parentNamePlural: 'people',
+                    childNamePlural: 'FTE values'
+                })
             });
         }
         if (fteValuesTable) {
@@ -432,36 +421,13 @@ export function initPeopleView() {
             
             // Add batch operations toolbar for FTE values
             addBatchOperationsToolbar(fteValuesTable, {
-                'Delete Selected': async (selectedIds) => {
-                    // Validate all deletions first
-                    const invalidDeletions = [];
-                    for (const id of selectedIds) {
-                        const validation = await validateFteValueDeletion(parseInt(id));
-                        if (!validation.valid) {
-                            invalidDeletions.push({ id, message: validation.message });
-                        }
-                    }
-                    
-                    if (invalidDeletions.length > 0) {
-                        const messages = invalidDeletions.map(d => `ID ${d.id}: ${d.message}`).join('\n');
-                        alert(`Cannot delete some FTE values:\n${messages}`);
-                        return;
-                    }
-                    
-                    if (!confirm(`Delete ${selectedIds.length} selected FTE values?`)) {
-                        return;
-                    }
-                    
-                    await saveState(`Batch delete ${selectedIds.length} FTE values`);
-                    
-                    for (const id of selectedIds) {
-                        await deleteFteValue(parseInt(id));
-                    }
-                    
-                    scheduleAutoBackup();
-                    renderFteValues();
-                    showSuccess(`Deleted ${selectedIds.length} FTE values`);
-                }
+                'Delete Selected': createValidatedBatchDeleteHandler({
+                    validateDeletion: validateFteValueDeletion,
+                    deleteFunc: deleteFteValue,
+                    renderFunc: renderFteValues,
+                    entityName: 'FTE value',
+                    entityNamePlural: 'FTE values'
+                })
             });
         }
         if (peopleTable && peopleSearchInput) {

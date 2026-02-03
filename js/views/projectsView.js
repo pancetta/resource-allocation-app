@@ -15,6 +15,7 @@ import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
 import { addBatchSelection, getSelectedRows } from '../helpers/tableHelpers.js';
 import { addBatchOperationsToolbar, updateBatchToolbar } from '../helpers/batchOperations.js';
+import { createValidatedBatchDeleteHandler, createCascadeBatchDeleteHandler } from '../helpers/batchDeleteHelpers.js';
 
 /**
  * Render projects table (basic project info)
@@ -326,29 +327,17 @@ export function initProjectsView() {
             
             // Add batch operations toolbar
             addBatchOperationsToolbar(projectsTable, {
-                'Delete Selected': async (selectedIds) => {
-                    if (!confirm(`Delete ${selectedIds.length} selected projects? This will also delete their budget values.`)) {
-                        return;
-                    }
-                    
-                    await saveState(`Batch delete ${selectedIds.length} projects`);
-                    
-                    for (const id of selectedIds) {
-                        // Delete budget values first
-                        const budgetValues = await getBudgetValues();
-                        const projectBudgetValues = budgetValues.filter(v => v.projectId === id);
-                        for (const value of projectBudgetValues) {
-                            await deleteBudgetValue(value.id);
-                        }
-                        // Then delete the project
-                        await deleteProject(id);
-                    }
-                    
-                    scheduleAutoBackup();
-                    renderProjects();
-                    renderBudgetValues();
-                    showSuccess(`Deleted ${selectedIds.length} projects`);
-                }
+                'Delete Selected': createCascadeBatchDeleteHandler({
+                    getChildRecords: getBudgetValues,
+                    filterChildRecords: (childRecords, parentId) => childRecords.filter(v => v.projectId === parentId),
+                    deleteChildRecord: deleteBudgetValue,
+                    deleteParent: deleteProject,
+                    renderParent: renderProjects,
+                    renderChild: renderBudgetValues,
+                    parentName: 'project',
+                    parentNamePlural: 'projects',
+                    childNamePlural: 'budget values'
+                })
             });
         }
         if (budgetValuesTable) {
@@ -356,36 +345,13 @@ export function initProjectsView() {
             
             // Add batch operations toolbar for budget values
             addBatchOperationsToolbar(budgetValuesTable, {
-                'Delete Selected': async (selectedIds) => {
-                    // Validate all deletions first
-                    const invalidDeletions = [];
-                    for (const id of selectedIds) {
-                        const validation = await validateBudgetValueDeletion(parseInt(id));
-                        if (!validation.valid) {
-                            invalidDeletions.push({ id, message: validation.message });
-                        }
-                    }
-                    
-                    if (invalidDeletions.length > 0) {
-                        const messages = invalidDeletions.map(d => `ID ${d.id}: ${d.message}`).join('\n');
-                        alert(`Cannot delete some budget values:\n${messages}`);
-                        return;
-                    }
-                    
-                    if (!confirm(`Delete ${selectedIds.length} selected budget values?`)) {
-                        return;
-                    }
-                    
-                    await saveState(`Batch delete ${selectedIds.length} budget values`);
-                    
-                    for (const id of selectedIds) {
-                        await deleteBudgetValue(parseInt(id));
-                    }
-                    
-                    scheduleAutoBackup();
-                    renderBudgetValues();
-                    showSuccess(`Deleted ${selectedIds.length} budget values`);
-                }
+                'Delete Selected': createValidatedBatchDeleteHandler({
+                    validateDeletion: validateBudgetValueDeletion,
+                    deleteFunc: deleteBudgetValue,
+                    renderFunc: renderBudgetValues,
+                    entityName: 'budget value',
+                    entityNamePlural: 'budget values'
+                })
             });
         }
         if (projectsTable && projectsSearchInput) {

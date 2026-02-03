@@ -430,21 +430,84 @@ export async function getProjects() {
 }
 
 /**
+ * Migrate legacy plannedPM field from project to budgetValues
+ * @param {string} projectId - The project ID
+ * @param {number} plannedPM - The planned PM value to migrate
+ * @returns {Promise<void>}
+ * @private
+ */
+async function migrateProjectPlannedPM(projectId, plannedPM) {
+    const existingBudgetValues = await getBudgetValues();
+    const existingBudget = existingBudgetValues.find(bv => bv.projectId === projectId);
+    
+    if (existingBudget) {
+        // Update existing budget value
+        existingBudget.plannedPM = plannedPM;
+        await updateBudgetValue(existingBudget);
+    } else {
+        // Create new budget value with DEFAULT_START_MONTH as the start date
+        // This ensures legacy data gets a sensible default date range
+        await addBudgetValue({
+            projectId: projectId,
+            plannedPM: plannedPM,
+            startMonth: DEFAULT_START_MONTH,
+            endMonth: null // Open-ended
+        });
+    }
+}
+
+/**
  * Add a new project to the database
- * @param {Object} p - Project object with id, name, plannedPM properties
+ * Automatically migrates legacy plannedPM field to budgetValues if present
+ * @param {Object} p - Project object with id, name properties
  * @returns {Promise<void>}
  */
 export async function addProject(p) {
-    return addRecord(db, "projects", p, () => invalidateCache("projects"));
+    // Handle legacy plannedPM field - migrate to budgetValues
+    if (p.plannedPM !== undefined && p.plannedPM !== null) {
+        const plannedPM = p.plannedPM;
+        const projectId = p.id;
+        
+        // Remove plannedPM from project object before storing
+        const cleanProject = { ...p };
+        delete cleanProject.plannedPM;
+        
+        // Add the project without plannedPM
+        await addRecord(db, "projects", cleanProject, () => invalidateCache("projects"));
+        
+        // Migrate plannedPM to budgetValues
+        await migrateProjectPlannedPM(projectId, plannedPM);
+    } else {
+        // No plannedPM to migrate, just add the project
+        return addRecord(db, "projects", p, () => invalidateCache("projects"));
+    }
 }
 
 /**
  * Update an existing project in the database
+ * Automatically migrates legacy plannedPM field to budgetValues if present
  * @param {Object} p - Project object with updated properties
  * @returns {Promise<void>}
  */
 export async function updateProject(p) {
-    return updateRecord(db, "projects", p, () => invalidateCache("projects"));
+    // Handle legacy plannedPM field - migrate to budgetValues
+    if (p.plannedPM !== undefined && p.plannedPM !== null) {
+        const plannedPM = p.plannedPM;
+        const projectId = p.id;
+        
+        // Remove plannedPM from project object before storing
+        const cleanProject = { ...p };
+        delete cleanProject.plannedPM;
+        
+        // Update the project without plannedPM
+        await updateRecord(db, "projects", cleanProject, () => invalidateCache("projects"));
+        
+        // Migrate plannedPM to budgetValues
+        await migrateProjectPlannedPM(projectId, plannedPM);
+    } else {
+        // No plannedPM to migrate, just update the project
+        return updateRecord(db, "projects", p, () => invalidateCache("projects"));
+    }
 }
 
 /**

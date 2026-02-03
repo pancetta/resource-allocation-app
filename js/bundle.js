@@ -648,11 +648,45 @@ var App = (() => {
   async function getProjects() {
     return getAll("projects");
   }
+  async function migrateProjectPlannedPM(projectId, plannedPM) {
+    const existingBudgetValues = await getBudgetValues();
+    const existingBudget = existingBudgetValues.find((bv) => bv.projectId === projectId);
+    if (existingBudget) {
+      existingBudget.plannedPM = plannedPM;
+      await updateBudgetValue(existingBudget);
+    } else {
+      await addBudgetValue({
+        projectId,
+        plannedPM,
+        startMonth: DEFAULT_START_MONTH,
+        endMonth: null
+        // Open-ended
+      });
+    }
+  }
   async function addProject(p) {
-    return addRecord(db, "projects", p, () => invalidateCache("projects"));
+    if (p.plannedPM !== void 0 && p.plannedPM !== null) {
+      const plannedPM = p.plannedPM;
+      const projectId = p.id;
+      const cleanProject = { ...p };
+      delete cleanProject.plannedPM;
+      await addRecord(db, "projects", cleanProject, () => invalidateCache("projects"));
+      await migrateProjectPlannedPM(projectId, plannedPM);
+    } else {
+      return addRecord(db, "projects", p, () => invalidateCache("projects"));
+    }
   }
   async function updateProject(p) {
-    return updateRecord(db, "projects", p, () => invalidateCache("projects"));
+    if (p.plannedPM !== void 0 && p.plannedPM !== null) {
+      const plannedPM = p.plannedPM;
+      const projectId = p.id;
+      const cleanProject = { ...p };
+      delete cleanProject.plannedPM;
+      await updateRecord(db, "projects", cleanProject, () => invalidateCache("projects"));
+      await migrateProjectPlannedPM(projectId, plannedPM);
+    } else {
+      return updateRecord(db, "projects", p, () => invalidateCache("projects"));
+    }
   }
   async function deleteProject(id) {
     return deleteRecord(db, "projects", id, () => invalidateCache("projects"));

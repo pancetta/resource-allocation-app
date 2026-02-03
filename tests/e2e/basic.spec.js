@@ -75,8 +75,8 @@ test.describe('Resource Allocation App - Basic E2E Tests', () => {
     await expect(page.locator('#yearInput')).toBeVisible();
     await expect(page.locator('#calculateYearBtn')).toBeVisible();
     
-    // Project overview controls
-    await expect(page.locator('#overviewYearInput')).toBeVisible();
-    await expect(page.locator('#projectMonthlyBtn')).toBeVisible();
+    // Timeline controls
+    await expect(page.locator('#timelineYearInput')).toBeVisible();
+    await expect(page.locator('#showTimelineBtn')).toBeVisible();
   });
 });

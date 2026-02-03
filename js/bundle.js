@@ -265,6 +265,21 @@ var App = (() => {
     return performTransaction(db2, storeName, "delete", id, invalidateCache2);
   }
 
+  // js/config/constants.js
+  var MILLISECONDS_PER_SECOND = 1e3;
+  var SECONDS_PER_MINUTE = 60;
+  var MINUTES_PER_HOUR = 60;
+  var HOURS_PER_DAY = 24;
+  var MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+  var AUTO_BACKUP_DELAY_MS = 5e3;
+  var DEFAULT_START_MONTH = "2020-01";
+  var DEFAULT_FTE = 1;
+  var MIN_FTE = 0;
+  var MAX_FTE = 1;
+  var MIN_PM = 0;
+  var PM_STEP = 0.01;
+  var MONTHS_PER_YEAR = 12;
+
   // js/data/database.js
   var DB_NAME = "resource-planning";
   var DB_VERSION = 5;
@@ -681,20 +696,6 @@ var App = (() => {
       if (firstContent) firstContent.classList.add("active");
     }
   }
-
-  // js/config/constants.js
-  var MILLISECONDS_PER_SECOND = 1e3;
-  var SECONDS_PER_MINUTE = 60;
-  var MINUTES_PER_HOUR = 60;
-  var HOURS_PER_DAY = 24;
-  var MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
-  var AUTO_BACKUP_DELAY_MS = 5e3;
-  var DEFAULT_FTE = 1;
-  var MIN_FTE = 0;
-  var MAX_FTE = 1;
-  var MIN_PM = 0;
-  var PM_STEP = 0.01;
-  var MONTHS_PER_YEAR = 12;
 
   // js/helpers/validationHelper.js
   function validateFteValue(fte) {

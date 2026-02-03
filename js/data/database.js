@@ -73,7 +73,7 @@ export async function openDatabase() {
             const oldVersion = e.oldVersion;
             const transaction = e.target.transaction;
             
-            // Create all required stores if they don't exist
+            // Create required object stores
             if (!db.objectStoreNames.contains("people")) {
                 db.createObjectStore("people", { keyPath: "id" });
             }

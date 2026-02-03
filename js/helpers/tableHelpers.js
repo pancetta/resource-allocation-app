@@ -162,10 +162,10 @@ export function addBatchSelection(table, onSelectionChange) {
         return; // Already initialized
     }
     
-    // Add checkbox column header
+    // Add checkbox column header at the end
     const selectAllTh = document.createElement('th');
     selectAllTh.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
-    thead.insertBefore(selectAllTh, thead.firstChild);
+    thead.appendChild(selectAllTh);
     
     // Add select all functionality
     const selectAllCheckbox = selectAllTh.querySelector('.select-all-checkbox');
@@ -177,12 +177,12 @@ export function addBatchSelection(table, onSelectionChange) {
         updateSelection();
     });
     
-    // Add checkboxes to each row
+    // Add checkboxes to each row at the end
     const rows = tbody.querySelectorAll('tr');
     rows.forEach(row => {
         const selectTd = document.createElement('td');
         selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
-        row.insertBefore(selectTd, row.firstChild);
+        row.appendChild(selectTd);
         
         const checkbox = selectTd.querySelector('.row-select-checkbox');
         checkbox.addEventListener('change', updateSelection);

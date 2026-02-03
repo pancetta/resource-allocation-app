@@ -179,7 +179,7 @@ var App = (() => {
     }
     const selectAllTh = document.createElement("th");
     selectAllTh.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
-    thead.insertBefore(selectAllTh, thead.firstChild);
+    thead.appendChild(selectAllTh);
     const selectAllCheckbox = selectAllTh.querySelector(".select-all-checkbox");
     selectAllCheckbox.addEventListener("change", () => {
       const checkboxes = tbody.querySelectorAll(".row-select-checkbox");
@@ -192,7 +192,7 @@ var App = (() => {
     rows.forEach((row) => {
       const selectTd = document.createElement("td");
       selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
-      row.insertBefore(selectTd, row.firstChild);
+      row.appendChild(selectTd);
       const checkbox = selectTd.querySelector(".row-select-checkbox");
       checkbox.addEventListener("change", updateSelection);
     });

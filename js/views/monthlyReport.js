@@ -1,6 +1,6 @@
 import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM, pmToPercentage, formatPercentage } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 
 // Monthly Report
@@ -21,8 +21,25 @@ export async function calculateMonth(month) {
 
     // --- Person table ---
     const personTable = document.createElement("table");
-    const pHeader = ["Person", ...projects.map(p => p.name), "Total", "FTE", "Delta"];
-    personTable.innerHTML = `<thead><tr>${pHeader.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    
+    // Create two-row header with colspan
+    const headerRow1 = document.createElement("tr");
+    headerRow1.innerHTML = `<th rowspan="2">Person</th>` +
+        `<th rowspan="2">FTE</th>` +
+        `<th rowspan="2">Delta</th>` +
+        `<th colspan="2">Total</th>` +
+        projects.map(p => `<th colspan="2">${p.name}</th>`).join('');
+    
+    const headerRow2 = document.createElement("tr");
+    headerRow2.innerHTML = 
+        `<th class="sub-header">%</th><th class="sub-header">PM</th>` +
+        projects.map(() => `<th class="sub-header">%</th><th class="sub-header">PM</th>`).join('');
+    
+    const thead = document.createElement("thead");
+    thead.appendChild(headerRow1);
+    thead.appendChild(headerRow2);
+    personTable.appendChild(thead);
+    
     const pTbody = document.createElement("tbody");
 
     people.forEach(p => {
@@ -35,22 +52,55 @@ export async function calculateMonth(month) {
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${p.name}</td>` +
-            cells.map(c => `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`).join('') +
-            `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` +
             `<td>${fte.toFixed(2)}</td>` +
-            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+            `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>` +
+            `<td class="pct-cell">${pmToPercentage(total, fte).toFixed(1)}%</td>` +
+            `<td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` +
+            cells.map(c => {
+                const pct = pmToPercentage(c, fte);
+                return `<td class="pct-cell">${pct.toFixed(1)}%</td>` +
+                       `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`;
+            }).join('');
         pTbody.appendChild(tr);
     });
 
     // Column totals
     const tfoot = document.createElement("tfoot");
     const sumRow = document.createElement("tr");
+    
+    // Calculate total FTE and total delta
+    const totalFte = people.reduce((sum, p) => {
+        const fte = getEffectiveFte(p.id, month, fteValues);
+        return sum + fte;
+    }, 0);
+    
+    const totalDelta = people.reduce((sum, p) => {
+        const fte = getEffectiveFte(p.id, month, fteValues);
+        const personTotal = calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
+        return sum + (personTotal - fte);
+    }, 0);
+    
+    // Calculate total for overall allocation
+    const overallTotal = people.reduce((sum, p) => {
+        const fte = getEffectiveFte(p.id, month, fteValues);
+        return sum + calculatePersonTotal(allocationIndex, p.id, projects, month, fte, allocationOverrideIndex);
+    }, 0);
+    
+    const overallPct = totalFte > 0 ? pmToPercentage(overallTotal, totalFte) : 0;
+    
+    const projectTotalCells = projects.map(proj => {
+        const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
+        const sumPct = totalFte > 0 ? pmToPercentage(sum, totalFte) : 0;
+        return `<td class="pct-cell"><strong>${sumPct.toFixed(1)}%</strong></td>` +
+               `<td><strong>${sum.toFixed(2)}</strong></td>`;
+    }).join('');
+    
     sumRow.innerHTML = `<td><strong>Total</strong></td>` +
-        projects.map(proj => {
-            const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
-            return `<td><strong>${sum.toFixed(2)}</strong></td>`;
-        }).join('') +
-        `<td colspan="3"></td>`;
+        `<td><strong>${totalFte.toFixed(2)}</strong></td>` +
+        `<td class="${cellClass(totalDelta, 0)}"><strong>${totalDelta.toFixed(2)}</strong></td>` +
+        `<td class="pct-cell"><strong>${overallPct.toFixed(1)}%</strong></td>` +
+        `<td><strong>${overallTotal.toFixed(2)}</strong></td>` +
+        projectTotalCells;
     tfoot.appendChild(sumRow);
 
     personTable.appendChild(pTbody);

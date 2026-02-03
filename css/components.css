@@ -72,6 +72,43 @@ tfoot td {
     font-weight: 500;
 }
 
+/* Split cell layout for PM/Percentage display - side by side */
+.split-cell {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 0;
+}
+
+.split-cell-pm {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.split-cell-pct {
+    font-size: 12px;
+    color: #999;
+    font-weight: 400;
+    font-style: italic;
+}
+
+/* Sub-header styling for PM/% columns */
+.sub-header {
+    background: linear-gradient(135deg, #0066b3 0%, #004d8a 100%) !important;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Percentage cell styling - same font as PM cells */
+.pct-cell {
+    font-size: 13px;
+}
+}
+
 /* First column styling */
 td:first-child {
     text-align: left;

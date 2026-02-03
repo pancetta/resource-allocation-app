@@ -13,7 +13,8 @@ import {
   deleteBackup,
   getPeople,
   getProjects,
-  getAllocations
+  getAllocations,
+  getBudgetValues
 } from '../../js/data/database.js';
 
 describe('Data Export/Import and Backup', () => {
@@ -248,11 +249,15 @@ describe('Data Export/Import and Backup', () => {
       const people = await getPeople();
       const projects = await getProjects();
       const allocations = await getAllocations();
+      const budgetValues = await getBudgetValues();
       
       expect(people).toHaveLength(2);
       expect(people.find(p => p.id === 'p001').fte).toBe(0.75);
       expect(people.find(p => p.id === 'p002').active).toBe(false);
-      expect(projects[0].plannedPM).toBe(5.5);
+      // plannedPM should be migrated to budgetValues
+      expect(projects[0].plannedPM).toBeUndefined();
+      expect(budgetValues[0].plannedPM).toBe(5.5);
+      expect(budgetValues[0].projectId).toBe('proj001');
       expect(allocations[0].pm).toBe(0.6);
       expect(allocations[0].endMonth).toBe('2025-09');
     });

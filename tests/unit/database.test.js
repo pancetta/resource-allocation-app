@@ -13,6 +13,7 @@ import {
   addAllocation,
   updateAllocation,
   deleteAllocation,
+  getBudgetValues,
   generatePersonId,
   generateProjectId,
   clearCache
@@ -76,7 +77,14 @@ describe('Database Module', () => {
       
       const projects = await getProjects();
       expect(projects).toHaveLength(1);
-      expect(projects[0]).toEqual(project);
+      // plannedPM should be migrated to budgetValues, not stored on project
+      expect(projects[0]).toEqual({ id: 'proj001', name: 'Project A' });
+      
+      // Verify plannedPM was migrated to budgetValues
+      const budgetValues = await getBudgetValues();
+      expect(budgetValues).toHaveLength(1);
+      expect(budgetValues[0].projectId).toBe('proj001');
+      expect(budgetValues[0].plannedPM).toBe(2.5);
     });
 
     it('should get all projects', async () => {
@@ -96,7 +104,14 @@ describe('Database Module', () => {
       
       const projects = await getProjects();
       expect(projects[0].name).toBe('Project A Updated');
-      expect(projects[0].plannedPM).toBe(3.5);
+      // plannedPM should be migrated to budgetValues, not stored on project
+      expect(projects[0].plannedPM).toBeUndefined();
+      
+      // Verify plannedPM was migrated to budgetValues
+      const budgetValues = await getBudgetValues();
+      expect(budgetValues).toHaveLength(1);
+      expect(budgetValues[0].projectId).toBe('proj001');
+      expect(budgetValues[0].plannedPM).toBe(3.5);
     });
 
     it('should delete a project', async () => {

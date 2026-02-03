@@ -187,4 +187,146 @@ describe('Database Module', () => {
       expect(id).toBe('proj006');
     });
   });
+
+  describe('Import with Migration', () => {
+    it('should convert old pct format to new pm format during import', async () => {
+      const { importAllData, getAllocations } = await import('../../js/data/database.js');
+      
+      // Simulate old export data with pct instead of pm
+      const oldFormatData = {
+        version: '3.0',
+        exportDate: '2026-02-03T06:33:10.651Z',
+        data: {
+          people: [
+            { id: 'p001', name: 'Test Person', active: true, type: '210' }
+          ],
+          projects: [
+            { id: 'proj001', name: 'Test Project' }
+          ],
+          fteValues: [
+            { personId: 'p001', fte: 1, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          budgetValues: [
+            { projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocations: [
+            // Old format with pct
+            { personId: 'p001', projectId: 'proj001', pct: 0.5, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocationOverrides: []
+        }
+      };
+      
+      // Import the old format data
+      await importAllData(oldFormatData);
+      
+      // Verify allocation was converted to pm format
+      const allocations = await getAllocations();
+      expect(allocations).toHaveLength(1);
+      expect(allocations[0].pm).toBe(0.5); // pct (0.5) * fte (1) = 0.5
+      expect(allocations[0].pct).toBeUndefined(); // pct should be removed
+    });
+
+    it('should handle allocations with different FTE values during import', async () => {
+      const { importAllData, getAllocations } = await import('../../js/data/database.js');
+      
+      const oldFormatData = {
+        version: '3.0',
+        exportDate: '2026-02-03T06:33:10.651Z',
+        data: {
+          people: [
+            { id: 'p001', name: 'Part-time Person', active: true, type: '210' }
+          ],
+          projects: [
+            { id: 'proj001', name: 'Test Project' }
+          ],
+          fteValues: [
+            { personId: 'p001', fte: 0.5, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          budgetValues: [
+            { projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocations: [
+            // Old format: pct = 0.8, fte = 0.5, so pm should be 0.4
+            { personId: 'p001', projectId: 'proj001', pct: 0.8, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocationOverrides: []
+        }
+      };
+      
+      await importAllData(oldFormatData);
+      
+      const allocations = await getAllocations();
+      expect(allocations).toHaveLength(1);
+      expect(allocations[0].pm).toBeCloseTo(0.4, 5); // pct (0.8) * fte (0.5) = 0.4
+    });
+
+    it('should preserve pm format when already present during import', async () => {
+      const { importAllData, getAllocations } = await import('../../js/data/database.js');
+      
+      const newFormatData = {
+        version: '3.0',
+        exportDate: '2026-02-03T06:33:10.651Z',
+        data: {
+          people: [
+            { id: 'p001', name: 'Test Person', active: true, type: '210' }
+          ],
+          projects: [
+            { id: 'proj001', name: 'Test Project' }
+          ],
+          fteValues: [
+            { personId: 'p001', fte: 1, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          budgetValues: [
+            { projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocations: [
+            // New format with pm
+            { personId: 'p001', projectId: 'proj001', pm: 0.6, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocationOverrides: []
+        }
+      };
+      
+      await importAllData(newFormatData);
+      
+      const allocations = await getAllocations();
+      expect(allocations).toHaveLength(1);
+      expect(allocations[0].pm).toBe(0.6); // Should preserve pm value
+    });
+
+    it('should handle missing pm and pct by setting pm to 0', async () => {
+      const { importAllData, getAllocations } = await import('../../js/data/database.js');
+      
+      const malformedData = {
+        version: '3.0',
+        exportDate: '2026-02-03T06:33:10.651Z',
+        data: {
+          people: [
+            { id: 'p001', name: 'Test Person', active: true, type: '210' }
+          ],
+          projects: [
+            { id: 'proj001', name: 'Test Project' }
+          ],
+          fteValues: [
+            { personId: 'p001', fte: 1, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          budgetValues: [
+            { projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocations: [
+            // Malformed: missing both pm and pct
+            { personId: 'p001', projectId: 'proj001', startMonth: '2025-01', endMonth: null, id: 1 }
+          ],
+          allocationOverrides: []
+        }
+      };
+      
+      await importAllData(malformedData);
+      
+      const allocations = await getAllocations();
+      expect(allocations).toHaveLength(1);
+      expect(allocations[0].pm).toBe(0); // Should default to 0 to prevent NaN
+    });
+  });
 });

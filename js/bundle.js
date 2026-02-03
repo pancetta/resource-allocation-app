@@ -711,6 +711,49 @@ var App = (() => {
       }
     };
   }
+  function convertAllocationToPm(allocation, fteValues) {
+    if (allocation.pm !== void 0 && allocation.pm !== null) {
+      return allocation;
+    }
+    if (allocation.pct !== void 0 && allocation.pct !== null) {
+      let fte = 1;
+      const applicableFteValues = fteValues.filter(
+        (fv) => fv.personId === allocation.personId && fv.startMonth <= allocation.startMonth && (fv.endMonth === null || fv.endMonth >= allocation.startMonth)
+      );
+      if (applicableFteValues.length > 0) {
+        applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+        fte = applicableFteValues[0].fte;
+      }
+      const converted = { ...allocation };
+      converted.pm = allocation.pct * fte;
+      delete converted.pct;
+      return converted;
+    }
+    return { ...allocation, pm: 0 };
+  }
+  function convertOverrideToPm(override, fteValues, allocations) {
+    if (override.pm !== void 0 && override.pm !== null) {
+      return override;
+    }
+    if (override.pct !== void 0 && override.pct !== null) {
+      const allocation = allocations.find((a) => a.id === override.allocationId);
+      if (allocation) {
+        let fte = 1;
+        const applicableFteValues = fteValues.filter(
+          (fv) => fv.personId === allocation.personId && fv.startMonth <= override.month && (fv.endMonth === null || fv.endMonth >= override.month)
+        );
+        if (applicableFteValues.length > 0) {
+          applicableFteValues.sort((a, b) => b.startMonth.localeCompare(a.startMonth));
+          fte = applicableFteValues[0].fte;
+        }
+        const converted = { ...override };
+        converted.pm = override.pct * fte;
+        delete converted.pct;
+        return converted;
+      }
+    }
+    return { ...override, pm: 0 };
+  }
   async function importAllData(importedData) {
     if (!importedData || !importedData.data) {
       throw new Error("Invalid data format");
@@ -750,11 +793,6 @@ var App = (() => {
         await addProject(project);
       }
     }
-    if (allocations && Array.isArray(allocations)) {
-      for (const allocation of allocations) {
-        await addAllocation(allocation);
-      }
-    }
     const fteData = fteValues.length > 0 ? fteValues : fteOverrides;
     if (fteData && Array.isArray(fteData)) {
       for (const value of fteData) {
@@ -767,9 +805,19 @@ var App = (() => {
         await addBudgetValue(value);
       }
     }
+    if (allocations && Array.isArray(allocations)) {
+      const currentFteValues = await getFteValues();
+      for (const allocation of allocations) {
+        const converted = convertAllocationToPm(allocation, currentFteValues);
+        await addAllocation(converted);
+      }
+    }
     if (allocationOverrides && Array.isArray(allocationOverrides)) {
+      const currentFteValues = await getFteValues();
+      const currentAllocations = await getAllocations();
       for (const override of allocationOverrides) {
-        await addAllocationOverride(override);
+        const converted = convertOverrideToPm(override, currentFteValues, currentAllocations);
+        await addAllocationOverride(converted);
       }
     }
   }
@@ -1970,7 +2018,8 @@ var App = (() => {
             pm = override.pm;
           }
         }
-        return sum + pm;
+        const safePm = pm !== void 0 && pm !== null && !isNaN(pm) ? pm : 0;
+        return sum + safePm;
       }
       return sum;
     }, 0);

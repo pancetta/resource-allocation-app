@@ -74,7 +74,9 @@ export function calculatePM(allocationIndex, personId, projectId, month, fte, al
                     pm = override.pm;
                 }
             }
-            return sum + pm;
+            // Safeguard against undefined/NaN values
+            const safePm = (pm !== undefined && pm !== null && !isNaN(pm)) ? pm : 0;
+            return sum + safePm;
         }
         return sum;
     }, 0);

@@ -170,10 +170,20 @@ export function initTimelineView() {
     if (typeof document === 'undefined') return;
     
     const showTimelineBtn = document.getElementById('showTimelineBtn');
+    const timelineOutput = document.getElementById('timelineOutput');
+    
     if (showTimelineBtn) {
         showTimelineBtn.addEventListener('click', async () => {
-            const year = parseInt(document.getElementById('timelineYearInput')?.value || new Date().getFullYear());
-            await renderTimeline('timelineOutput', year);
+            // Toggle visibility
+            if (timelineOutput.innerHTML && timelineOutput.style.display !== 'none') {
+                // Hide timeline if it's currently visible
+                timelineOutput.style.display = 'none';
+            } else {
+                // Show timeline
+                timelineOutput.style.display = 'block';
+                const year = parseInt(document.getElementById('timelineYearInput')?.value || new Date().getFullYear());
+                await renderTimeline('timelineOutput', year);
+            }
         });
     }
 }

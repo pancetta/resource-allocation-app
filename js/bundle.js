@@ -2479,7 +2479,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
     personTable.appendChild(tfoot);
     resultsOutput.appendChild(personTable);
     const projTable = document.createElement("table");
-    const projHeader = ["Project", ...months, "Total", "Planned", "Delta"];
+    const projHeader = ["Project", ...months, "Total"];
     projTable.innerHTML = `<thead><tr>${projHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const projTbody = document.createElement("tbody");
     projects.forEach((p) => {
@@ -2487,13 +2487,21 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const total = sumArray(cells);
       const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, months, budgetValues);
       const delta = total - expectedPlannedYearly;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
+      const plannedCells = months.map((month) => getEffectiveProjectBudget(p.id, month, budgetValues));
+      const deltaCells = cells.map((c, idx) => c - plannedCells[idx]);
+      const trAllocated = document.createElement("tr");
+      trAllocated.innerHTML = `<td>${p.name}<br/><em style="font-weight:normal; color: #666;">Allocated</em></td>` + cells.map((c, idx) => {
         const month = months[idx];
         const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
         return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
-      }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td><td>${expectedPlannedYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
-      projTbody.appendChild(tr);
+      }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td>`;
+      projTbody.appendChild(trAllocated);
+      const trPlanned = document.createElement("tr");
+      trPlanned.innerHTML = `<td style="padding-left: 20px;"><em style="font-weight:normal; color: #666;">Planned</em></td>` + plannedCells.map((p2) => `<td>${p2.toFixed(2)}</td>`).join("") + `<td>${expectedPlannedYearly.toFixed(2)}</td>`;
+      projTbody.appendChild(trPlanned);
+      const trDelta = document.createElement("tr");
+      trDelta.innerHTML = `<td style="padding-left: 20px; border-bottom: 2px solid #ddd;"><em style="font-weight:normal; color: #666;">Delta</em></td>` + deltaCells.map((d) => `<td class="${cellClass(d, 0)}" style="border-bottom: 2px solid #ddd;">${d.toFixed(2)}</td>`).join("") + `<td class="${cellClass(delta, 0)}" style="border-bottom: 2px solid #ddd;">${delta.toFixed(2)}</td>`;
+      projTbody.appendChild(trDelta);
     });
     const tfootProj = document.createElement("tfoot");
     const sumRowProj = document.createElement("tr");
@@ -2505,12 +2513,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
       return sum;
     });
     const totalSumProj = sumArray(monthlySumsProj);
-    let plannedSumProj = 0;
-    projects.forEach((p) => {
-      plannedSumProj += getTotalEffectiveProjectBudget(p.id, months, budgetValues);
-    });
-    const deltaSumProj = totalSumProj - plannedSumProj;
-    sumRowProj.innerHTML = `<td><strong>Total</strong></td>` + monthlySumsProj.map((sum) => `<td><strong>${sum.toFixed(2)}</strong></td>`).join("") + `<td><strong>${totalSumProj.toFixed(2)}</strong></td><td><strong>${plannedSumProj.toFixed(2)}</strong></td><td class="${cellClass(deltaSumProj, 0)}"><strong>${deltaSumProj.toFixed(2)}</strong></td>`;
+    sumRowProj.innerHTML = `<td><strong>Total</strong></td>` + monthlySumsProj.map((sum) => `<td><strong>${sum.toFixed(2)}</strong></td>`).join("") + `<td><strong>${totalSumProj.toFixed(2)}</strong></td>`;
     tfootProj.appendChild(sumRowProj);
     projTable.appendChild(projTbody);
     projTable.appendChild(tfootProj);
@@ -2523,60 +2526,6 @@ Click OK to proceed with overlap, or Cancel to abort.`
     calculateYearBtn.addEventListener("click", async () => {
       const year = document.getElementById("yearInput").value;
       await calculateYear(year);
-    });
-  }
-
-  // js/views/projectOverview.js
-  async function renderProjectMonthlyOverview(year) {
-    const projects = await getProjects();
-    const people = await getPeople();
-    const allocations = await getAllocations();
-    const fteValues = await getFteValues();
-    const budgetValues = await getBudgetValues();
-    const allocationOverrides = await getAllocationOverrides();
-    const allocationIndex = buildAllocationIndex(allocations);
-    const allocationOverrideIndex = buildAllocationOverrideIndex(allocationOverrides);
-    const resultsOutput = document.getElementById("resultsOutput");
-    resultsOutput.innerHTML = `<h3>Project \xD7 Month Overview ${year}</h3>`;
-    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
-    const table = document.createElement("table");
-    const header = ["Project", ...months, "Total", "Planned", "Delta"];
-    table.innerHTML = `<thead><tr>${header.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
-    const tbody = document.createElement("tbody");
-    projects.forEach((p) => {
-      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex);
-      const total = sumArray(cells);
-      const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, months, budgetValues);
-      const delta = total - expectedPlannedYearly;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${p.name}</td>` + cells.map((c, idx) => {
-        const month = months[idx];
-        const monthPlanned = getEffectiveProjectBudget(p.id, month, budgetValues);
-        return `<td class="${cellClass(c, monthPlanned)}">${c.toFixed(2)}</td>`;
-      }).join("") + `<td class="${cellClass(total, expectedPlannedYearly)}">${total.toFixed(2)}</td><td>${expectedPlannedYearly.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
-      tbody.appendChild(tr);
-    });
-    const tfoot = document.createElement("tfoot");
-    const sumRow = document.createElement("tr");
-    sumRow.innerHTML = `<td><strong>Total</strong></td>` + months.map((month) => {
-      let monthSum = 0;
-      projects.forEach((p) => {
-        monthSum += calculateProjectTotal(allocationIndex, p.id, people, month, fteValues, allocationOverrideIndex);
-      });
-      return `<td><strong>${monthSum.toFixed(2)}</strong></td>`;
-    }).join("") + `<td colspan="3"></td>`;
-    tfoot.appendChild(sumRow);
-    table.appendChild(tbody);
-    table.appendChild(tfoot);
-    resultsOutput.appendChild(table);
-  }
-  function initProjectOverview() {
-    if (typeof document === "undefined") return;
-    const projectMonthlyBtn = document.getElementById("projectMonthlyBtn");
-    if (!projectMonthlyBtn) return;
-    projectMonthlyBtn.addEventListener("click", async () => {
-      const year = document.getElementById("overviewYearInput").value;
-      await renderProjectMonthlyOverview(year);
     });
   }
 
@@ -2676,10 +2625,16 @@ Click OK to proceed with overlap, or Cancel to abort.`
   function initTimelineView() {
     if (typeof document === "undefined") return;
     const showTimelineBtn = document.getElementById("showTimelineBtn");
+    const timelineOutput = document.getElementById("timelineOutput");
     if (showTimelineBtn) {
       showTimelineBtn.addEventListener("click", async () => {
-        const year = parseInt(document.getElementById("timelineYearInput")?.value || (/* @__PURE__ */ new Date()).getFullYear());
-        await renderTimeline("timelineOutput", year);
+        if (timelineOutput.innerHTML && timelineOutput.style.display !== "none") {
+          timelineOutput.style.display = "none";
+        } else {
+          timelineOutput.style.display = "block";
+          const year = parseInt(document.getElementById("timelineYearInput")?.value || (/* @__PURE__ */ new Date()).getFullYear());
+          await renderTimeline("timelineOutput", year);
+        }
       });
     }
   }
@@ -3567,7 +3522,8 @@ The file will be saved to your browser's default Downloads folder.
     });
     const yearInputs = [
       "yearInput",
-      "overviewYearInput"
+      "overviewYearInput",
+      "timelineYearInput"
     ];
     const currentYear = getCurrentYear();
     yearInputs.forEach((id) => {
@@ -3627,7 +3583,6 @@ The file will be saved to your browser's default Downloads folder.
       init();
       initMonthlyReport();
       initYearlyReport();
-      initProjectOverview();
       initTimelineView();
       initUndoRedoShortcuts();
       await rerenderAllViews();

@@ -146,21 +146,17 @@
 <div id="results" class="tab-content">
     <h2>Results</h2>
 
-    <h3>Monthly</h3>
-    <label>Month: <input type="month" id="monthInput" value="2025-03"></label>
+    <h3>Monthly <span class="tooltip-icon" data-tooltip="View allocations, FTE usage, and project budgets for a specific month">ℹ️</span></h3>
+    <label>Month: <input type="month" id="monthInput"></label>
     <button id="calculateBtn">Calculate Month</button>
 
-    <h3>Yearly</h3>
-    <label>Year: <input type="number" id="yearInput" value="2025" min="2000" max="2100"></label>
+    <h3>Yearly <span class="tooltip-icon" data-tooltip="View annual overview with person and project allocations across all months">ℹ️</span></h3>
+    <label>Year: <input type="number" id="yearInput" min="2000" max="2100"></label>
     <button id="calculateYearBtn">Yearly Overview</button>
 
-    <h3>Project Monthly Overview</h3>
-    <label>Year: <input type="number" id="overviewYearInput" value="2025" min="2000" max="2100"></label>
-    <button id="projectMonthlyBtn">Project × Month</button>
-
     <h3>Timeline Visualization <span class="tooltip-icon" data-tooltip="Visual timeline showing allocations across months">ℹ️</span></h3>
-    <label>Year: <input type="number" id="timelineYearInput" value="2025" min="2000" max="2100"></label>
-    <button id="showTimelineBtn">Show Timeline</button>
+    <label>Year: <input type="number" id="timelineYearInput" min="2000" max="2100"></label>
+    <button id="showTimelineBtn">Show/Hide Timeline</button>
     <div id="timelineOutput"></div>
 
     <div id="resultsOutput"></div>

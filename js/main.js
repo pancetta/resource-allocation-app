@@ -5,7 +5,6 @@ import { renderProjects, renderBudgetValues, populateProjectSelect, populateBudg
 import { renderAllocations, renderAllocationOverrides, populateAllocationSelect, initAllocationsView } from './views/allocationsView.js';
 import { initMonthlyReport } from './views/monthlyReport.js';
 import { initYearlyReport } from './views/yearlyReport.js';
-import { initProjectOverview } from './views/projectOverview.js';
 import { initTimelineView } from './views/timelineView.js';
 import { init as initDataManagement, scheduleAutoBackup, updateAutoBackupStatus } from './views/dataManagement.js';
 import { initUndoRedoShortcuts, updateUndoRedoButtons } from './helpers/undoManager.js';
@@ -52,7 +51,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         // Initialize reports
         initMonthlyReport();
         initYearlyReport();
-        initProjectOverview();
         initTimelineView();
         
         // Initialize undo/redo keyboard shortcuts

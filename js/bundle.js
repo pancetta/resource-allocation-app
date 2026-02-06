@@ -328,7 +328,8 @@ var App = (() => {
   }
   async function openDatabase(initBaseFunding) {
     if (initBaseFunding === void 0) {
-      initBaseFunding = typeof process === "undefined" || true;
+      const isTestEnv = typeof globalThis.describe !== "undefined" && typeof globalThis.it !== "undefined" && typeof globalThis.expect !== "undefined";
+      initBaseFunding = !isTestEnv;
     }
     const database = await new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -1627,8 +1628,7 @@ ${messages}`);
           return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
         } else if (field.key === "baseFundingType") {
           const displayValue = isBaseFundingProject(p) ? value || "" : "";
-          const isEditable = isBaseFundingProject(p) ? "false" : "false";
-          return `<td contenteditable="${isEditable}" data-id="${p.id}" data-field="${field.key}">${displayValue}</td>`;
+          return `<td contenteditable="false" data-id="${p.id}" data-field="${field.key}">${displayValue}</td>`;
         } else if (field.key === "baseFundingTypeId") {
           return "";
         } else {

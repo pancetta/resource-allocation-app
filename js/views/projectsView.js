@@ -64,8 +64,8 @@ export async function renderProjects() {
             } else if (field.key === 'baseFundingType') {
                 // Only show for base funding projects
                 const displayValue = isBaseFundingProject(p) ? (value || '') : '';
-                const isEditable = isBaseFundingProject(p) ? 'false' : 'false'; // Never editable in table
-                return `<td contenteditable="${isEditable}" data-id="${p.id}" data-field="${field.key}">${displayValue}</td>`;
+                // Never editable in table
+                return `<td contenteditable="false" data-id="${p.id}" data-field="${field.key}">${displayValue}</td>`;
             } else if (field.key === 'baseFundingTypeId') {
                 // Not shown in table (showInTable: false)
                 return '';

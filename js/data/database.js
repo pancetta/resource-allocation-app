@@ -69,8 +69,12 @@ export function clearCache() {
 export async function openDatabase(initBaseFunding) {
     // Default to true in production, false in test environment
     if (initBaseFunding === undefined) {
-        // Check if we're in a test environment
-        initBaseFunding = typeof process === 'undefined' || process.env.NODE_ENV !== 'test';
+        // Check if we're in a test environment by looking for vitest-specific globals
+        // In tests, vitest injects these globals. In production/browser, they won't exist.
+        const isTestEnv = typeof globalThis.describe !== 'undefined' && 
+                         typeof globalThis.it !== 'undefined' &&
+                         typeof globalThis.expect !== 'undefined';
+        initBaseFunding = !isTestEnv;
     }
     
     const database = await new Promise((resolve, reject) => {

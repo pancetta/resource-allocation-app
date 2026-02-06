@@ -63,9 +63,16 @@ export function clearCache() {
 
 /**
  * Open and initialize the IndexedDB database
+ * @param {boolean} [initBaseFunding] - Whether to initialize base funding projects. Defaults to true in production, false in tests.
  * @returns {Promise<IDBDatabase>} The database instance
  */
-export async function openDatabase() {
+export async function openDatabase(initBaseFunding) {
+    // Default to true in production, false in test environment
+    if (initBaseFunding === undefined) {
+        // Check if we're in a test environment
+        initBaseFunding = typeof process === 'undefined' || process.env.NODE_ENV !== 'test';
+    }
+    
     const database = await new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         
@@ -104,10 +111,13 @@ export async function openDatabase() {
     });
     
     // Initialize base funding projects after database is opened
-    try {
-        await initializeBaseFundingProjects();
-    } catch (error) {
-        console.warn('Failed to initialize base funding projects:', error);
+    // Skip this in tests (when initBaseFunding is false)
+    if (initBaseFunding) {
+        try {
+            await initializeBaseFundingProjects();
+        } catch (error) {
+            console.warn('Failed to initialize base funding projects:', error);
+        }
     }
     
     return database;

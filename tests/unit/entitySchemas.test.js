@@ -53,13 +53,25 @@ describe('Entity Schemas', () => {
         it('should have correct default values', () => {
             const defaults = projectsSchema.getDefaults();
             expect(defaults).toEqual({
-                name: ''
+                name: '',
+                isBaseFunding: false,
+                baseFundingType: null,
+                deductsFromBaseFunding: false,
+                baseFundingTypeId: null
             });
         });
 
         it('should have name field', () => {
             const fieldKeys = projectsSchema.fields.map(f => f.key);
             expect(fieldKeys).toContain('name');
+        });
+        
+        it('should have base funding fields', () => {
+            const fieldKeys = projectsSchema.fields.map(f => f.key);
+            expect(fieldKeys).toContain('isBaseFunding');
+            expect(fieldKeys).toContain('baseFundingType');
+            expect(fieldKeys).toContain('deductsFromBaseFunding');
+            expect(fieldKeys).toContain('baseFundingTypeId');
         });
     });
 
@@ -120,7 +132,7 @@ describe('Entity Schemas', () => {
 
         it('should return headers from projects schema', () => {
             const headers = getTableHeaders(projectsSchema);
-            expect(headers).toEqual(['Name']);
+            expect(headers).toEqual(['Name', 'Base Funding', 'BF Type', 'Deducts from BF']);
         });
 
         it('should order headers by order field', () => {

@@ -1082,3 +1082,23 @@ button:disabled:hover {
 .project-row-delimiter {
     border-bottom: 2px solid #ddd;
 }
+
+/* Base Funding Project Styles */
+.base-funding-project {
+    background-color: #e3f2fd; /* Light blue background for base funding */
+    font-weight: 600;
+}
+
+.base-funding-project td {
+    border-left: 3px solid #005AA0; /* Blue left border to emphasize */
+}
+
+.deducts-from-base-funding {
+    background-color: #fff3e0; /* Light orange background for projects that deduct */
+}
+
+.deducts-from-base-funding td:first-child::before {
+    content: "↓ ";
+    color: #f57c00;
+    font-weight: bold;
+}

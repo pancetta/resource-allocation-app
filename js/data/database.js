@@ -66,7 +66,7 @@ export function clearCache() {
  * @returns {Promise<IDBDatabase>} The database instance
  */
 export async function openDatabase() {
-    return new Promise((resolve, reject) => {
+    const database = await new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         
         request.onupgradeneeded = (e) => {
@@ -102,6 +102,15 @@ export async function openDatabase() {
         
         request.onerror = (e) => reject(e.target.error);
     });
+    
+    // Initialize base funding projects after database is opened
+    try {
+        await initializeBaseFundingProjects();
+    } catch (error) {
+        console.warn('Failed to initialize base funding projects:', error);
+    }
+    
+    return database;
 }
 
 /**
@@ -266,10 +275,20 @@ export async function updateProject(p) {
 
 /**
  * Delete a project from the database
+ * Prevents deletion of base funding projects
  * @param {string} id - Project ID
  * @returns {Promise<void>}
+ * @throws {Error} If attempting to delete a base funding project
  */
 export async function deleteProject(id) {
+    // Check if this is a base funding project
+    const projects = await getProjects();
+    const project = projects.find(p => p.id === id);
+    
+    if (project && isBaseFundingProject(project)) {
+        throw new Error('Cannot delete base funding projects');
+    }
+    
     return deleteRecord(db, "projects", id, () => invalidateCache("projects"));
 }
 
@@ -753,6 +772,72 @@ export async function importData(data, reload = true) {
         const event = new CustomEvent('dataImported');
         if (typeof document !== 'undefined') {
             document.dispatchEvent(event);
+        }
+    }
+}
+
+/**********************
+ * Base Funding Helper Functions
+ **********************/
+
+/**
+ * Check if a project is a base funding project
+ * @param {Object} project - Project object
+ * @returns {boolean} True if project is base funding
+ */
+export function isBaseFundingProject(project) {
+    return project && project.isBaseFunding === true;
+}
+
+/**
+ * Get all base funding projects
+ * @returns {Promise<Array>} Array of base funding projects
+ */
+export async function getBaseFundingProjects() {
+    const projects = await getProjects();
+    return projects.filter(p => isBaseFundingProject(p));
+}
+
+/**
+ * Get base funding project for a specific type
+ * @param {string} type - Base funding type (e.g., '210', '220')
+ * @returns {Promise<Object|null>} Base funding project or null if not found
+ */
+export async function getBaseFundingProjectByType(type) {
+    const projects = await getProjects();
+    return projects.find(p => isBaseFundingProject(p) && p.baseFundingType === type) || null;
+}
+
+/**
+ * Check if a project deducts from base funding
+ * @param {Object} project - Project object
+ * @returns {boolean} True if project deducts from base funding
+ */
+export function deductsFromBaseFunding(project) {
+    return project && project.deductsFromBaseFunding === true;
+}
+
+/**
+ * Initialize base funding projects if they don't exist
+ * Creates base funding projects for types 210 and 220
+ * @returns {Promise<void>}
+ */
+export async function initializeBaseFundingProjects() {
+    const projects = await getProjects();
+    const baseFundingTypes = ['210', '220'];
+    
+    for (const type of baseFundingTypes) {
+        const exists = projects.find(p => isBaseFundingProject(p) && p.baseFundingType === type);
+        if (!exists) {
+            const projectId = await generateProjectId();
+            await addProject({
+                id: projectId,
+                name: `Base Funding ${type}`,
+                isBaseFunding: true,
+                baseFundingType: type,
+                deductsFromBaseFunding: false,
+                baseFundingTypeId: null
+            });
         }
     }
 }

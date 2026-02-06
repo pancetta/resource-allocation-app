@@ -89,11 +89,57 @@ export const projectsSchema = {
             editable: true,
             showInTable: true,
             order: 1
+        },
+        {
+            key: 'isBaseFunding',
+            label: 'Base Funding',
+            type: 'checkbox',
+            required: false,
+            editable: false, // Not editable in table - set at creation
+            showInTable: true,
+            order: 2,
+            defaultValue: false,
+            description: 'Mark this project as a base funding project'
+        },
+        {
+            key: 'baseFundingType',
+            label: 'BF Type',
+            type: 'text',
+            required: false,
+            editable: false, // Not editable in table
+            showInTable: true,
+            order: 3,
+            description: 'Type of base funding (210, 220, etc.) - only for base funding projects'
+        },
+        {
+            key: 'deductsFromBaseFunding',
+            label: 'Deducts from BF',
+            type: 'checkbox',
+            required: false,
+            editable: false, // Not editable after creation
+            showInTable: true,
+            order: 4,
+            defaultValue: false,
+            description: 'Whether allocations to this project deduct from base funding'
+        },
+        {
+            key: 'baseFundingTypeId',
+            label: 'BF Type Link',
+            type: 'text',
+            required: false,
+            editable: false, // Not editable after creation
+            showInTable: false,
+            order: 5,
+            description: 'Which base funding type to deduct from (210, 220, etc.)'
         }
     ],
     // Default values for new project
     getDefaults: () => ({
-        name: ''
+        name: '',
+        isBaseFunding: false,
+        baseFundingType: null,
+        deductsFromBaseFunding: false,
+        baseFundingTypeId: null
     })
 };
 

@@ -143,6 +143,23 @@ describe('Projects View', () => {
       const tbody = document.querySelector('#projectsTable tbody');
       expect(tbody).toBeDefined();
     });
+
+    it('should mark new projects with isNew flag for matching funds selection', async () => {
+      await addProjectAuto('Project Alpha');
+      
+      const projects = await db.getProjects();
+      expect(projects.length).toBe(1);
+      expect(projects[0].isNew).toBe(true);
+    });
+
+    it('should enable matching funds checkbox for new projects', async () => {
+      await addProjectAuto('Project Alpha');
+      await renderProjects();
+      
+      const checkbox = document.querySelector('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
+      expect(checkbox).toBeTruthy();
+      expect(checkbox.disabled).toBe(false);
+    });
   });
 
   describe('initProjectsView', () => {
@@ -184,6 +201,57 @@ describe('Projects View', () => {
       // Verify batch selection checkboxes are added
       const checkboxes = document.querySelectorAll('.row-select-checkbox');
       expect(checkboxes.length).toBeGreaterThan(0);
+    });
+
+    it('should remove isNew flag when matching funds checkbox is changed', async () => {
+      await addProjectAuto('Project Alpha');
+      await renderProjects();
+      
+      const checkbox = document.querySelector('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
+      expect(checkbox).toBeTruthy();
+      
+      // Check the checkbox
+      checkbox.checked = true;
+      const changeEvent = new Event('change');
+      checkbox.dispatchEvent(changeEvent);
+      
+      // Wait for async update by checking the database
+      let projects;
+      let attempts = 0;
+      while (attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        projects = await db.getProjects();
+        if (projects[0].isNew === undefined) break;
+        attempts++;
+      }
+      
+      expect(projects[0].deductsFromBaseFunding).toBe(true);
+      expect(projects[0].isNew).toBeUndefined();
+    });
+
+    it('should disable matching funds checkbox after isNew flag is removed', async () => {
+      await addProjectAuto('Project Alpha');
+      await renderProjects();
+      
+      // First, the checkbox should be enabled
+      let checkbox = document.querySelector('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
+      expect(checkbox.disabled).toBe(false);
+      
+      // Change the checkbox
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+      
+      // Wait for async update and re-render by checking the DOM
+      let attempts = 0;
+      while (attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        checkbox = document.querySelector('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
+        if (checkbox && checkbox.disabled) break;
+        attempts++;
+      }
+      
+      // After re-render, checkbox should be disabled (isNew is gone)
+      expect(checkbox.disabled).toBe(true);
     });
   });
   

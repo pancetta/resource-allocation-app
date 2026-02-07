@@ -13,6 +13,9 @@ A client-side resource allocation web application built with vanilla JavaScript 
   - Yearly overview with month-by-month breakdown
   - Project overview across months
 - **Data Management & Backup**:
+  - **Automated scheduled backups** - Configure periodic backups to external storage
+  - **File System Access** - Fully automated backups to local folder (Chrome/Edge)
+  - **Cloud storage ready** - Framework for Google Drive, Dropbox, GitHub Gists (coming soon)
   - Export data to JSON files for permanent storage
   - Import data from JSON files
   - **Automatic JSON backup preparation** - one-click download of latest data
@@ -48,6 +51,27 @@ This application uses two types of data storage:
    - **Can be lost** when you clear browser cache/browsing data
    - Only accessible in the same browser where created
    - Good for quick recovery from accidental changes
+
+### NEW: Automated Scheduled Backups
+
+**Protect your data with fully automated backups!**
+
+The app now supports scheduled backups that run automatically without manual intervention:
+
+- **File System Access**: Automatically save backups to a local folder (Chrome/Edge)
+- **Configurable Schedule**: Every 15 minutes to 8 hours
+- **Version Control**: Keep 1-100 backup versions
+- **Browser Notifications**: Get alerts when backups complete
+- **Backup History**: Track all backup attempts and results
+
+**Quick Start:**
+1. Go to Data tab → Automated Backup Scheduling
+2. Enable "Scheduled Backups"
+3. Select "File System" storage type
+4. Choose a backup folder
+5. Save settings
+
+For detailed instructions, see [docs/AUTOMATED_BACKUPS.md](docs/AUTOMATED_BACKUPS.md).
 
 ### Protecting Your Data
 

@@ -3562,6 +3562,448 @@ The file will be saved to your browser's default Downloads folder.
     }, AUTO_BACKUP_DELAY_MS);
   }
 
+  // js/helpers/autoBackupScheduler.js
+  var BACKUP_CONFIG_KEY = "resource-planning-backup-config";
+  var BACKUP_HISTORY_KEY = "resource-planning-backup-history";
+  var MAX_HISTORY_ITEMS = 50;
+  var DEFAULT_CONFIG = {
+    enabled: false,
+    intervalMinutes: 30,
+    // Backup every 30 minutes
+    storageType: "download",
+    // 'download', 'filesystem', 'github-gist', 'google-drive', 'dropbox'
+    keepVersions: 20,
+    // Keep last 20 versions
+    notifyOnBackup: false,
+    lastBackupTime: null
+  };
+  var schedulerInterval = null;
+  var fileSystemHandle = null;
+  function getBackupConfig() {
+    try {
+      const stored = localStorage.getItem(BACKUP_CONFIG_KEY);
+      if (stored) {
+        return { ...DEFAULT_CONFIG, ...JSON.parse(stored) };
+      }
+    } catch (e) {
+      console.error("Failed to load backup config:", e);
+    }
+    return { ...DEFAULT_CONFIG };
+  }
+  function saveBackupConfig(config) {
+    try {
+      localStorage.setItem(BACKUP_CONFIG_KEY, JSON.stringify(config));
+      if (config.enabled) {
+        startScheduler();
+      } else {
+        stopScheduler();
+      }
+    } catch (e) {
+      console.error("Failed to save backup config:", e);
+      throw new Error("Failed to save backup configuration");
+    }
+  }
+  function getBackupHistory() {
+    try {
+      const stored = localStorage.getItem(BACKUP_HISTORY_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Failed to load backup history:", e);
+    }
+    return [];
+  }
+  function addToHistory(entry) {
+    try {
+      const history = getBackupHistory();
+      history.unshift(entry);
+      const trimmed = history.slice(0, MAX_HISTORY_ITEMS);
+      localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      console.error("Failed to save backup history:", e);
+    }
+  }
+  async function performBackup() {
+    const config = getBackupConfig();
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    try {
+      const data = await exportAllData();
+      const filename = `resource-allocation-backup-${timestamp.split("T")[0]}-${timestamp.split("T")[1].split(".")[0].replace(/:/g, "-")}.json`;
+      let result;
+      switch (config.storageType) {
+        case "download":
+          result = await backupToDownload(data, filename);
+          break;
+        case "filesystem":
+          result = await backupToFileSystem(data, filename);
+          break;
+        case "github-gist":
+          result = await backupToGitHubGist(data, filename);
+          break;
+        case "google-drive":
+          result = await backupToGoogleDrive(data, filename);
+          break;
+        case "dropbox":
+          result = await backupToDropbox(data, filename);
+          break;
+        default:
+          throw new Error(`Unknown storage type: ${config.storageType}`);
+      }
+      config.lastBackupTime = Date.now();
+      saveBackupConfig(config);
+      addToHistory({
+        timestamp: Date.now(),
+        success: true,
+        storageType: config.storageType,
+        filename,
+        message: result.message
+      });
+      if (config.notifyOnBackup && result.success) {
+        showBackupNotification(result.message);
+      }
+      return result;
+    } catch (e) {
+      console.error("Backup failed:", e);
+      addToHistory({
+        timestamp: Date.now(),
+        success: false,
+        storageType: config.storageType,
+        message: e.message
+      });
+      return {
+        success: false,
+        message: `Backup failed: ${e.message}`
+      };
+    }
+  }
+  async function backupToDownload(data, filename) {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    try {
+      window.__autoBackupUrl = url;
+      window.__autoBackupFilename = filename;
+      return {
+        success: true,
+        message: `Backup prepared: ${filename}. Click notification to download.`,
+        requiresUserAction: true
+      };
+    } catch (e) {
+      URL.revokeObjectURL(url);
+      throw e;
+    }
+  }
+  async function backupToFileSystem(data, filename) {
+    if (!("showDirectoryPicker" in window)) {
+      throw new Error("File System Access API not supported in this browser");
+    }
+    if (!fileSystemHandle) {
+      throw new Error("No directory selected. Please select a backup directory first.");
+    }
+    try {
+      const fileHandle = await fileSystemHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      const jsonStr = JSON.stringify(data, null, 2);
+      await writable.write(jsonStr);
+      await writable.close();
+      return {
+        success: true,
+        message: `Backup saved to file system: ${filename}`
+      };
+    } catch (e) {
+      if (e.name === "NotAllowedError") {
+        fileSystemHandle = null;
+        throw new Error("Permission to access directory was revoked. Please select directory again.");
+      }
+      throw e;
+    }
+  }
+  function setFileSystemHandle(handle) {
+    fileSystemHandle = handle;
+  }
+  async function requestBackupDirectory() {
+    if (!("showDirectoryPicker" in window)) {
+      throw new Error("File System Access API not supported in this browser");
+    }
+    try {
+      const handle = await window.showDirectoryPicker({
+        mode: "readwrite",
+        startIn: "downloads"
+      });
+      setFileSystemHandle(handle);
+      return true;
+    } catch (e) {
+      if (e.name === "AbortError") {
+        return false;
+      }
+      throw e;
+    }
+  }
+  async function backupToGitHubGist(data, filename) {
+    throw new Error("GitHub Gist backup requires authentication. This feature is not yet implemented.");
+  }
+  async function backupToGoogleDrive(data, filename) {
+    throw new Error("Google Drive backup requires authentication. This feature is not yet implemented.");
+  }
+  async function backupToDropbox(data, filename) {
+    throw new Error("Dropbox backup requires authentication. This feature is not yet implemented.");
+  }
+  function showBackupNotification(message) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Resource Allocation Backup", {
+        body: message,
+        icon: "/favicon.ico"
+      });
+    }
+  }
+  async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+      return false;
+    }
+    if (Notification.permission === "granted") {
+      return true;
+    }
+    if (Notification.permission !== "denied") {
+      const permission = await Notification.requestPermission();
+      return permission === "granted";
+    }
+    return false;
+  }
+  function startScheduler() {
+    const config = getBackupConfig();
+    if (!config.enabled) {
+      return;
+    }
+    stopScheduler();
+    const intervalMs = config.intervalMinutes * 60 * 1e3;
+    schedulerInterval = setInterval(async () => {
+      console.log("Performing scheduled backup...");
+      await performBackup();
+    }, intervalMs);
+    console.log(`Backup scheduler started (interval: ${config.intervalMinutes} minutes)`);
+  }
+  function stopScheduler() {
+    if (schedulerInterval) {
+      clearInterval(schedulerInterval);
+      schedulerInterval = null;
+      console.log("Backup scheduler stopped");
+    }
+  }
+  function initScheduler() {
+    const config = getBackupConfig();
+    if (config.enabled) {
+      startScheduler();
+    }
+  }
+  function downloadPreparedBackup() {
+    if (window.__autoBackupUrl && window.__autoBackupFilename) {
+      const a = document.createElement("a");
+      a.href = window.__autoBackupUrl;
+      a.download = window.__autoBackupFilename;
+      a.click();
+      URL.revokeObjectURL(window.__autoBackupUrl);
+      delete window.__autoBackupUrl;
+      delete window.__autoBackupFilename;
+      return true;
+    }
+    return false;
+  }
+
+  // js/views/scheduledBackups.js
+  async function init2() {
+    if (typeof document === "undefined") {
+      return;
+    }
+    loadConfig();
+    setupEventListeners();
+    renderBackupHistory();
+    initScheduler();
+  }
+  function loadConfig() {
+    const config = getBackupConfig();
+    const enableCheckbox = document.getElementById("enableScheduledBackups");
+    const intervalSelect = document.getElementById("backupInterval");
+    const storageTypeSelect = document.getElementById("backupStorageType");
+    const keepVersionsInput = document.getElementById("keepVersions");
+    const notifyCheckbox = document.getElementById("notifyOnBackup");
+    const settingsDiv = document.getElementById("scheduledBackupSettings");
+    if (!enableCheckbox) return;
+    enableCheckbox.checked = config.enabled;
+    if (intervalSelect) intervalSelect.value = config.intervalMinutes;
+    if (storageTypeSelect) storageTypeSelect.value = config.storageType;
+    if (keepVersionsInput) keepVersionsInput.value = config.keepVersions;
+    if (notifyCheckbox) notifyCheckbox.checked = config.notifyOnBackup;
+    if (settingsDiv) {
+      settingsDiv.style.display = config.enabled ? "block" : "none";
+    }
+    updateStorageTypeUI(config.storageType);
+    updateStatusDisplay(config);
+  }
+  function updateStorageTypeUI(storageType) {
+    const fileSystemSetup = document.getElementById("fileSystemSetup");
+    const cloudStorageSetup = document.getElementById("cloudStorageSetup");
+    if (!fileSystemSetup || !cloudStorageSetup) return;
+    fileSystemSetup.style.display = "none";
+    cloudStorageSetup.style.display = "none";
+    if (storageType === "filesystem") {
+      fileSystemSetup.style.display = "block";
+    } else if (["github-gist", "google-drive", "dropbox"].includes(storageType)) {
+      cloudStorageSetup.style.display = "block";
+    }
+  }
+  function updateStatusDisplay(config) {
+    const schedulerStatus = document.getElementById("schedulerStatus");
+    const lastScheduledBackup = document.getElementById("lastScheduledBackup");
+    if (!schedulerStatus) return;
+    if (config.enabled) {
+      schedulerStatus.textContent = `\u2713 Scheduler running (every ${config.intervalMinutes} minutes to ${config.storageType})`;
+      schedulerStatus.style.color = "#28a745";
+    } else {
+      schedulerStatus.textContent = "\u25CB Scheduler not running";
+      schedulerStatus.style.color = "#666";
+    }
+    if (lastScheduledBackup && config.lastBackupTime) {
+      const lastBackupDate = new Date(config.lastBackupTime);
+      lastScheduledBackup.textContent = `Last backup: ${lastBackupDate.toLocaleString()}`;
+      lastScheduledBackup.style.color = "#28a745";
+    } else if (lastScheduledBackup) {
+      lastScheduledBackup.textContent = "No backups yet";
+      lastScheduledBackup.style.color = "#666";
+    }
+  }
+  function setupEventListeners() {
+    const enableCheckbox = document.getElementById("enableScheduledBackups");
+    const settingsDiv = document.getElementById("scheduledBackupSettings");
+    const saveSettingsBtn = document.getElementById("saveBackupSettingsBtn");
+    const testBackupBtn = document.getElementById("testBackupNowBtn");
+    const storageTypeSelect = document.getElementById("backupStorageType");
+    const selectDirBtn = document.getElementById("selectBackupDirBtn");
+    const notifyCheckbox = document.getElementById("notifyOnBackup");
+    const requestNotificationBtn = document.getElementById("requestNotificationBtn");
+    if (enableCheckbox && settingsDiv) {
+      enableCheckbox.addEventListener("change", () => {
+        settingsDiv.style.display = enableCheckbox.checked ? "block" : "none";
+      });
+    }
+    if (storageTypeSelect) {
+      storageTypeSelect.addEventListener("change", (e) => {
+        updateStorageTypeUI(e.target.value);
+      });
+    }
+    if (selectDirBtn) {
+      selectDirBtn.addEventListener("click", async () => {
+        try {
+          const selected = await requestBackupDirectory();
+          const statusSpan = document.getElementById("backupDirStatus");
+          if (selected && statusSpan) {
+            statusSpan.textContent = "\u2713 Directory selected";
+            statusSpan.style.color = "#28a745";
+          }
+        } catch (e) {
+          alert(`Failed to select directory: ${e.message}`);
+        }
+      });
+    }
+    if (notifyCheckbox && requestNotificationBtn) {
+      if ("Notification" in window && Notification.permission !== "granted") {
+        requestNotificationBtn.style.display = "inline-block";
+      }
+      notifyCheckbox.addEventListener("change", () => {
+        if (notifyCheckbox.checked && "Notification" in window && Notification.permission !== "granted") {
+          requestNotificationBtn.style.display = "inline-block";
+        }
+      });
+      requestNotificationBtn.addEventListener("click", async () => {
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          requestNotificationBtn.style.display = "none";
+          alert("\u2713 Notification permission granted!");
+        } else {
+          alert("Notification permission was denied. You can change this in your browser settings.");
+        }
+      });
+    }
+    if (saveSettingsBtn) {
+      saveSettingsBtn.addEventListener("click", async () => {
+        try {
+          const config = {
+            enabled: enableCheckbox?.checked || false,
+            intervalMinutes: parseInt(document.getElementById("backupInterval")?.value || 30),
+            storageType: document.getElementById("backupStorageType")?.value || "download",
+            keepVersions: parseInt(document.getElementById("keepVersions")?.value || 20),
+            notifyOnBackup: document.getElementById("notifyOnBackup")?.checked || false,
+            lastBackupTime: getBackupConfig().lastBackupTime
+          };
+          saveBackupConfig(config);
+          updateStatusDisplay(config);
+          alert("\u2713 Backup settings saved successfully!");
+        } catch (e) {
+          alert(`Failed to save settings: ${e.message}`);
+        }
+      });
+    }
+    if (testBackupBtn) {
+      testBackupBtn.addEventListener("click", async () => {
+        testBackupBtn.disabled = true;
+        testBackupBtn.textContent = "\u23F3 Running backup...";
+        try {
+          const result = await performBackup();
+          if (result.success) {
+            if (result.requiresUserAction) {
+              const downloaded = downloadPreparedBackup();
+              if (downloaded) {
+                alert("\u2713 Backup prepared and download started!\n\nCheck your Downloads folder.");
+              } else {
+                alert("\u2713 Backup completed!\n\n" + result.message);
+              }
+            } else {
+              alert("\u2713 Backup completed successfully!\n\n" + result.message);
+            }
+            loadConfig();
+            renderBackupHistory();
+          } else {
+            alert("\u2717 Backup failed:\n\n" + result.message);
+          }
+        } catch (e) {
+          alert(`Backup error: ${e.message}`);
+        } finally {
+          testBackupBtn.disabled = false;
+          testBackupBtn.textContent = "\u{1F527} Test Backup Now";
+        }
+      });
+    }
+  }
+  function renderBackupHistory() {
+    const tbody = document.querySelector("#backupHistoryTable tbody");
+    if (!tbody) return;
+    const history = getBackupHistory();
+    tbody.innerHTML = "";
+    if (history.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No backup history yet</td></tr>';
+      return;
+    }
+    history.forEach((entry) => {
+      const row = document.createElement("tr");
+      const timeCell = document.createElement("td");
+      const date = new Date(entry.timestamp);
+      timeCell.textContent = date.toLocaleString();
+      row.appendChild(timeCell);
+      const typeCell = document.createElement("td");
+      typeCell.textContent = entry.storageType || "unknown";
+      row.appendChild(typeCell);
+      const statusCell = document.createElement("td");
+      statusCell.textContent = entry.success ? "\u2713 Success" : "\u2717 Failed";
+      statusCell.style.color = entry.success ? "#28a745" : "#dc3545";
+      row.appendChild(statusCell);
+      const messageCell = document.createElement("td");
+      messageCell.textContent = entry.message || "";
+      messageCell.style.fontSize = "0.85em";
+      row.appendChild(messageCell);
+      tbody.appendChild(row);
+    });
+  }
+
   // js/ui/enhancements.js
   init_toast();
   function initUndoRedoButtons() {
@@ -3882,6 +4324,7 @@ The file will be saved to your browser's default Downloads folder.
       initProjectsView();
       initAllocationsView();
       init();
+      init2();
       initMonthlyReport();
       initYearlyReport();
       initTimelineView();

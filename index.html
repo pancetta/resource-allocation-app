@@ -192,6 +192,94 @@
         </p>
     </div>
     
+    <h3>⏰ Automated Backup Scheduling</h3>
+    <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+        <p><strong>What is this?</strong> Schedule automatic backups to run periodically without manual intervention. Choose where to save your backups: local downloads, file system, or cloud storage (when configured).</p>
+        
+        <div style="margin-top: 15px;">
+            <label>
+                <input type="checkbox" id="enableScheduledBackups">
+                <strong>Enable Scheduled Backups</strong>
+            </label>
+        </div>
+        
+        <div id="scheduledBackupSettings" style="margin-top: 15px; display: none;">
+            <div style="margin-bottom: 10px;">
+                <label for="backupInterval">Backup Interval:</label>
+                <select id="backupInterval" style="margin-left: 10px;">
+                    <option value="15">Every 15 minutes</option>
+                    <option value="30" selected>Every 30 minutes</option>
+                    <option value="60">Every hour</option>
+                    <option value="120">Every 2 hours</option>
+                    <option value="240">Every 4 hours</option>
+                    <option value="480">Every 8 hours</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label for="backupStorageType">Storage Type:</label>
+                <select id="backupStorageType" style="margin-left: 10px;">
+                    <option value="download">Download to Browser (requires manual save)</option>
+                    <option value="filesystem">File System (automatic, Chrome/Edge only)</option>
+                    <option value="github-gist">GitHub Gist (requires setup)</option>
+                    <option value="google-drive">Google Drive (requires setup)</option>
+                    <option value="dropbox">Dropbox (requires setup)</option>
+                </select>
+            </div>
+            
+            <div id="fileSystemSetup" style="display: none; margin-bottom: 10px; padding: 10px; background-color: #fff; border-radius: 5px;">
+                <p><strong>File System Access:</strong> Select a folder where backups will be automatically saved.</p>
+                <button id="selectBackupDirBtn">📁 Select Backup Directory</button>
+                <span id="backupDirStatus" style="margin-left: 10px; color: #666;"></span>
+            </div>
+            
+            <div id="cloudStorageSetup" style="display: none; margin-bottom: 10px; padding: 10px; background-color: #fff; border-radius: 5px;">
+                <p><strong>Cloud Storage:</strong> This feature requires authentication setup (coming soon).</p>
+                <p style="color: #666; font-size: 0.9em;">OAuth integration with cloud providers will be added in a future update.</p>
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label for="keepVersions">Keep Versions:</label>
+                <input type="number" id="keepVersions" min="1" max="100" value="20" style="width: 60px; margin-left: 10px;">
+                <span style="color: #666; font-size: 0.9em; margin-left: 5px;">(How many backup versions to keep)</span>
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label>
+                    <input type="checkbox" id="notifyOnBackup">
+                    <span>Show browser notifications when backup completes</span>
+                </label>
+                <button id="requestNotificationBtn" style="margin-left: 10px; display: none;">Enable Notifications</button>
+            </div>
+            
+            <div style="margin-top: 15px; padding: 10px; background-color: #fff; border-radius: 5px;">
+                <strong>Backup Status:</strong>
+                <div id="schedulerStatus" style="margin-top: 5px; color: #666;">Not started</div>
+                <div id="lastScheduledBackup" style="margin-top: 5px; color: #666;"></div>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button id="saveBackupSettingsBtn" style="background-color: #007bff; color: white; font-weight: bold;">💾 Save Settings</button>
+                <button id="testBackupNowBtn" style="margin-left: 10px;">🔧 Test Backup Now</button>
+            </div>
+        </div>
+        
+        <h4 style="margin-top: 20px;">Backup History</h4>
+        <div id="backupHistoryContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background-color: #fff;">
+            <table id="backupHistoryTable" style="width: 100%; font-size: 0.9em;">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    
     <h3>Automatic Backups (Browser Storage Only)</h3>
     <p><strong>What are these?</strong> Automatic backups are saved in your browser's localStorage (same as browser cache). They provide quick recovery from accidental changes but are NOT safe from cache cleanup.</p>
     <p><strong>Limitations:</strong></p>

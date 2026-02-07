@@ -7,6 +7,7 @@ import { initMonthlyReport } from './views/monthlyReport.js';
 import { initYearlyReport } from './views/yearlyReport.js';
 import { initTimelineView } from './views/timelineView.js';
 import { init as initDataManagement, scheduleAutoBackup, updateAutoBackupStatus } from './views/dataManagement.js';
+import { init as initScheduledBackups } from './views/scheduledBackups.js';
 import { initUndoRedoShortcuts, updateUndoRedoButtons } from './helpers/undoManager.js';
 import { initUIEnhancements } from './ui/enhancements.js';
 import { initSmartDefaults } from './helpers/smartDefaults.js';
@@ -47,6 +48,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && document
         initProjectsView();
         initAllocationsView();
         initDataManagement();
+        initScheduledBackups();
         
         // Initialize reports
         initMonthlyReport();

@@ -2016,11 +2016,28 @@ ${messages}`);
     }
     return total;
   }
-  function calculateProjectTotal(allocationIndex, projectId, people, month, fteValues = null, allocationOverrideIndex = null) {
+  function calculateProjectTotal(allocationIndex, projectId, people, month, fteValues = null, allocationOverrideIndex = null, projects = null) {
     let total = 0;
     for (const person of people) {
       const fte = fteValues ? getEffectiveFte(person.id, month, fteValues) : 1;
       total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
+    }
+    if (projects) {
+      const currentProject = projects.find((p) => p.id === projectId);
+      if (currentProject && currentProject.isBaseFunding === true && currentProject.baseFundingType) {
+        const baseFundingType = currentProject.baseFundingType;
+        const matchingFundsProjects = projects.filter(
+          (p) => p.deductsFromBaseFunding === true && p.baseFundingTypeId === baseFundingType
+        );
+        for (const mfProject of matchingFundsProjects) {
+          for (const person of people) {
+            if (person.type === baseFundingType) {
+              const fte = fteValues ? getEffectiveFte(person.id, month, fteValues) : 1;
+              total += calculatePM(allocationIndex, person.id, mfProject.id, month, fte, allocationOverrideIndex);
+            }
+          }
+        }
+      }
     }
     return total;
   }
@@ -2041,8 +2058,8 @@ ${messages}`);
       return calculatePersonTotal(allocationIndex, personId, projects, month, effectiveFte, allocationOverrideIndex);
     });
   }
-  function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null) {
-    return months.map((month) => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex));
+  function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null, projects = null) {
+    return months.map((month) => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex, projects));
   }
   function sumArray(arr) {
     return arr.reduce((sum, val) => sum + val, 0);
@@ -2586,7 +2603,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
     }, 0);
     const overallPct = totalFte > 0 ? pmToPercentage(overallTotal, totalFte) : 0;
     const projectTotalCells = projects.map((proj) => {
-      const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
+      const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex, projects);
       const sumPct = totalFte > 0 ? pmToPercentage(sum, totalFte) : 0;
       return `<td class="pct-cell"><strong>${sumPct.toFixed(1)}%</strong></td><td><strong>${sum.toFixed(2)}</strong></td>`;
     }).join("");
@@ -2600,7 +2617,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
     projTable.innerHTML = `<thead><tr>${projHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const projTbody = document.createElement("tbody");
     projects.forEach((proj) => {
-      const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
+      const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex, projects);
       const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
       const delta = total - planned;
       const tr = document.createElement("tr");
@@ -2759,7 +2776,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
     projTable.innerHTML = `<thead><tr>${projHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
     const projTbody = document.createElement("tbody");
     projects.forEach((p) => {
-      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex);
+      const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex, projects);
       const total = sumArray(cells);
       const expectedPlannedYearly = getTotalEffectiveProjectBudget(p.id, months, budgetValues);
       const delta = total - expectedPlannedYearly;
@@ -2783,7 +2800,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
     const monthlySumsProj = months.map((m) => {
       let sum = 0;
       projects.forEach((p) => {
-        sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteValues, allocationOverrideIndex);
+        sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteValues, allocationOverrideIndex, projects);
       });
       return sum;
     });

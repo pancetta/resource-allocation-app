@@ -110,16 +110,43 @@ export function calculatePersonTotal(allocationIndex, personId, projects, month,
  * @param {string} month - Month string in YYYY-MM format
  * @param {Array} [fteValues] - Optional array of FTE value objects
  * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
+ * @param {Array} [projects] - Optional array of project objects (needed for base funding calculations)
  * @returns {number} Total person-months
  */
-export function calculateProjectTotal(allocationIndex, projectId, people, month, fteValues = null, allocationOverrideIndex = null) {
+export function calculateProjectTotal(allocationIndex, projectId, people, month, fteValues = null, allocationOverrideIndex = null, projects = null) {
     let total = 0;
     
+    // First, calculate direct allocations to this project
     for (const person of people) {
         // Get effective FTE using helper
         const fte = fteValues ? getEffectiveFte(person.id, month, fteValues) : 1;
         
         total += calculatePM(allocationIndex, person.id, projectId, month, fte, allocationOverrideIndex);
+    }
+    
+    // If this is a base funding project, also include allocations from matching funds projects
+    if (projects) {
+        const currentProject = projects.find(p => p.id === projectId);
+        if (currentProject && currentProject.isBaseFunding === true && currentProject.baseFundingType) {
+            const baseFundingType = currentProject.baseFundingType;
+            
+            // Find all projects that deduct from this base funding type
+            const matchingFundsProjects = projects.filter(p => 
+                p.deductsFromBaseFunding === true && 
+                p.baseFundingTypeId === baseFundingType
+            );
+            
+            // For each matching funds project, sum allocations from people of matching type
+            for (const mfProject of matchingFundsProjects) {
+                for (const person of people) {
+                    // Only count if person's type matches the base funding type
+                    if (person.type === baseFundingType) {
+                        const fte = fteValues ? getEffectiveFte(person.id, month, fteValues) : 1;
+                        total += calculatePM(allocationIndex, person.id, mfProject.id, month, fte, allocationOverrideIndex);
+                    }
+                }
+            }
+        }
     }
     
     return total;
@@ -168,10 +195,11 @@ export function calculatePersonMonthlyTotals(allocationIndex, personId, projects
  * @param {Array} months - Array of month strings in YYYY-MM format
  * @param {Array} [fteOverrides] - Optional array of FTE override objects
  * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
+ * @param {Array} [projects] - Optional array of project objects (needed for base funding calculations)
  * @returns {Array} Array of monthly totals
  */
-export function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null) {
-    return months.map(month => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex));
+export function calculateProjectMonthlyTotals(allocationIndex, projectId, people, months, fteOverrides = null, allocationOverrideIndex = null, projects = null) {
+    return months.map(month => calculateProjectTotal(allocationIndex, projectId, people, month, fteOverrides, allocationOverrideIndex, projects));
 }
 
 /**

@@ -89,7 +89,7 @@ export async function calculateMonth(month) {
     const overallPct = totalFte > 0 ? pmToPercentage(overallTotal, totalFte) : 0;
     
     const projectTotalCells = projects.map(proj => {
-        const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
+        const sum = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex, projects);
         const sumPct = totalFte > 0 ? pmToPercentage(sum, totalFte) : 0;
         return `<td class="pct-cell"><strong>${sumPct.toFixed(1)}%</strong></td>` +
                `<td><strong>${sum.toFixed(2)}</strong></td>`;
@@ -114,7 +114,7 @@ export async function calculateMonth(month) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(proj => {
-        const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex);
+        const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex, projects);
         
         // Get effective planned PM for this month
         const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);

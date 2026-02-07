@@ -958,7 +958,7 @@ var App = (() => {
         // Not editable after creation
         showInTable: false,
         order: 5,
-        description: "Which base funding type to deduct from (210, 220, etc.)"
+        description: "Which base funding type to deduct from (210, 220, etc.) - derived from person allocations"
       }
     ],
     // Default values for new project
@@ -2027,7 +2027,7 @@ ${messages}`);
       if (currentProject && currentProject.isBaseFunding === true && currentProject.baseFundingType) {
         const baseFundingType = currentProject.baseFundingType;
         const matchingFundsProjects = projects.filter(
-          (p) => p.deductsFromBaseFunding === true && p.baseFundingTypeId === baseFundingType
+          (p) => p.deductsFromBaseFunding === true
         );
         for (const mfProject of matchingFundsProjects) {
           for (const person of people) {
@@ -2078,18 +2078,15 @@ ${messages}`);
       return deductions;
     }
     deductingProjects.forEach((project) => {
-      const baseFundingType = project.baseFundingTypeId;
-      if (!baseFundingType) return;
-      if (!deductions[baseFundingType]) {
-        deductions[baseFundingType] = 0;
-      }
       people.forEach((person) => {
         const personType = person.type;
-        if (personType === baseFundingType) {
-          const fte = getEffectiveFte(person.id, month, fteValues);
-          const pm = calculatePM(allocationIndex, person.id, project.id, month, fte, allocationOverrideIndex);
-          deductions[baseFundingType] += pm;
+        if (!personType) return;
+        if (!deductions[personType]) {
+          deductions[personType] = 0;
         }
+        const fte = getEffectiveFte(person.id, month, fteValues);
+        const pm = calculatePM(allocationIndex, person.id, project.id, month, fte, allocationOverrideIndex);
+        deductions[personType] += pm;
       });
     });
     return deductions;

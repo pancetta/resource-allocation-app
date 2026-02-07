@@ -130,7 +130,7 @@ export const projectsSchema = {
             editable: false, // Not editable after creation
             showInTable: false,
             order: 5,
-            description: 'Which base funding type to deduct from (210, 220, etc.)'
+            description: 'Which base funding type to deduct from (210, 220, etc.) - derived from person allocations'
         }
     ],
     // Default values for new project

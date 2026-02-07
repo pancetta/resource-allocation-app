@@ -231,8 +231,8 @@ describe('Monthly Report - Matching Funds Deduction Verification', () => {
     // - Net: 10.00 - 0.30 = 9.70
     
     // Base Funding 220 should show:
-    // - Deduction: 0.00 (Bob is type 220, but project links to type 210)
-    // - Net: 8.00 - 0.00 = 8.00
+    // - Deduction: 0.40 (Bob is type 220, now correctly deducts from Base Funding 220)
+    // - Net: 8.00 - 0.40 = 7.60
     
     // Find the rows for each base funding type
     const rows = baseFundingTable.querySelectorAll('tbody tr');
@@ -249,8 +249,8 @@ describe('Monthly Report - Matching Funds Deduction Verification', () => {
     const bf220Row = Array.from(rows).find(row => row.innerHTML.includes('Base Funding 220'));
     expect(bf220Row).toBeTruthy();
     expect(bf220Row.innerHTML).toContain('8.00');  // Planned
-    expect(bf220Row.innerHTML).toContain('0.00');  // Deductions (Bob doesn't count)
-    expect(bf220Row.innerHTML).toContain('8.00');  // Net
+    expect(bf220Row.innerHTML).toContain('0.40');  // Deductions (Bob's allocation now correctly deducts)
+    expect(bf220Row.innerHTML).toContain('7.60');  // Net
     
     // Also verify the PROJECT table shows the allocations correctly
     const allTables = output.querySelectorAll('table');
@@ -263,11 +263,11 @@ describe('Monthly Report - Matching Funds Deduction Verification', () => {
     const bf210Cells = projectBf210Row.querySelectorAll('td');
     expect(bf210Cells[1].textContent).toBe('0.30'); // Allocated (only Alice)
     
-    // Base Funding 220 should show 0.00 allocated (no matching allocations)
+    // Base Funding 220 should show 0.40 allocated (Bob's allocation now correctly shows)
     const projectBf220Row = Array.from(projectTable.querySelectorAll('tbody tr'))
       .find(row => row.textContent.includes('Base Funding 220'));
     expect(projectBf220Row).toBeTruthy();
     const bf220Cells = projectBf220Row.querySelectorAll('td');
-    expect(bf220Cells[1].textContent).toBe('0.00'); // Allocated (no matching people)
+    expect(bf220Cells[1].textContent).toBe('0.40'); // Allocated (Bob's work on matching funds project)
   });
 });

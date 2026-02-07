@@ -96,7 +96,7 @@ export const projectsSchema = {
             type: 'checkbox',
             required: false,
             editable: false, // Not editable in table - set at creation
-            showInTable: true,
+            showInTable: false, // Hidden from table - determined by system
             order: 2,
             defaultValue: false,
             description: 'Mark this project as a base funding project'
@@ -107,16 +107,16 @@ export const projectsSchema = {
             type: 'text',
             required: false,
             editable: false, // Not editable in table
-            showInTable: true,
+            showInTable: false, // Hidden from table - shown in project name
             order: 3,
             description: 'Type of base funding (210, 220, etc.) - only for base funding projects'
         },
         {
             key: 'deductsFromBaseFunding',
-            label: 'Deducts from BF',
+            label: 'Matching funds',
             type: 'checkbox',
             required: false,
-            editable: false, // Not editable after creation
+            editable: false, // Not editable after creation (only during creation)
             showInTable: true,
             order: 4,
             defaultValue: false,
@@ -185,6 +185,17 @@ export function getTableHeaders(schema) {
         .filter(f => f.showInTable)
         .sort((a, b) => a.order - b.order)
         .map(f => f.label);
+}
+
+/**
+ * Get all fields that should be shown in table from schema
+ * @param {Object} schema - Schema definition
+ * @returns {Array} Array of field definitions to show in table
+ */
+export function getTableFields(schema) {
+    return schema.fields
+        .filter(f => f.showInTable)
+        .sort((a, b) => a.order - b.order);
 }
 
 /**

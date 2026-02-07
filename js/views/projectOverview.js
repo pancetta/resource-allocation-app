@@ -2,6 +2,7 @@ import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, 
 import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculateProjectMonthlyTotals, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
 import { getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
+import { generateBaseFundingSummaryTable } from '../helpers/baseFundingHelper.js';
 
 // Project × Month Overview
 export async function renderProjectMonthlyOverview(year) {
@@ -63,6 +64,21 @@ export async function renderProjectMonthlyOverview(year) {
     table.appendChild(tbody);
     table.appendChild(tfoot);
     resultsOutput.appendChild(table);
+    
+    // --- Base Funding Table ---
+    const baseFundingSection = await generateBaseFundingSummaryTable(
+        months,
+        allocationIndex,
+        people,
+        projects,
+        fteValues,
+        allocationOverrideIndex,
+        budgetValues
+    );
+    
+    if (baseFundingSection) {
+        resultsOutput.appendChild(baseFundingSection);
+    }
 }
 
 // Initialize project monthly overview

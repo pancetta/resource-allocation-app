@@ -3,6 +3,7 @@ import { cellClass } from '../helpers/classUtil.js';
 import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePersonMonthlyTotals, calculateProjectMonthlyTotals, calculatePersonTotal, calculateProjectTotal, sumArray, formatPM } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getTotalEffectiveFte, getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 import { getMonthsInYear } from '../helpers/dateHelper.js';
+import { generateBaseFundingSummaryTable } from '../helpers/baseFundingHelper.js';
 
 // Yearly Overview
 export async function calculateYear(year) {
@@ -158,6 +159,21 @@ export async function calculateYear(year) {
     projTable.appendChild(projTbody);
     projTable.appendChild(tfootProj);
     resultsOutput.appendChild(projTable);
+    
+    // --- Base Funding Table ---
+    const baseFundingSection = await generateBaseFundingSummaryTable(
+        months,
+        allocationIndex,
+        people,
+        projects,
+        fteValues,
+        allocationOverrideIndex,
+        budgetValues
+    );
+    
+    if (baseFundingSection) {
+        resultsOutput.appendChild(baseFundingSection);
+    }
 }
 
 // Initialize yearly report

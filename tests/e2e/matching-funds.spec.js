@@ -84,11 +84,17 @@ test.describe('Matching Funds Feature', () => {
     // Check the matching funds checkbox
     await checkbox.check();
     
-    // Wait a moment for the change to be saved
-    await page.waitForTimeout(500);
-    
-    // Verify checkbox is checked
+    // Wait for the checkbox state to be persisted by checking it's still checked
     await expect(checkbox).toBeChecked();
+    
+    // Wait for re-render to complete (checkbox should become disabled after isNew is removed)
+    await page.waitForFunction(
+      (index) => {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
+        return checkboxes[index] && checkboxes[index].disabled;
+      },
+      count - 1
+    );
     
     // Refresh the page to verify it persisted
     await page.reload();
@@ -133,16 +139,15 @@ test.describe('Matching Funds Feature', () => {
     // Check the checkbox
     await checkbox.check();
     
-    // Wait for the re-render
-    await page.waitForTimeout(500);
-    
-    // After change, get the checkbox again (since table was re-rendered)
+    // Wait for the re-render by checking if checkbox becomes disabled
     const checkboxesAfterChange = page.locator('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
     count = await checkboxesAfterChange.count();
     const checkboxAfterChange = checkboxesAfterChange.nth(count - 1);
     
-    // Should be disabled now and still checked
-    await expect(checkboxAfterChange).toBeDisabled();
+    // Wait for checkbox to become disabled (indicating re-render completed)
+    await expect(checkboxAfterChange).toBeDisabled({ timeout: 2000 });
+    
+    // Should still be checked
     await expect(checkboxAfterChange).toBeChecked();
   });
 });

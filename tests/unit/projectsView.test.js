@@ -212,12 +212,19 @@ describe('Projects View', () => {
       
       // Check the checkbox
       checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
+      const changeEvent = new Event('change');
+      checkbox.dispatchEvent(changeEvent);
       
-      // Wait for async update
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait for async update by checking the database
+      let projects;
+      let attempts = 0;
+      while (attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        projects = await db.getProjects();
+        if (projects[0].isNew === undefined) break;
+        attempts++;
+      }
       
-      const projects = await db.getProjects();
       expect(projects[0].deductsFromBaseFunding).toBe(true);
       expect(projects[0].isNew).toBeUndefined();
     });
@@ -234,11 +241,16 @@ describe('Projects View', () => {
       checkbox.checked = true;
       checkbox.dispatchEvent(new Event('change'));
       
-      // Wait for async update and re-render
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait for async update and re-render by checking the DOM
+      let attempts = 0;
+      while (attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        checkbox = document.querySelector('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
+        if (checkbox && checkbox.disabled) break;
+        attempts++;
+      }
       
       // After re-render, checkbox should be disabled (isNew is gone)
-      checkbox = document.querySelector('input[type="checkbox"][data-field="deductsFromBaseFunding"]');
       expect(checkbox.disabled).toBe(true);
     });
   });

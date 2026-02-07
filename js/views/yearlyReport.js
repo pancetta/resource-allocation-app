@@ -96,7 +96,7 @@ export async function calculateYear(year) {
     const projTbody = document.createElement("tbody");
 
     projects.forEach(p => {
-        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex);
+        const cells = calculateProjectMonthlyTotals(allocationIndex, p.id, people, months, fteValues, allocationOverrideIndex, projects);
         const total = sumArray(cells);
         
         // Calculate expected planned PM for the year
@@ -142,7 +142,7 @@ export async function calculateYear(year) {
     const monthlySumsProj = months.map(m => {
         let sum = 0;
         projects.forEach(p => {
-            sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteValues, allocationOverrideIndex);
+            sum += calculateProjectTotal(allocationIndex, p.id, people, m, fteValues, allocationOverrideIndex, projects);
         });
         return sum;
     });

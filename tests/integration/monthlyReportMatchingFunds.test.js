@@ -125,9 +125,23 @@ describe('Monthly Report - Matching Funds Deduction Verification', () => {
     expect(projectTableHTML).toContain('Project with Matching Funds');
     expect(projectTableHTML).toContain('0.50');
     
-    // The base funding project should show:
-    // - Allocated PM: 0.00 (nobody allocates TO base funding directly)
+    // The base funding project should now show:
+    // - Allocated PM: 0.50 (from matching funds allocation)
+    // This is the KEY FIX: matching funds allocations count as allocations to base funding
     expect(projectTableHTML).toContain('Base Funding 210');
+    
+    // Find the Base Funding 210 row and verify it shows 0.50 allocated (not 0.00)
+    const baseFundingRow = Array.from(projectTable.querySelectorAll('tbody tr'))
+      .find(row => row.textContent.includes('Base Funding 210'));
+    expect(baseFundingRow).toBeTruthy();
+    
+    // The row should have: name | allocated | planned | delta
+    // We expect: Base Funding 210 | 0.50 | 10.00 | -9.50
+    const cells = baseFundingRow.querySelectorAll('td');
+    expect(cells[0].textContent).toBe('Base Funding 210');
+    expect(cells[1].textContent).toBe('0.50'); // Allocated - this is the key assertion
+    expect(cells[2].textContent).toBe('10.00'); // Planned
+    expect(cells[3].textContent).toBe('-9.50'); // Delta
   });
 
   it('should show different deductions for different person types', async () => {
@@ -237,5 +251,23 @@ describe('Monthly Report - Matching Funds Deduction Verification', () => {
     expect(bf220Row.innerHTML).toContain('8.00');  // Planned
     expect(bf220Row.innerHTML).toContain('0.00');  // Deductions (Bob doesn't count)
     expect(bf220Row.innerHTML).toContain('8.00');  // Net
+    
+    // Also verify the PROJECT table shows the allocations correctly
+    const allTables = output.querySelectorAll('table');
+    const projectTable = allTables[1]; // Second table should be projects table
+    
+    // Base Funding 210 should show 0.30 allocated (only Alice's allocation)
+    const projectBf210Row = Array.from(projectTable.querySelectorAll('tbody tr'))
+      .find(row => row.textContent.includes('Base Funding 210'));
+    expect(projectBf210Row).toBeTruthy();
+    const bf210Cells = projectBf210Row.querySelectorAll('td');
+    expect(bf210Cells[1].textContent).toBe('0.30'); // Allocated (only Alice)
+    
+    // Base Funding 220 should show 0.00 allocated (no matching allocations)
+    const projectBf220Row = Array.from(projectTable.querySelectorAll('tbody tr'))
+      .find(row => row.textContent.includes('Base Funding 220'));
+    expect(projectBf220Row).toBeTruthy();
+    const bf220Cells = projectBf220Row.querySelectorAll('td');
+    expect(bf220Cells[1].textContent).toBe('0.00'); // Allocated (no matching people)
   });
 });

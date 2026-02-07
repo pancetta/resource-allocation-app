@@ -6,7 +6,7 @@
  * and their planned person-month budgets over time.
  */
 
-import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue } from '../data/database.js';
+import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue, isBaseFundingProject, deductsFromBaseFunding } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
 import { projectsSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
@@ -43,19 +43,59 @@ export async function renderProjects() {
     
     projects.forEach(p => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-        `;
+        
+        // Add special class for base funding projects
+        if (isBaseFundingProject(p)) {
+            tr.classList.add('base-funding-project');
+        }
+        if (deductsFromBaseFunding(p)) {
+            tr.classList.add('deducts-from-base-funding');
+        }
+        
+        // Build cells based on schema, with special handling for base funding fields
+        const editableFields = getEditableFields(projectsSchema);
+        const cells = editableFields.map(field => {
+            const value = p[field.key] !== undefined ? p[field.key] : '';
+            
+            if (field.type === 'checkbox') {
+                const isChecked = p[field.key] ? 'checked' : '';
+                const isDisabled = !p.isNew ? 'disabled' : ''; // Disable after creation
+                return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
+            } else if (field.key === 'baseFundingType') {
+                // Only show for base funding projects
+                const displayValue = isBaseFundingProject(p) ? (value || '') : '';
+                // Never editable in table
+                return `<td contenteditable="false" data-id="${p.id}" data-field="${field.key}">${displayValue}</td>`;
+            } else if (field.key === 'baseFundingTypeId') {
+                // Not shown in table (showInTable: false)
+                return '';
+            } else {
+                // Name field - not editable for base funding projects
+                const isEditable = !isBaseFundingProject(p);
+                return `<td contenteditable="${isEditable}" data-id="${p.id}" data-field="${field.key}">${value}</td>`;
+            }
+        }).join('');
+        
+        tr.innerHTML = cells;
         tbody.appendChild(tr);
     });
     
     // Add batch selection checkbox column after rendering
     // (this is idempotent - won't duplicate if already added)
+    // Exclude base funding projects from being selectable
     addBatchSelection(table, (selectedCount, totalCount) => {
         const toolbar = table.previousElementSibling;
         if (toolbar && toolbar.classList.contains('batch-toolbar')) {
             updateBatchToolbar(toolbar, selectedCount, totalCount);
         }
+    }, row => {
+        // Don't allow selection of base funding projects
+        const projectId = row.querySelector('[data-id]')?.dataset.id;
+        if (projectId) {
+            const project = projects.find(p => p.id === projectId);
+            return project && !isBaseFundingProject(project);
+        }
+        return true;
     });
     
     // Attach event listeners

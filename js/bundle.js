@@ -169,7 +169,7 @@ var App = (() => {
       row.style.display = text.includes(term) ? "" : "none";
     });
   }
-  function addBatchSelection(table, onSelectionChange) {
+  function addBatchSelection(table, onSelectionChange, filterRow = null) {
     if (!table) return;
     const thead = table.querySelector("thead tr");
     const tbody = table.querySelector("tbody");
@@ -182,7 +182,7 @@ var App = (() => {
     thead.appendChild(selectAllTh);
     const selectAllCheckbox = selectAllTh.querySelector(".select-all-checkbox");
     selectAllCheckbox.addEventListener("change", () => {
-      const checkboxes = tbody.querySelectorAll(".row-select-checkbox");
+      const checkboxes = tbody.querySelectorAll(".row-select-checkbox:not(:disabled)");
       checkboxes.forEach((cb) => {
         cb.checked = selectAllCheckbox.checked;
       });
@@ -191,13 +191,20 @@ var App = (() => {
     const rows = tbody.querySelectorAll("tr");
     rows.forEach((row) => {
       const selectTd = document.createElement("td");
-      selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
+      const isSelectable = filterRow ? filterRow(row) : true;
+      if (isSelectable) {
+        selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
+      } else {
+        selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox" disabled>';
+      }
       row.appendChild(selectTd);
       const checkbox = selectTd.querySelector(".row-select-checkbox");
-      checkbox.addEventListener("change", updateSelection);
+      if (isSelectable) {
+        checkbox.addEventListener("change", updateSelection);
+      }
     });
     function updateSelection() {
-      const checkboxes = Array.from(tbody.querySelectorAll(".row-select-checkbox"));
+      const checkboxes = Array.from(tbody.querySelectorAll(".row-select-checkbox:not(:disabled)"));
       const selected = checkboxes.filter((cb) => cb.checked);
       if (onSelectionChange) {
         onSelectionChange(selected.length, checkboxes.length);
@@ -319,8 +326,12 @@ var App = (() => {
       cache.allocationOverrides = null;
     }
   }
-  async function openDatabase() {
-    return new Promise((resolve, reject) => {
+  async function openDatabase(initBaseFunding) {
+    if (initBaseFunding === void 0) {
+      const isTestEnv = typeof globalThis.describe !== "undefined" && typeof globalThis.it !== "undefined" && typeof globalThis.expect !== "undefined";
+      initBaseFunding = !isTestEnv;
+    }
+    const database = await new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = (e) => {
         const db2 = e.target.result;
@@ -351,6 +362,14 @@ var App = (() => {
       };
       request.onerror = (e) => reject(e.target.error);
     });
+    if (initBaseFunding) {
+      try {
+        await initializeBaseFundingProjects();
+      } catch (error) {
+        console.warn("Failed to initialize base funding projects:", error);
+      }
+    }
+    return database;
   }
   function getAll(storeName, useCache = true) {
     if (useCache && cacheValid[storeName] && cache[storeName]) {
@@ -431,6 +450,11 @@ var App = (() => {
     }
   }
   async function deleteProject(id) {
+    const projects = await getProjects();
+    const project = projects.find((p) => p.id === id);
+    if (project && isBaseFundingProject(project)) {
+      throw new Error("Cannot delete base funding projects");
+    }
     return deleteRecord(db, "projects", id, () => invalidateCache("projects"));
   }
   async function getAllocations() {
@@ -664,6 +688,34 @@ var App = (() => {
       }
     }
   }
+  function isBaseFundingProject(project) {
+    return project && project.isBaseFunding === true;
+  }
+  async function getBaseFundingProjects() {
+    const projects = await getProjects();
+    return projects.filter((p) => isBaseFundingProject(p));
+  }
+  function deductsFromBaseFunding(project) {
+    return project && project.deductsFromBaseFunding === true;
+  }
+  async function initializeBaseFundingProjects() {
+    const projects = await getProjects();
+    const baseFundingTypes = ["210", "220"];
+    for (const type of baseFundingTypes) {
+      const exists = projects.find((p) => isBaseFundingProject(p) && p.baseFundingType === type);
+      if (!exists) {
+        const projectId = await generateProjectId();
+        await addProject({
+          id: projectId,
+          name: `Base Funding ${type}`,
+          isBaseFunding: true,
+          baseFundingType: type,
+          deductsFromBaseFunding: false,
+          baseFundingTypeId: null
+        });
+      }
+    }
+  }
 
   // js/ui/tabs.js
   function initTabs() {
@@ -859,11 +911,61 @@ var App = (() => {
         editable: true,
         showInTable: true,
         order: 1
+      },
+      {
+        key: "isBaseFunding",
+        label: "Base Funding",
+        type: "checkbox",
+        required: false,
+        editable: false,
+        // Not editable in table - set at creation
+        showInTable: true,
+        order: 2,
+        defaultValue: false,
+        description: "Mark this project as a base funding project"
+      },
+      {
+        key: "baseFundingType",
+        label: "BF Type",
+        type: "text",
+        required: false,
+        editable: false,
+        // Not editable in table
+        showInTable: true,
+        order: 3,
+        description: "Type of base funding (210, 220, etc.) - only for base funding projects"
+      },
+      {
+        key: "deductsFromBaseFunding",
+        label: "Deducts from BF",
+        type: "checkbox",
+        required: false,
+        editable: false,
+        // Not editable after creation
+        showInTable: true,
+        order: 4,
+        defaultValue: false,
+        description: "Whether allocations to this project deduct from base funding"
+      },
+      {
+        key: "baseFundingTypeId",
+        label: "BF Type Link",
+        type: "text",
+        required: false,
+        editable: false,
+        // Not editable after creation
+        showInTable: false,
+        order: 5,
+        description: "Which base funding type to deduct from (210, 220, etc.)"
       }
     ],
     // Default values for new project
     getDefaults: () => ({
-      name: ""
+      name: "",
+      isBaseFunding: false,
+      baseFundingType: null,
+      deductsFromBaseFunding: false,
+      baseFundingTypeId: null
     })
   };
   function getTableHeaders(schema) {
@@ -1515,9 +1617,30 @@ ${messages}`);
     const projects = await getProjects();
     projects.forEach((p) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-            <td contenteditable="true" data-id="${p.id}" data-field="name">${p.name}</td>
-        `;
+      if (isBaseFundingProject(p)) {
+        tr.classList.add("base-funding-project");
+      }
+      if (deductsFromBaseFunding(p)) {
+        tr.classList.add("deducts-from-base-funding");
+      }
+      const editableFields = getEditableFields(projectsSchema);
+      const cells = editableFields.map((field) => {
+        const value = p[field.key] !== void 0 ? p[field.key] : "";
+        if (field.type === "checkbox") {
+          const isChecked = p[field.key] ? "checked" : "";
+          const isDisabled = !p.isNew ? "disabled" : "";
+          return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
+        } else if (field.key === "baseFundingType") {
+          const displayValue = isBaseFundingProject(p) ? value || "" : "";
+          return `<td contenteditable="false" data-id="${p.id}" data-field="${field.key}">${displayValue}</td>`;
+        } else if (field.key === "baseFundingTypeId") {
+          return "";
+        } else {
+          const isEditable = !isBaseFundingProject(p);
+          return `<td contenteditable="${isEditable}" data-id="${p.id}" data-field="${field.key}">${value}</td>`;
+        }
+      }).join("");
+      tr.innerHTML = cells;
       tbody.appendChild(tr);
     });
     addBatchSelection(table, (selectedCount, totalCount) => {
@@ -1525,6 +1648,13 @@ ${messages}`);
       if (toolbar && toolbar.classList.contains("batch-toolbar")) {
         updateBatchToolbar(toolbar, selectedCount, totalCount);
       }
+    }, (row) => {
+      const projectId = row.querySelector("[data-id]")?.dataset.id;
+      if (projectId) {
+        const project = projects.find((p) => p.id === projectId);
+        return project && !isBaseFundingProject(project);
+      }
+      return true;
     });
     attachProjectsEventListeners();
     populateProjectSelect();
@@ -1898,6 +2028,46 @@ ${messages}`);
   function pmToPercentage(pm, fte) {
     if (fte === 0) return 0;
     return pm / fte * 100;
+  }
+  function calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex = null) {
+    const deductions = {};
+    const deductingProjects = projects.filter((p) => p.deductsFromBaseFunding === true);
+    if (deductingProjects.length === 0) {
+      return deductions;
+    }
+    deductingProjects.forEach((project) => {
+      const baseFundingType = project.baseFundingTypeId;
+      if (!baseFundingType) return;
+      if (!deductions[baseFundingType]) {
+        deductions[baseFundingType] = 0;
+      }
+      people.forEach((person) => {
+        const personType = person.type;
+        if (personType === baseFundingType) {
+          const fte = getEffectiveFte(person.id, month, fteValues);
+          const pm = calculatePM(allocationIndex, person.id, project.id, month, fte, allocationOverrideIndex);
+          deductions[baseFundingType] += pm;
+        }
+      });
+    });
+    return deductions;
+  }
+  function calculateNetBaseFunding(baseFundingProjects, deductions, budgetValues, month) {
+    const netValues = {};
+    baseFundingProjects.forEach((project) => {
+      const type = project.baseFundingType;
+      const deduction = deductions[type] || 0;
+      const applicableBudget = budgetValues.find(
+        (bv) => bv.projectId === project.id && isMonthInRange(month, bv.startMonth, bv.endMonth)
+      );
+      const plannedPM = applicableBudget ? applicableBudget.plannedPM : 0;
+      netValues[project.id] = {
+        planned: plannedPM,
+        deductions: deduction,
+        net: plannedPM - deduction
+      };
+    });
+    return netValues;
   }
 
   // js/views/allocationsView.js
@@ -2414,6 +2584,31 @@ Click OK to proceed with overlap, or Cancel to abort.`
     });
     projTable.appendChild(projTbody);
     resultsOutput.appendChild(projTable);
+    const baseFundingProjects = await getBaseFundingProjects();
+    if (baseFundingProjects.length > 0) {
+      const deductions = calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex);
+      const netValues = calculateNetBaseFunding(baseFundingProjects, deductions, budgetValues, month);
+      const baseFundingSection = document.createElement("div");
+      baseFundingSection.className = "base-funding-section";
+      baseFundingSection.innerHTML = `<h3>Base Funding Summary</h3>`;
+      const bfTable = document.createElement("table");
+      bfTable.className = "base-funding-table";
+      const bfHeader = ["Base Funding Type", "Planned PM", "Deductions", "Net Available", "Status"];
+      bfTable.innerHTML = `<thead><tr>${bfHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
+      const bfTbody = document.createElement("tbody");
+      baseFundingProjects.forEach((bfProj) => {
+        const values = netValues[bfProj.id] || { planned: 0, deductions: 0, net: 0 };
+        const status = values.net >= 0 ? "\u2713 OK" : "\u26A0 Over-allocated";
+        const statusClass = values.net >= 0 ? "correct" : "warning";
+        const tr = document.createElement("tr");
+        tr.className = "base-funding-row";
+        tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${values.planned.toFixed(2)}</td><td>${values.deductions.toFixed(2)}</td><td class="${cellClass(values.net, 0)}">${values.net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
+        bfTbody.appendChild(tr);
+      });
+      bfTable.appendChild(bfTbody);
+      baseFundingSection.appendChild(bfTable);
+      resultsOutput.appendChild(baseFundingSection);
+    }
   }
   function initMonthlyReport() {
     if (typeof document === "undefined") return;

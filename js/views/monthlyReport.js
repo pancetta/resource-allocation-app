@@ -1,6 +1,6 @@
-import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
+import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides, getBaseFundingProjects, isBaseFundingProject, deductsFromBaseFunding } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM, pmToPercentage, formatPercentage } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculatePM, calculatePersonTotal, calculateProjectTotal, formatPM, pmToPercentage, formatPercentage, calculateBaseFundingDeductions, calculateNetBaseFunding } from '../helpers/allocationHelper.js';
 import { getEffectiveFte, getEffectiveProjectBudget } from '../helpers/overrideHelper.js';
 
 // Monthly Report
@@ -131,6 +131,44 @@ export async function calculateMonth(month) {
 
     projTable.appendChild(projTbody);
     resultsOutput.appendChild(projTable);
+    
+    // --- Base Funding Table ---
+    const baseFundingProjects = await getBaseFundingProjects();
+    if (baseFundingProjects.length > 0) {
+        // Calculate base funding deductions
+        const deductions = calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex);
+        const netValues = calculateNetBaseFunding(baseFundingProjects, deductions, budgetValues, month);
+        
+        // Create base funding summary section
+        const baseFundingSection = document.createElement("div");
+        baseFundingSection.className = "base-funding-section";
+        baseFundingSection.innerHTML = `<h3>Base Funding Summary</h3>`;
+        
+        const bfTable = document.createElement("table");
+        bfTable.className = "base-funding-table";
+        const bfHeader = ["Base Funding Type", "Planned PM", "Deductions", "Net Available", "Status"];
+        bfTable.innerHTML = `<thead><tr>${bfHeader.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+        const bfTbody = document.createElement("tbody");
+        
+        baseFundingProjects.forEach(bfProj => {
+            const values = netValues[bfProj.id] || { planned: 0, deductions: 0, net: 0 };
+            const status = values.net >= 0 ? '✓ OK' : '⚠ Over-allocated';
+            const statusClass = values.net >= 0 ? 'correct' : 'warning';
+            
+            const tr = document.createElement("tr");
+            tr.className = 'base-funding-row';
+            tr.innerHTML = `<td><strong>${bfProj.name}</strong></td>` +
+                `<td>${values.planned.toFixed(2)}</td>` +
+                `<td>${values.deductions.toFixed(2)}</td>` +
+                `<td class="${cellClass(values.net, 0)}">${values.net.toFixed(2)}</td>` +
+                `<td class="${statusClass}">${status}</td>`;
+            bfTbody.appendChild(tr);
+        });
+        
+        bfTable.appendChild(bfTbody);
+        baseFundingSection.appendChild(bfTable);
+        resultsOutput.appendChild(baseFundingSection);
+    }
 }
 
 // Initialize monthly report

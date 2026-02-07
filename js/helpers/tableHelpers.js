@@ -148,8 +148,9 @@ function filterTable(table, searchTerm) {
  * Add batch selection to table
  * @param {HTMLTableElement} table - The table element
  * @param {Function} onSelectionChange - Callback when selection changes
+ * @param {Function} [filterRow] - Optional callback to determine if a row should be selectable (returns true/false)
  */
-export function addBatchSelection(table, onSelectionChange) {
+export function addBatchSelection(table, onSelectionChange, filterRow = null) {
     if (!table) return;
     
     const thead = table.querySelector('thead tr');
@@ -170,7 +171,7 @@ export function addBatchSelection(table, onSelectionChange) {
     // Add select all functionality
     const selectAllCheckbox = selectAllTh.querySelector('.select-all-checkbox');
     selectAllCheckbox.addEventListener('change', () => {
-        const checkboxes = tbody.querySelectorAll('.row-select-checkbox');
+        const checkboxes = tbody.querySelectorAll('.row-select-checkbox:not(:disabled)');
         checkboxes.forEach(cb => {
             cb.checked = selectAllCheckbox.checked;
         });
@@ -181,15 +182,27 @@ export function addBatchSelection(table, onSelectionChange) {
     const rows = tbody.querySelectorAll('tr');
     rows.forEach(row => {
         const selectTd = document.createElement('td');
-        selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
+        
+        // Check if this row should be selectable
+        const isSelectable = filterRow ? filterRow(row) : true;
+        
+        if (isSelectable) {
+            selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox">';
+        } else {
+            // Disabled checkbox for non-selectable rows
+            selectTd.innerHTML = '<input type="checkbox" class="row-select-checkbox" disabled>';
+        }
+        
         row.appendChild(selectTd);
         
         const checkbox = selectTd.querySelector('.row-select-checkbox');
-        checkbox.addEventListener('change', updateSelection);
+        if (isSelectable) {
+            checkbox.addEventListener('change', updateSelection);
+        }
     });
     
     function updateSelection() {
-        const checkboxes = Array.from(tbody.querySelectorAll('.row-select-checkbox'));
+        const checkboxes = Array.from(tbody.querySelectorAll('.row-select-checkbox:not(:disabled)'));
         const selected = checkboxes.filter(cb => cb.checked);
         
         if (onSelectionChange) {

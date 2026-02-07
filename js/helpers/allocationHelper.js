@@ -220,3 +220,87 @@ export function pmToPercentage(pm, fte) {
 export function formatPercentage(percentage) {
     return percentage.toFixed(1) + '%';
 }
+
+/**********************
+ * Base Funding Calculation Helpers
+ **********************/
+
+/**
+ * Calculate base funding deductions for a specific month
+ * Groups deductions by base funding type based on person types
+ * @param {Map} allocationIndex - Pre-built allocation index
+ * @param {Array} people - Array of person objects
+ * @param {Array} projects - Array of project objects
+ * @param {string} month - Month string in YYYY-MM format
+ * @param {Array} fteValues - Array of FTE value objects
+ * @param {Map} [allocationOverrideIndex] - Optional pre-built allocation override index
+ * @returns {Object} Object with base funding type as key and total deductions as value
+ */
+export function calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex = null) {
+    const deductions = {};
+    
+    // Get projects that deduct from base funding
+    const deductingProjects = projects.filter(p => p.deductsFromBaseFunding === true);
+    
+    if (deductingProjects.length === 0) {
+        return deductions;
+    }
+    
+    // For each deducting project, sum up allocations by person type
+    deductingProjects.forEach(project => {
+        const baseFundingType = project.baseFundingTypeId;
+        if (!baseFundingType) return;
+        
+        // Initialize deduction counter for this type if not exists
+        if (!deductions[baseFundingType]) {
+            deductions[baseFundingType] = 0;
+        }
+        
+        // Sum allocations for this project, grouped by person type
+        people.forEach(person => {
+            const personType = person.type;
+            
+            // Only deduct if person type matches base funding type
+            if (personType === baseFundingType) {
+                const fte = getEffectiveFte(person.id, month, fteValues);
+                const pm = calculatePM(allocationIndex, person.id, project.id, month, fte, allocationOverrideIndex);
+                deductions[baseFundingType] += pm;
+            }
+        });
+    });
+    
+    return deductions;
+}
+
+/**
+ * Calculate net base funding (planned - deductions) for each base funding project
+ * @param {Array} baseFundingProjects - Array of base funding project objects
+ * @param {Object} deductions - Object with base funding type as key and deductions as value
+ * @param {Array} budgetValues - Array of budget value objects
+ * @param {string} month - Month string in YYYY-MM format
+ * @returns {Object} Object with projectId as key and net values as value
+ */
+export function calculateNetBaseFunding(baseFundingProjects, deductions, budgetValues, month) {
+    const netValues = {};
+    
+    baseFundingProjects.forEach(project => {
+        const type = project.baseFundingType;
+        const deduction = deductions[type] || 0;
+        
+        // Get planned PM for this base funding project
+        const applicableBudget = budgetValues.find(bv => 
+            bv.projectId === project.id &&
+            isMonthInRange(month, bv.startMonth, bv.endMonth)
+        );
+        
+        const plannedPM = applicableBudget ? applicableBudget.plannedPM : 0;
+        
+        netValues[project.id] = {
+            planned: plannedPM,
+            deductions: deduction,
+            net: plannedPM - deduction
+        };
+    });
+    
+    return netValues;
+}

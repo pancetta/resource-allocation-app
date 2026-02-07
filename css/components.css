@@ -1102,3 +1102,34 @@ button:disabled:hover {
     color: #f57c00;
     font-weight: bold;
 }
+
+/* Base Funding Summary Section */
+.base-funding-section {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f5f9ff;
+    border: 2px solid #005AA0;
+    border-radius: 8px;
+}
+
+.base-funding-section h3 {
+    color: #005AA0;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.base-funding-table {
+    background-color: white;
+}
+
+.base-funding-row {
+    background-color: #e3f2fd;
+}
+
+.base-funding-row:hover {
+    background-color: #bbdefb;
+}
+
+.base-funding-row td {
+    border-left: 3px solid #005AA0;
+}

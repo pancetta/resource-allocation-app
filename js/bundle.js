@@ -691,6 +691,10 @@ var App = (() => {
   function isBaseFundingProject(project) {
     return project && project.isBaseFunding === true;
   }
+  async function getBaseFundingProjects() {
+    const projects = await getProjects();
+    return projects.filter((p) => isBaseFundingProject(p));
+  }
   function deductsFromBaseFunding(project) {
     return project && project.deductsFromBaseFunding === true;
   }
@@ -2025,6 +2029,46 @@ ${messages}`);
     if (fte === 0) return 0;
     return pm / fte * 100;
   }
+  function calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex = null) {
+    const deductions = {};
+    const deductingProjects = projects.filter((p) => p.deductsFromBaseFunding === true);
+    if (deductingProjects.length === 0) {
+      return deductions;
+    }
+    deductingProjects.forEach((project) => {
+      const baseFundingType = project.baseFundingTypeId;
+      if (!baseFundingType) return;
+      if (!deductions[baseFundingType]) {
+        deductions[baseFundingType] = 0;
+      }
+      people.forEach((person) => {
+        const personType = person.type;
+        if (personType === baseFundingType) {
+          const fte = getEffectiveFte(person.id, month, fteValues);
+          const pm = calculatePM(allocationIndex, person.id, project.id, month, fte, allocationOverrideIndex);
+          deductions[baseFundingType] += pm;
+        }
+      });
+    });
+    return deductions;
+  }
+  function calculateNetBaseFunding(baseFundingProjects, deductions, budgetValues, month) {
+    const netValues = {};
+    baseFundingProjects.forEach((project) => {
+      const type = project.baseFundingType;
+      const deduction = deductions[type] || 0;
+      const applicableBudget = budgetValues.find(
+        (bv) => bv.projectId === project.id && isMonthInRange(month, bv.startMonth, bv.endMonth)
+      );
+      const plannedPM = applicableBudget ? applicableBudget.plannedPM : 0;
+      netValues[project.id] = {
+        planned: plannedPM,
+        deductions: deduction,
+        net: plannedPM - deduction
+      };
+    });
+    return netValues;
+  }
 
   // js/views/allocationsView.js
   async function renderAllocations() {
@@ -2540,6 +2584,31 @@ Click OK to proceed with overlap, or Cancel to abort.`
     });
     projTable.appendChild(projTbody);
     resultsOutput.appendChild(projTable);
+    const baseFundingProjects = await getBaseFundingProjects();
+    if (baseFundingProjects.length > 0) {
+      const deductions = calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex);
+      const netValues = calculateNetBaseFunding(baseFundingProjects, deductions, budgetValues, month);
+      const baseFundingSection = document.createElement("div");
+      baseFundingSection.className = "base-funding-section";
+      baseFundingSection.innerHTML = `<h3>Base Funding Summary</h3>`;
+      const bfTable = document.createElement("table");
+      bfTable.className = "base-funding-table";
+      const bfHeader = ["Base Funding Type", "Planned PM", "Deductions", "Net Available", "Status"];
+      bfTable.innerHTML = `<thead><tr>${bfHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
+      const bfTbody = document.createElement("tbody");
+      baseFundingProjects.forEach((bfProj) => {
+        const values = netValues[bfProj.id] || { planned: 0, deductions: 0, net: 0 };
+        const status = values.net >= 0 ? "\u2713 OK" : "\u26A0 Over-allocated";
+        const statusClass = values.net >= 0 ? "correct" : "warning";
+        const tr = document.createElement("tr");
+        tr.className = "base-funding-row";
+        tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${values.planned.toFixed(2)}</td><td>${values.deductions.toFixed(2)}</td><td class="${cellClass(values.net, 0)}">${values.net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
+        bfTbody.appendChild(tr);
+      });
+      bfTable.appendChild(bfTbody);
+      baseFundingSection.appendChild(bfTable);
+      resultsOutput.appendChild(baseFundingSection);
+    }
   }
   function initMonthlyReport() {
     if (typeof document === "undefined") return;

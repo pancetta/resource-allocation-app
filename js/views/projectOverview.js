@@ -1,7 +1,8 @@
-import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides, getBaseFundingProjects } from '../data/database.js';
+import { getPeople, getProjects, getAllocations, getFteValues, getBudgetValues, getAllocationOverrides } from '../data/database.js';
 import { cellClass } from '../helpers/classUtil.js';
-import { buildAllocationIndex, buildAllocationOverrideIndex, calculateProjectMonthlyTotals, calculateProjectTotal, sumArray, calculateBaseFundingDeductions, calculateNetBaseFunding } from '../helpers/allocationHelper.js';
+import { buildAllocationIndex, buildAllocationOverrideIndex, calculateProjectMonthlyTotals, calculateProjectTotal, sumArray } from '../helpers/allocationHelper.js';
 import { getEffectiveProjectBudget, getTotalEffectiveProjectBudget } from '../helpers/overrideHelper.js';
+import { generateBaseFundingSummaryTable } from '../helpers/baseFundingHelper.js';
 
 // Project × Month Overview
 export async function renderProjectMonthlyOverview(year) {
@@ -65,63 +66,17 @@ export async function renderProjectMonthlyOverview(year) {
     resultsOutput.appendChild(table);
     
     // --- Base Funding Table ---
-    const baseFundingProjects = await getBaseFundingProjects();
-    if (baseFundingProjects.length > 0) {
-        // Calculate base funding deductions for each month and sum them
-        const monthlyDeductions = months.map(month => {
-            return calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex);
-        });
-        
-        // Sum deductions across all months by base funding type
-        const yearlyDeductions = {};
-        monthlyDeductions.forEach(monthDeductions => {
-            Object.keys(monthDeductions).forEach(type => {
-                if (!yearlyDeductions[type]) {
-                    yearlyDeductions[type] = 0;
-                }
-                yearlyDeductions[type] += monthDeductions[type];
-            });
-        });
-        
-        // Calculate yearly planned values for base funding projects
-        const yearlyPlanned = {};
-        baseFundingProjects.forEach(bfProj => {
-            const totalPlanned = getTotalEffectiveProjectBudget(bfProj.id, months, budgetValues);
-            yearlyPlanned[bfProj.id] = totalPlanned;
-        });
-        
-        // Create base funding summary section
-        const baseFundingSection = document.createElement("div");
-        baseFundingSection.className = "base-funding-section";
-        baseFundingSection.innerHTML = `<h3>Base Funding Summary</h3>`;
-        
-        const bfTable = document.createElement("table");
-        bfTable.className = "base-funding-table";
-        const bfHeader = ["Base Funding Type", "Planned PM", "Deductions", "Net Available", "Status"];
-        bfTable.innerHTML = `<thead><tr>${bfHeader.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
-        const bfTbody = document.createElement("tbody");
-        
-        baseFundingProjects.forEach(bfProj => {
-            const type = bfProj.baseFundingType;
-            const deduction = yearlyDeductions[type] || 0;
-            const plannedPM = yearlyPlanned[bfProj.id] || 0;
-            const net = plannedPM - deduction;
-            
-            const status = net >= 0 ? '✓ OK' : '⚠ Over-allocated';
-            const statusClass = net >= 0 ? 'correct' : 'warning';
-            
-            const tr = document.createElement("tr");
-            tr.className = 'base-funding-row';
-            tr.innerHTML = `<td><strong>${bfProj.name}</strong></td>` +
-                `<td>${plannedPM.toFixed(2)}</td>` +
-                `<td>${deduction.toFixed(2)}</td>` +
-                `<td class="${cellClass(net, 0)}">${net.toFixed(2)}</td>` +
-                `<td class="${statusClass}">${status}</td>`;
-            bfTbody.appendChild(tr);
-        });
-        
-        bfTable.appendChild(bfTbody);
-        baseFundingSection.appendChild(bfTable);
+    const baseFundingSection = await generateBaseFundingSummaryTable(
+        months,
+        allocationIndex,
+        people,
+        projects,
+        fteValues,
+        allocationOverrideIndex,
+        budgetValues
+    );
+    
+    if (baseFundingSection) {
         resultsOutput.appendChild(baseFundingSection);
     }
 }

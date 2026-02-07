@@ -174,7 +174,7 @@ describe('Yearly Report - Base Funding Deductions', () => {
     expect(baseFundingTable.innerHTML).toContain('114.00'); // Net available
   });
 
-  it('should show correct status for over-allocated base funding', async () => {
+  it('should show over-allocated status when deductions exceed planned', async () => {
     // Setup: Create base funding project with low budget
     await addProject({
       id: 'bf210',
@@ -215,11 +215,11 @@ describe('Yearly Report - Base Funding Deductions', () => {
       endMonth: null
     });
     
-    // Add allocation: 0.8 PM to Project A (more than available base funding)
+    // Add allocation: 3.0 PM to Project A (MORE than available base funding of 2.0)
     await addAllocation({
       personId: 'p001',
       projectId: 'proj001',
-      pm: 0.8,
+      pm: 3.0,
       startMonth: '2024-01',
       endMonth: '2024-12'
     });
@@ -231,9 +231,12 @@ describe('Yearly Report - Base Funding Deductions', () => {
     
     // Yearly totals:
     // Planned: 2.0 * 12 = 24.0
-    // Deductions: 0.8 * 12 = 9.6
-    // Net: 24.0 - 9.6 = 14.4 (positive, so OK)
-    expect(output.innerHTML).toContain('✓ OK');
+    // Deductions: 3.0 * 12 = 36.0
+    // Net: 24.0 - 36.0 = -12.0 (negative = over-allocated)
+    expect(output.innerHTML).toContain('⚠ Over-allocated');
+    expect(output.innerHTML).toContain('24.00');  // Planned
+    expect(output.innerHTML).toContain('36.00');  // Deductions
+    expect(output.innerHTML).toContain('-12.00'); // Net (negative)
   });
 
   it('should handle multiple base funding types', async () => {

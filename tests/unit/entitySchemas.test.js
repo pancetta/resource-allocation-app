@@ -132,7 +132,7 @@ describe('Entity Schemas', () => {
 
         it('should return headers from projects schema', () => {
             const headers = getTableHeaders(projectsSchema);
-            expect(headers).toEqual(['Name', 'Base Funding', 'BF Type', 'Deducts from BF']);
+            expect(headers).toEqual(['Name', 'Matching funds']);
         });
 
         it('should order headers by order field', () => {
@@ -153,7 +153,7 @@ describe('Entity Schemas', () => {
 
         it('should return editable fields from projects schema', () => {
             const fields = getEditableFields(projectsSchema);
-            expect(fields).toHaveLength(1);
+            expect(fields).toHaveLength(1); // Only name is editable after creation
             expect(fields[0].key).toBe('name');
         });
 

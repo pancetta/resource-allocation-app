@@ -116,7 +116,7 @@ export const projectsSchema = {
             label: 'Matching funds',
             type: 'checkbox',
             required: false,
-            editable: true, // Now editable in table
+            editable: false, // Not editable after creation (only during creation)
             showInTable: true,
             order: 4,
             defaultValue: false,
@@ -185,6 +185,17 @@ export function getTableHeaders(schema) {
         .filter(f => f.showInTable)
         .sort((a, b) => a.order - b.order)
         .map(f => f.label);
+}
+
+/**
+ * Get all fields that should be shown in table from schema
+ * @param {Object} schema - Schema definition
+ * @returns {Array} Array of field definitions to show in table
+ */
+export function getTableFields(schema) {
+    return schema.fields
+        .filter(f => f.showInTable)
+        .sort((a, b) => a.order - b.order);
 }
 
 /**

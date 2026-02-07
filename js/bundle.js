@@ -942,8 +942,8 @@ var App = (() => {
         label: "Matching funds",
         type: "checkbox",
         required: false,
-        editable: true,
-        // Now editable in table
+        editable: false,
+        // Not editable after creation (only during creation)
         showInTable: true,
         order: 4,
         defaultValue: false,
@@ -972,6 +972,9 @@ var App = (() => {
   };
   function getTableHeaders(schema) {
     return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order).map((f) => f.label);
+  }
+  function getTableFields(schema) {
+    return schema.fields.filter((f) => f.showInTable).sort((a, b) => a.order - b.order);
   }
   function getEditableFields(schema) {
     return schema.fields.filter((f) => f.editable).sort((a, b) => a.order - b.order);
@@ -1625,12 +1628,12 @@ ${messages}`);
       if (deductsFromBaseFunding(p)) {
         tr.classList.add("deducts-from-base-funding");
       }
-      const editableFields = getEditableFields(projectsSchema);
-      const cells = editableFields.map((field) => {
+      const tableFields = getTableFields(projectsSchema);
+      const cells = tableFields.map((field) => {
         const value = p[field.key] !== void 0 ? p[field.key] : "";
         if (field.type === "checkbox") {
           const isChecked = p[field.key] ? "checked" : "";
-          const isDisabled = isBaseFundingProject(p) ? "disabled" : "";
+          const isDisabled = isBaseFundingProject(p) || !p.isNew ? "disabled" : "";
           return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
         } else if (field.key === "baseFundingType") {
           const displayValue = isBaseFundingProject(p) ? value || "" : "";
@@ -1638,7 +1641,7 @@ ${messages}`);
         } else if (field.key === "baseFundingTypeId") {
           return "";
         } else {
-          const isEditable = !isBaseFundingProject(p);
+          const isEditable = !isBaseFundingProject(p) && field.editable;
           return `<td contenteditable="${isEditable}" data-id="${p.id}" data-field="${field.key}">${value}</td>`;
         }
       }).join("");

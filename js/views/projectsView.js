@@ -9,7 +9,7 @@
 import { getProjects, updateProject, deleteProject, addProject, generateProjectId, getBudgetValues, addBudgetValue, updateBudgetValue, deleteBudgetValue, isBaseFundingProject, deductsFromBaseFunding } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { validateBudgetValueDeletion, validatePlannedPM } from '../helpers/validationHelper.js';
-import { projectsSchema, getTableHeaders, getEditableFields } from '../config/entitySchemas.js';
+import { projectsSchema, getTableHeaders, getTableFields } from '../config/entitySchemas.js';
 import { showSuccess } from '../ui/toast.js';
 import { saveState } from '../helpers/undoManager.js';
 import { addQuickAddRow } from '../helpers/quickAdd.js';
@@ -53,14 +53,14 @@ export async function renderProjects() {
         }
         
         // Build cells based on schema, with special handling for base funding fields
-        const editableFields = getEditableFields(projectsSchema);
-        const cells = editableFields.map(field => {
+        const tableFields = getTableFields(projectsSchema);
+        const cells = tableFields.map(field => {
             const value = p[field.key] !== undefined ? p[field.key] : '';
             
             if (field.type === 'checkbox') {
                 const isChecked = p[field.key] ? 'checked' : '';
-                // Disable matching funds checkbox for base funding projects
-                const isDisabled = isBaseFundingProject(p) ? 'disabled' : '';
+                // Disable matching funds checkbox for base funding projects or after creation
+                const isDisabled = isBaseFundingProject(p) || !p.isNew ? 'disabled' : '';
                 return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
             } else if (field.key === 'baseFundingType') {
                 // Only show for base funding projects
@@ -72,7 +72,7 @@ export async function renderProjects() {
                 return '';
             } else {
                 // Name field - not editable for base funding projects
-                const isEditable = !isBaseFundingProject(p);
+                const isEditable = !isBaseFundingProject(p) && field.editable;
                 return `<td contenteditable="${isEditable}" data-id="${p.id}" data-field="${field.key}">${value}</td>`;
             }
         }).join('');

@@ -59,7 +59,8 @@ export async function renderProjects() {
             
             if (field.type === 'checkbox') {
                 const isChecked = p[field.key] ? 'checked' : '';
-                const isDisabled = !p.isNew ? 'disabled' : ''; // Disable after creation
+                // Disable matching funds checkbox for base funding projects
+                const isDisabled = isBaseFundingProject(p) ? 'disabled' : '';
                 return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
             } else if (field.key === 'baseFundingType') {
                 // Only show for base funding projects
@@ -186,6 +187,29 @@ function attachProjectsEventListeners() {
         });
     });
     
+    // Checkbox change handlers for matching funds
+    document.querySelectorAll("#projectsTable input[type='checkbox']").forEach(checkbox => {
+        checkbox.addEventListener("change", async function() {
+            const id = this.dataset.id;
+            const field = this.dataset.field;
+            const isChecked = this.checked;
+            
+            const projects = await getProjects();
+            const project = projects.find(p => p.id === id);
+            if (!project) {
+                console.error(`Project with id ${id} not found`);
+                return;
+            }
+            
+            if (field === "deductsFromBaseFunding") {
+                project.deductsFromBaseFunding = isChecked;
+            }
+            
+            await updateProject(project);
+            scheduleAutoBackup();
+            renderProjects(); // Re-render to update styling
+        });
+    });
 
 }
 

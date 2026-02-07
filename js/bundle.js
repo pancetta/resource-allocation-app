@@ -919,7 +919,8 @@ var App = (() => {
         required: false,
         editable: false,
         // Not editable in table - set at creation
-        showInTable: true,
+        showInTable: false,
+        // Hidden from table - determined by system
         order: 2,
         defaultValue: false,
         description: "Mark this project as a base funding project"
@@ -931,17 +932,18 @@ var App = (() => {
         required: false,
         editable: false,
         // Not editable in table
-        showInTable: true,
+        showInTable: false,
+        // Hidden from table - shown in project name
         order: 3,
         description: "Type of base funding (210, 220, etc.) - only for base funding projects"
       },
       {
         key: "deductsFromBaseFunding",
-        label: "Deducts from BF",
+        label: "Matching funds",
         type: "checkbox",
         required: false,
-        editable: false,
-        // Not editable after creation
+        editable: true,
+        // Now editable in table
         showInTable: true,
         order: 4,
         defaultValue: false,
@@ -1628,7 +1630,7 @@ ${messages}`);
         const value = p[field.key] !== void 0 ? p[field.key] : "";
         if (field.type === "checkbox") {
           const isChecked = p[field.key] ? "checked" : "";
-          const isDisabled = !p.isNew ? "disabled" : "";
+          const isDisabled = isBaseFundingProject(p) ? "disabled" : "";
           return `<td><input type="checkbox" ${isChecked} ${isDisabled} data-id="${p.id}" data-field="${field.key}"></td>`;
         } else if (field.key === "baseFundingType") {
           const displayValue = isBaseFundingProject(p) ? value || "" : "";
@@ -1719,6 +1721,25 @@ ${messages}`);
         }
         await updateProject(project);
         scheduleAutoBackup();
+      });
+    });
+    document.querySelectorAll("#projectsTable input[type='checkbox']").forEach((checkbox) => {
+      checkbox.addEventListener("change", async function() {
+        const id = this.dataset.id;
+        const field = this.dataset.field;
+        const isChecked = this.checked;
+        const projects = await getProjects();
+        const project = projects.find((p) => p.id === id);
+        if (!project) {
+          console.error(`Project with id ${id} not found`);
+          return;
+        }
+        if (field === "deductsFromBaseFunding") {
+          project.deductsFromBaseFunding = isChecked;
+        }
+        await updateProject(project);
+        scheduleAutoBackup();
+        renderProjects();
       });
     });
   }

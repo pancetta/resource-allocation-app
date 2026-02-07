@@ -13,6 +13,7 @@ import {
     requestNotificationPermission,
     downloadPreparedBackup
 } from '../helpers/autoBackupScheduler.js';
+import { showToast } from '../ui/toast.js';
 
 export async function init() {
     // Guard against running in non-DOM environments (like tests)
@@ -141,7 +142,7 @@ function setupEventListeners() {
                     statusSpan.style.color = '#28a745';
                 }
             } catch (e) {
-                alert(`Failed to select directory: ${e.message}`);
+                showToast(`Failed to select directory: ${e.message}`, 'error');
             }
         });
     }
@@ -163,9 +164,9 @@ function setupEventListeners() {
             const granted = await requestNotificationPermission();
             if (granted) {
                 requestNotificationBtn.style.display = 'none';
-                alert('✓ Notification permission granted!');
+                showToast('Notification permission granted!', 'success');
             } else {
-                alert('Notification permission was denied. You can change this in your browser settings.');
+                showToast('Notification permission was denied. You can change this in your browser settings.', 'warning');
             }
         });
     }
@@ -185,9 +186,9 @@ function setupEventListeners() {
                 
                 saveBackupConfig(config);
                 updateStatusDisplay(config);
-                alert('✓ Backup settings saved successfully!');
+                showToast('Backup settings saved successfully!', 'success');
             } catch (e) {
-                alert(`Failed to save settings: ${e.message}`);
+                showToast(`Failed to save settings: ${e.message}`, 'error');
             }
         });
     }
@@ -206,22 +207,22 @@ function setupEventListeners() {
                     if (result.requiresUserAction) {
                         const downloaded = downloadPreparedBackup();
                         if (downloaded) {
-                            alert('✓ Backup prepared and download started!\n\nCheck your Downloads folder.');
+                            showToast('Backup prepared and download started! Check your Downloads folder.', 'success', 5000);
                         } else {
-                            alert('✓ Backup completed!\n\n' + result.message);
+                            showToast('Backup completed! ' + result.message, 'success', 4000);
                         }
                     } else {
-                        alert('✓ Backup completed successfully!\n\n' + result.message);
+                        showToast('Backup completed successfully! ' + result.message, 'success', 4000);
                     }
                     
                     // Update displays
                     loadConfig();
                     renderBackupHistory();
                 } else {
-                    alert('✗ Backup failed:\n\n' + result.message);
+                    showToast('Backup failed: ' + result.message, 'error', 5000);
                 }
             } catch (e) {
-                alert(`Backup error: ${e.message}`);
+                showToast(`Backup error: ${e.message}`, 'error');
             } finally {
                 testBackupBtn.disabled = false;
                 testBackupBtn.textContent = '🔧 Test Backup Now';

@@ -35,18 +35,53 @@ Configure the app to automatically create backups at regular intervals without a
 
 ### 2. Storage Options
 
+#### Where Is Data Stored?
+
+Understanding where your data is stored is crucial for data safety:
+
+**Primary Application Data (IndexedDB)**
+- **Location**: Browser's internal storage (not accessible as files)
+- **Access**: Via browser Developer Tools → Application → IndexedDB
+- **Persistence**: Cleared when you clear browser data/cache
+- **Survives**: Browser restarts, computer restarts
+- **Lost when**: Clear browsing data, browser reinstall, disk failure
+
+**Automatic Browser Backups (localStorage)**
+- **Location**: Browser's internal storage (not accessible as files)
+- **Access**: Via browser Developer Tools → Application → Local Storage
+- **Persistence**: Cleared when you clear browser data/cache
+- **Survives**: Browser restarts, computer restarts
+- **Lost when**: Clear browsing data, browser reinstall, disk failure
+
+**File System Backups (Chrome/Edge Only)**
+- **Location**: User-selected directory on your file system (e.g., `C:\Users\You\Documents\Backups\`)
+- **Access**: Direct file access via File Explorer/Finder
+- **Persistence**: Permanent (not affected by browser)
+- **Survives**: Browser crashes, reinstalls, cache clearing
+- **Lost when**: Manual file deletion, disk failure
+
+**Manual Downloads**
+- **Location**: Browser's Downloads folder (e.g., `C:\Users\You\Downloads\`)
+- **Access**: Direct file access
+- **Persistence**: Permanent (not affected by browser)
+- **Survives**: Everything except file deletion
+- **Lost when**: Manual file deletion, disk failure
+
 #### Download to Browser (Default)
 - **How it works**: Prepares backup data, requires you to click to download
+- **Browser Support**: ✅ All browsers (Chrome, Firefox 140+, Edge, Safari)
 - **Pros**: Works in all browsers, no setup required
 - **Cons**: Requires manual click to save each backup
-- **Best for**: Testing, occasional backups
+- **Best for**: Testing, occasional backups, **Firefox users**
 
 #### File System (Recommended for Chrome/Edge)
 - **How it works**: Automatically saves to a folder you select
+- **Browser Support**: ✅ Chrome 86+, Edge 86+, Opera 72+ | ❌ Firefox (all versions), Safari
 - **Pros**: Fully automated, no clicks needed
-- **Cons**: Only works in Chrome/Edge browsers
+- **Cons**: **Only works in Chrome/Edge browsers** (not Firefox)
 - **Best for**: Regular automated backups
 - **Setup**: Click "Select Backup Directory" and choose a folder
+- **Firefox Users**: Use "Download to Browser" instead
 
 #### Cloud Storage (Coming Soon)
 Cloud storage integration (Google Drive, Dropbox, GitHub Gists) requires OAuth authentication and will be added in a future update.
@@ -206,6 +241,29 @@ Planned features (not yet implemented):
 - **Backup restoration UI**: Restore from file system backups directly in app
 
 ## FAQ
+
+**Q: Does this work in Firefox 140+ or other Firefox versions?**
+A: **Partially.** Firefox does not support the File System Access API (as of all versions including 140+), so fully automated file system backups are **not available** in Firefox. However, Firefox users can still use:
+- ✅ "Download to Browser" storage type (requires one click to save)
+- ✅ Scheduled backup preparation (backups prepared on schedule)
+- ✅ All existing manual export/import features
+- ✅ Browser notification when backups are ready
+
+**Recommendation for Firefox users**: Use "Download to Browser" with scheduled backups. The system will prepare backups automatically, and you'll get a notification to click and save. This is semi-automated (one click vs zero clicks in Chrome/Edge).
+
+**Q: Which browsers support fully automated backups?**
+A: Fully automated (zero-click) file system backups work in:
+- ✅ Chrome 86+ (October 2020 and newer)
+- ✅ Edge 86+ (October 2020 and newer)
+- ✅ Opera 72+ (November 2020 and newer)
+- ❌ Firefox (all versions) - use "Download to Browser" instead
+- ❌ Safari (all versions) - use "Download to Browser" instead
+
+**Q: Where exactly are backups stored on my computer?**
+A: It depends on the storage type:
+- **File System** (Chrome/Edge only): Any folder you select (e.g., `C:\Users\YourName\Documents\ResourceBackups\`)
+- **Download to Browser**: Your browser's Downloads folder (e.g., `C:\Users\YourName\Downloads\` on Windows, `~/Downloads/` on Mac/Linux)
+- **Browser storage** (IndexedDB/localStorage): Not accessible as files, only via browser Developer Tools
 
 **Q: How much disk space will backups use?**
 A: Each backup is typically 10-100 KB depending on data size. 20 versions = ~2 MB max.

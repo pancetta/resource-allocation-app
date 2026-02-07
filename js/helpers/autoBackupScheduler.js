@@ -23,6 +23,10 @@ const DEFAULT_CONFIG = {
 let schedulerInterval = null;
 let fileSystemHandle = null;
 
+// Module-scoped variables for prepared backup
+let preparedBackupUrl = null;
+let preparedBackupFilename = null;
+
 /**
  * Get current backup configuration
  * @returns {Object} Backup configuration

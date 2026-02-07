@@ -2738,6 +2738,49 @@ Click OK to proceed with overlap, or Cancel to abort.`
     projTable.appendChild(projTbody);
     projTable.appendChild(tfootProj);
     resultsOutput.appendChild(projTable);
+    const baseFundingProjects = await getBaseFundingProjects();
+    if (baseFundingProjects.length > 0) {
+      const monthlyDeductions = months.map((month) => {
+        return calculateBaseFundingDeductions(allocationIndex, people, projects, month, fteValues, allocationOverrideIndex);
+      });
+      const yearlyDeductions = {};
+      monthlyDeductions.forEach((monthDeductions) => {
+        Object.keys(monthDeductions).forEach((type) => {
+          if (!yearlyDeductions[type]) {
+            yearlyDeductions[type] = 0;
+          }
+          yearlyDeductions[type] += monthDeductions[type];
+        });
+      });
+      const yearlyPlanned = {};
+      baseFundingProjects.forEach((bfProj) => {
+        const totalPlanned = getTotalEffectiveProjectBudget(bfProj.id, months, budgetValues);
+        yearlyPlanned[bfProj.id] = totalPlanned;
+      });
+      const baseFundingSection = document.createElement("div");
+      baseFundingSection.className = "base-funding-section";
+      baseFundingSection.innerHTML = `<h3>Base Funding Summary</h3>`;
+      const bfTable = document.createElement("table");
+      bfTable.className = "base-funding-table";
+      const bfHeader = ["Base Funding Type", "Planned PM", "Deductions", "Net Available", "Status"];
+      bfTable.innerHTML = `<thead><tr>${bfHeader.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
+      const bfTbody = document.createElement("tbody");
+      baseFundingProjects.forEach((bfProj) => {
+        const type = bfProj.baseFundingType;
+        const deduction = yearlyDeductions[type] || 0;
+        const plannedPM = yearlyPlanned[bfProj.id] || 0;
+        const net = plannedPM - deduction;
+        const status = net >= 0 ? "\u2713 OK" : "\u26A0 Over-allocated";
+        const statusClass = net >= 0 ? "correct" : "warning";
+        const tr = document.createElement("tr");
+        tr.className = "base-funding-row";
+        tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${plannedPM.toFixed(2)}</td><td>${deduction.toFixed(2)}</td><td class="${cellClass(net, 0)}">${net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
+        bfTbody.appendChild(tr);
+      });
+      bfTable.appendChild(bfTbody);
+      baseFundingSection.appendChild(bfTable);
+      resultsOutput.appendChild(baseFundingSection);
+    }
   }
   function initYearlyReport() {
     if (typeof document === "undefined") return;

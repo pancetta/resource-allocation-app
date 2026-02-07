@@ -1739,6 +1739,7 @@ ${messages}`);
         }
         if (field === "deductsFromBaseFunding") {
           project.deductsFromBaseFunding = isChecked;
+          delete project.isNew;
         }
         await updateProject(project);
         scheduleAutoBackup();
@@ -1818,7 +1819,7 @@ ${messages}`);
   async function addProjectAuto(name) {
     await saveState(`Add project: ${name}`);
     const id = await generateProjectId();
-    await addProject({ id, name });
+    await addProject({ id, name, isNew: true });
     const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
     await addBudgetValue({
       projectId: id,

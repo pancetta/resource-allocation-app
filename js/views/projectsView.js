@@ -203,6 +203,8 @@ function attachProjectsEventListeners() {
             
             if (field === "deductsFromBaseFunding") {
                 project.deductsFromBaseFunding = isChecked;
+                // Remove isNew flag after user sets matching funds for the first time
+                delete project.isNew;
             }
             
             await updateProject(project);
@@ -311,7 +313,8 @@ export async function addProjectAuto(name) {
     await saveState(`Add project: ${name}`);
     
     const id = await generateProjectId();
-    await addProject({ id, name });
+    // Mark as new so matching funds checkbox is enabled
+    await addProject({ id, name, isNew: true });
     
     // Create initial budget value for the project
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format

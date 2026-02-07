@@ -86,7 +86,7 @@ export async function generateBaseFundingSummaryTable(
         tr.innerHTML = `<td><strong>${bfProj.name}</strong></td>` +
             `<td>${plannedPM.toFixed(2)}</td>` +
             `<td>${deduction.toFixed(2)}</td>` +
-            `<td class="${cellClass(net, 0)}">${net.toFixed(2)}</td>` +
+            `<td>${net.toFixed(2)}</td>` +
             `<td class="${statusClass}">${status}</td>`;
         bfTbody.appendChild(tr);
     });

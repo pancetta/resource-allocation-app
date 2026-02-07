@@ -2579,7 +2579,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.name}</td><td>${fte.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td><td class="pct-cell">${pmToPercentage(total, fte).toFixed(1)}%</td><td class="${cellClass(total, fte)}">${total.toFixed(2)}</td>` + cells.map((c) => {
         const pct = pmToPercentage(c, fte);
-        return `<td class="pct-cell">${pct.toFixed(1)}%</td><td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`;
+        return `<td class="pct-cell">${pct.toFixed(1)}%</td><td>${c.toFixed(2)}</td>`;
       }).join("");
       pTbody.appendChild(tr);
     });
@@ -2618,7 +2618,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
       const delta = total - planned;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${proj.name}</td><td class="${cellClass(total, planned)}">${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${proj.name}</td><td>${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       projTbody.appendChild(tr);
     });
     projTable.appendChild(projTbody);
@@ -2641,7 +2641,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
         const statusClass = values.net >= 0 ? "correct" : "warning";
         const tr = document.createElement("tr");
         tr.className = "base-funding-row";
-        tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${values.planned.toFixed(2)}</td><td>${values.deductions.toFixed(2)}</td><td class="${cellClass(values.net, 0)}">${values.net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
+        tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${values.planned.toFixed(2)}</td><td>${values.deductions.toFixed(2)}</td><td>${values.net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
         bfTbody.appendChild(tr);
       });
       bfTable.appendChild(bfTbody);
@@ -2706,7 +2706,7 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const statusClass = net >= 0 ? "correct" : "warning";
       const tr = document.createElement("tr");
       tr.className = "base-funding-row";
-      tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${plannedPM.toFixed(2)}</td><td>${deduction.toFixed(2)}</td><td class="${cellClass(net, 0)}">${net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
+      tr.innerHTML = `<td><strong>${bfProj.name}</strong></td><td>${plannedPM.toFixed(2)}</td><td>${deduction.toFixed(2)}</td><td>${net.toFixed(2)}</td><td class="${statusClass}">${status}</td>`;
       bfTbody.appendChild(tr);
     });
     bfTable.appendChild(bfTbody);

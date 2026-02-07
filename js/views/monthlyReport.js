@@ -59,7 +59,7 @@ export async function calculateMonth(month) {
             cells.map(c => {
                 const pct = pmToPercentage(c, fte);
                 return `<td class="pct-cell">${pct.toFixed(1)}%</td>` +
-                       `<td class="${cellClass(c, fte / projects.length)}">${c.toFixed(2)}</td>`;
+                       `<td>${c.toFixed(2)}</td>`;
             }).join('');
         pTbody.appendChild(tr);
     });
@@ -123,7 +123,7 @@ export async function calculateMonth(month) {
         
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${proj.name}</td>` +
-            `<td class="${cellClass(total, planned)}">${total.toFixed(2)}</td>` +
+            `<td>${total.toFixed(2)}</td>` +
             `<td>${planned.toFixed(2)}</td>` +
             `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
         projTbody.appendChild(tr);
@@ -160,7 +160,7 @@ export async function calculateMonth(month) {
             tr.innerHTML = `<td><strong>${bfProj.name}</strong></td>` +
                 `<td>${values.planned.toFixed(2)}</td>` +
                 `<td>${values.deductions.toFixed(2)}</td>` +
-                `<td class="${cellClass(values.net, 0)}">${values.net.toFixed(2)}</td>` +
+                `<td>${values.net.toFixed(2)}</td>` +
                 `<td class="${statusClass}">${status}</td>`;
             bfTbody.appendChild(tr);
         });

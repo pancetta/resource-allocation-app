@@ -2575,7 +2575,10 @@ Click OK to proceed with overlap, or Cancel to abort.`
     resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
     const personTable = document.createElement("table");
     const headerRow1 = document.createElement("tr");
-    headerRow1.innerHTML = `<th rowspan="2">Person</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th><th colspan="2">Total</th>` + projects.map((p) => `<th colspan="2">${p.name}</th>`).join("");
+    headerRow1.innerHTML = `<th rowspan="2">Person</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th><th colspan="2">Total</th>` + projects.map((p) => {
+      const projectNumber = p.projectNumber ? `<br><small>${p.projectNumber}</small>` : "";
+      return `<th colspan="2">${p.name}${projectNumber}</th>`;
+    }).join("");
     const headerRow2 = document.createElement("tr");
     headerRow2.innerHTML = `<th class="sub-header">%</th><th class="sub-header">PM</th>` + projects.map(() => `<th class="sub-header">%</th><th class="sub-header">PM</th>`).join("");
     const thead = document.createElement("thead");
@@ -2629,8 +2632,9 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex, projects);
       const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
       const delta = total - planned;
+      const projectDisplay = proj.projectNumber ? `${proj.name}<br><small>${proj.projectNumber}</small>` : proj.name;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${proj.name}</td><td>${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${projectDisplay}</td><td>${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       projTbody.appendChild(tr);
     });
     projTable.appendChild(projTbody);

@@ -114,6 +114,60 @@ describe('Monthly Report', () => {
       expect(projectTable.innerHTML).toContain('Planned PM');
       expect(projectTable.innerHTML).toContain('Delta');
     });
+
+    it('should display project numbers in person table header', async () => {
+      // Update projects with project numbers
+      const projects = await db.getProjects();
+      await db.updateProject({ ...projects[0], projectNumber: 'ALPHA-001' });
+      await db.updateProject({ ...projects[1], projectNumber: 'BETA-002' });
+      
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 0.5, startMonth: '2025-01', endMonth: '' });
+      
+      await calculateMonth('2025-03');
+      
+      const output = document.getElementById('resultsOutput');
+      const tables = output.querySelectorAll('table');
+      const personTable = tables[0];
+      const thead = personTable.querySelector('thead');
+      
+      // Should show project numbers below project names
+      expect(thead.innerHTML).toContain('ALPHA-001');
+      expect(thead.innerHTML).toContain('BETA-002');
+    });
+
+    it('should display project numbers in project table', async () => {
+      // Update projects with project numbers
+      const projects = await db.getProjects();
+      await db.updateProject({ ...projects[0], projectNumber: 'ALPHA-001' });
+      await db.updateProject({ ...projects[1], projectNumber: 'BETA-002' });
+      
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
+      
+      await calculateMonth('2025-03');
+      
+      const output = document.getElementById('resultsOutput');
+      const tables = output.querySelectorAll('table');
+      const projectTable = tables[1];
+      
+      // Should show project numbers below project names in project table
+      expect(projectTable.innerHTML).toContain('ALPHA-001');
+      expect(projectTable.innerHTML).toContain('BETA-002');
+    });
+
+    it('should handle projects without project numbers', async () => {
+      // Don't set project numbers
+      await db.addAllocation({ personId: 'p001', projectId: 'proj001', pm: 1.0, startMonth: '2025-01', endMonth: '' });
+      
+      await calculateMonth('2025-03');
+      
+      const output = document.getElementById('resultsOutput');
+      const tables = output.querySelectorAll('table');
+      
+      // Should still render without errors
+      expect(tables.length).toBeGreaterThanOrEqual(2);
+      expect(output.innerHTML).toContain('Project Alpha');
+      expect(output.innerHTML).toContain('Project Beta');
+    });
   });
 
   describe('initMonthlyReport', () => {

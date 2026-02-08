@@ -59,6 +59,16 @@ describe('Projects View', () => {
       expect(plannedCell).toBeNull();
     });
 
+    it('should render projectNumber field', async () => {
+      await db.addProject({ id: 'proj001', name: 'Project Delta', projectNumber: 'XYZ987' });
+      
+      await renderProjects();
+      
+      const projectNumberCell = document.querySelector('[data-field="projectNumber"]');
+      expect(projectNumberCell).toBeTruthy();
+      expect(projectNumberCell.textContent).toBe('XYZ987');
+    });
+
     it('should call populateProjectSelect after rendering', async () => {
       await db.addProject({ id: 'proj001', name: 'Project Alpha' });
       

@@ -54,6 +54,7 @@ describe('Entity Schemas', () => {
             const defaults = projectsSchema.getDefaults();
             expect(defaults).toEqual({
                 name: '',
+                projectNumber: '',
                 isBaseFunding: false,
                 baseFundingType: null,
                 deductsFromBaseFunding: false,
@@ -64,6 +65,7 @@ describe('Entity Schemas', () => {
         it('should have name field', () => {
             const fieldKeys = projectsSchema.fields.map(f => f.key);
             expect(fieldKeys).toContain('name');
+            expect(fieldKeys).toContain('projectNumber');
         });
         
         it('should have base funding fields', () => {
@@ -132,7 +134,7 @@ describe('Entity Schemas', () => {
 
         it('should return headers from projects schema', () => {
             const headers = getTableHeaders(projectsSchema);
-            expect(headers).toEqual(['Name', 'Matching funds']);
+            expect(headers).toEqual(['Name', 'Project Number', 'Matching funds']);
         });
 
         it('should order headers by order field', () => {
@@ -153,8 +155,8 @@ describe('Entity Schemas', () => {
 
         it('should return editable fields from projects schema', () => {
             const fields = getEditableFields(projectsSchema);
-            expect(fields).toHaveLength(1); // Only name is editable after creation
-            expect(fields[0].key).toBe('name');
+            expect(fields).toHaveLength(2); // name and projectNumber are editable
+            expect(fields.map(f => f.key)).toEqual(['name', 'projectNumber']);
         });
 
         it('should order fields by order property', () => {

@@ -180,6 +180,8 @@ function attachProjectsEventListeners() {
                 project.name = value;
                 populateProjectSelect();
                 renderBudgetValues(); // Update budget table in case project name changed
+            } else if (field === "projectNumber") {
+                project.projectNumber = value;
             }
             
             await updateProject(project);
@@ -308,13 +310,13 @@ export async function populateBudgetProjectSelect() {
 }
 
 // Add project with auto-generated ID and initial budget value
-export async function addProjectAuto(name) {
+export async function addProjectAuto(name, projectNumber = '') {
     // Save state for undo
     await saveState(`Add project: ${name}`);
     
     const id = await generateProjectId();
     // Mark as new so matching funds checkbox is enabled
-    await addProject({ id, name, isNew: true });
+    await addProject({ id, name, projectNumber, isNew: true });
     
     // Create initial budget value for the project
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format

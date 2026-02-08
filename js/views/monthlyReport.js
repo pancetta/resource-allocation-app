@@ -28,7 +28,10 @@ export async function calculateMonth(month) {
         `<th rowspan="2">FTE</th>` +
         `<th rowspan="2">Delta</th>` +
         `<th colspan="2">Total</th>` +
-        projects.map(p => `<th colspan="2">${p.name}</th>`).join('');
+        projects.map(p => {
+            const projectNumber = p.projectNumber ? `<br><small>${p.projectNumber}</small>` : '';
+            return `<th colspan="2">${p.name}${projectNumber}</th>`;
+        }).join('');
     
     const headerRow2 = document.createElement("tr");
     headerRow2.innerHTML = 
@@ -121,8 +124,13 @@ export async function calculateMonth(month) {
         
         const delta = total - planned;
         
+        // Format project name with number on separate line if it exists
+        const projectDisplay = proj.projectNumber 
+            ? `${proj.name}<br><small>${proj.projectNumber}</small>` 
+            : proj.name;
+        
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${proj.name}</td>` +
+        tr.innerHTML = `<td>${projectDisplay}</td>` +
             `<td>${total.toFixed(2)}</td>` +
             `<td>${planned.toFixed(2)}</td>` +
             `<td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;

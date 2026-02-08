@@ -913,6 +913,15 @@ var App = (() => {
         order: 1
       },
       {
+        key: "projectNumber",
+        label: "Project Number",
+        type: "text",
+        required: false,
+        editable: true,
+        showInTable: true,
+        order: 2
+      },
+      {
         key: "isBaseFunding",
         label: "Base Funding",
         type: "checkbox",
@@ -921,7 +930,7 @@ var App = (() => {
         // Not editable in table - set at creation
         showInTable: false,
         // Hidden from table - determined by system
-        order: 2,
+        order: 3,
         defaultValue: false,
         description: "Mark this project as a base funding project"
       },
@@ -934,7 +943,7 @@ var App = (() => {
         // Not editable in table
         showInTable: false,
         // Hidden from table - shown in project name
-        order: 3,
+        order: 4,
         description: "Type of base funding (210, 220, etc.) - only for base funding projects"
       },
       {
@@ -945,7 +954,7 @@ var App = (() => {
         editable: false,
         // Not editable after creation (only during creation)
         showInTable: true,
-        order: 4,
+        order: 5,
         defaultValue: false,
         description: "Whether allocations to this project deduct from base funding"
       },
@@ -957,13 +966,14 @@ var App = (() => {
         editable: false,
         // Not editable after creation
         showInTable: false,
-        order: 5,
+        order: 6,
         description: "Which base funding type to deduct from (210, 220, etc.) - derived from person allocations"
       }
     ],
     // Default values for new project
     getDefaults: () => ({
       name: "",
+      projectNumber: "",
       isBaseFunding: false,
       baseFundingType: null,
       deductsFromBaseFunding: false,
@@ -1721,6 +1731,8 @@ ${messages}`);
           project.name = value;
           populateProjectSelect();
           renderBudgetValues();
+        } else if (field === "projectNumber") {
+          project.projectNumber = value;
         }
         await updateProject(project);
         scheduleAutoBackup();
@@ -1816,10 +1828,10 @@ ${messages}`);
       select.appendChild(option);
     });
   }
-  async function addProjectAuto(name) {
+  async function addProjectAuto(name, projectNumber = "") {
     await saveState(`Add project: ${name}`);
     const id = await generateProjectId();
-    await addProject({ id, name, isNew: true });
+    await addProject({ id, name, projectNumber, isNew: true });
     const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
     await addBudgetValue({
       projectId: id,
@@ -2563,7 +2575,10 @@ Click OK to proceed with overlap, or Cancel to abort.`
     resultsOutput.innerHTML = `<h3>Monthly Report ${month}</h3>`;
     const personTable = document.createElement("table");
     const headerRow1 = document.createElement("tr");
-    headerRow1.innerHTML = `<th rowspan="2">Person</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th><th colspan="2">Total</th>` + projects.map((p) => `<th colspan="2">${p.name}</th>`).join("");
+    headerRow1.innerHTML = `<th rowspan="2">Person</th><th rowspan="2">FTE</th><th rowspan="2">Delta</th><th colspan="2">Total</th>` + projects.map((p) => {
+      const projectNumber = p.projectNumber ? `<br><small>${p.projectNumber}</small>` : "";
+      return `<th colspan="2">${p.name}${projectNumber}</th>`;
+    }).join("");
     const headerRow2 = document.createElement("tr");
     headerRow2.innerHTML = `<th class="sub-header">%</th><th class="sub-header">PM</th>` + projects.map(() => `<th class="sub-header">%</th><th class="sub-header">PM</th>`).join("");
     const thead = document.createElement("thead");
@@ -2617,8 +2632,9 @@ Click OK to proceed with overlap, or Cancel to abort.`
       const total = calculateProjectTotal(allocationIndex, proj.id, people, month, fteValues, allocationOverrideIndex, projects);
       const planned = getEffectiveProjectBudget(proj.id, month, budgetValues);
       const delta = total - planned;
+      const projectDisplay = proj.projectNumber ? `${proj.name}<br><small>${proj.projectNumber}</small>` : proj.name;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${proj.name}</td><td>${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
+      tr.innerHTML = `<td>${projectDisplay}</td><td>${total.toFixed(2)}</td><td>${planned.toFixed(2)}</td><td class="${cellClass(delta, 0)}">${delta.toFixed(2)}</td>`;
       projTbody.appendChild(tr);
     });
     projTable.appendChild(projTbody);

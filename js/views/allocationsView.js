@@ -6,10 +6,10 @@
  * and their monthly overrides.
  */
 
-import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride } from '../data/database.js';
+import { getAllocations, updateAllocation, deleteAllocation, addAllocation, getPeople, getProjects, getAllocationOverrides, addAllocationOverride, updateAllocationOverride, deleteAllocationOverride, getFteValues, getBudgetValues } from '../data/database.js';
 import { scheduleAutoBackup } from '../main.js';
 import { pmPerMonthToYear } from '../helpers/allocationHelper.js';
-import { findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore } from '../helpers/validationHelper.js';
+import { findOverlappingAllocations, findOpenEndedAllocationsToClose, getMonthBefore, validatePersonAllocation, validateProjectAllocation } from '../helpers/validationHelper.js';
 import { PM_STEP, MIN_PM } from '../config/constants.js';
 
 /**
@@ -126,6 +126,58 @@ function attachAllocationsEventListeners() {
                 // Revert to original value
                 this.value = alloc.pm;
                 return;
+            }
+            
+            // Validate person allocation (check for overallocation)
+            const allocationOverrides = await getAllocationOverrides();
+            const fteValues = await getFteValues();
+            const budgetValues = await getBudgetValues();
+            const people = await getPeople();
+            const projects = await getProjects();
+            
+            const personValidation = await validatePersonAllocation(
+                alloc.personId, pm, alloc.startMonth, alloc.endMonth,
+                allocations, allocationOverrides, fteValues, id
+            );
+            
+            if (!personValidation.valid) {
+                const person = people.find(p => p.id === alloc.personId);
+                const personName = person ? person.name : alloc.personId;
+                
+                const proceed = confirm(
+                    `⚠️ OVERALLOCATION WARNING for ${personName}\n\n` +
+                    personValidation.message + '\n\n' +
+                    'Do you want to proceed anyway? This may cause resource conflicts.'
+                );
+                
+                if (!proceed) {
+                    // Revert to original value
+                    this.value = alloc.pm;
+                    return;
+                }
+            }
+            
+            // Validate project allocation (check for overallocation)
+            const projectValidation = await validateProjectAllocation(
+                alloc.projectId, pm, alloc.startMonth, alloc.endMonth,
+                allocations, allocationOverrides, budgetValues, id
+            );
+            
+            if (!projectValidation.valid) {
+                const project = projects.find(p => p.id === alloc.projectId);
+                const projectName = project ? project.name : alloc.projectId;
+                
+                const proceed = confirm(
+                    `⚠️ OVERALLOCATION WARNING for ${projectName}\n\n` +
+                    projectValidation.message + '\n\n' +
+                    'Do you want to proceed anyway? This may cause budget overruns.'
+                );
+                
+                if (!proceed) {
+                    // Revert to original value
+                    this.value = alloc.pm;
+                    return;
+                }
             }
             
             alloc.pm = pm;
@@ -487,6 +539,55 @@ export function initAllocationsView() {
                         return; // User cancelled
                     }
                 }
+            }
+        }
+        
+        // Validate person allocation (check for overallocation)
+        const allocations = await getAllocations();
+        const allocationOverrides = await getAllocationOverrides();
+        const fteValues = await getFteValues();
+        const budgetValues = await getBudgetValues();
+        const people = await getPeople();
+        const projects = await getProjects();
+        
+        const personValidation = await validatePersonAllocation(
+            personId, pm, startMonth, endMonth,
+            allocations, allocationOverrides, fteValues
+        );
+        
+        if (!personValidation.valid) {
+            const person = people.find(p => p.id === personId);
+            const personName = person ? person.name : personId;
+            
+            const proceed = confirm(
+                `⚠️ OVERALLOCATION WARNING for ${personName}\n\n` +
+                personValidation.message + '\n\n' +
+                'Do you want to proceed anyway? This may cause resource conflicts.'
+            );
+            
+            if (!proceed) {
+                return; // User cancelled
+            }
+        }
+        
+        // Validate project allocation (check for overallocation)
+        const projectValidation = await validateProjectAllocation(
+            projectId, pm, startMonth, endMonth,
+            allocations, allocationOverrides, budgetValues
+        );
+        
+        if (!projectValidation.valid) {
+            const project = projects.find(p => p.id === projectId);
+            const projectName = project ? project.name : projectId;
+            
+            const proceed = confirm(
+                `⚠️ OVERALLOCATION WARNING for ${projectName}\n\n` +
+                projectValidation.message + '\n\n' +
+                'Do you want to proceed anyway? This may cause budget overruns.'
+            );
+            
+            if (!proceed) {
+                return; // User cancelled
             }
         }
         

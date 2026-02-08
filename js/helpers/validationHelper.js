@@ -3,7 +3,7 @@
  * Ensures entities have required time-based values
  */
 
-import { getFteValues, getBudgetValues, getAllocations } from '../data/database.js';
+import { getFteValues, getBudgetValues, getAllocations, getEffectiveFte, getEffectivePlannedPM } from '../data/database.js';
 import { MIN_FTE, MAX_FTE, MIN_PM } from '../config/constants.js';
 
 /**
@@ -371,4 +371,246 @@ export async function findOpenEndedAllocationsToClose(personId, projectId, start
         // (so it would overlap with the new entry)
         return alloc.startMonth < startMonth;
     });
+}
+
+/**********************
+ * Overallocation Detection
+ **********************/
+
+/**
+ * Calculate total PM allocated to a person across all projects for a specific month
+ * @param {string} personId - The person's ID
+ * @param {string} month - Month in YYYY-MM format
+ * @param {Array} allocations - Array of allocation objects
+ * @param {Array} allocationOverrides - Array of allocation override objects
+ * @param {number} [excludeId] - Optional allocation ID to exclude from calculation
+ * @returns {number} Total PM allocated
+ */
+export function calculatePersonTotalAllocation(personId, month, allocations, allocationOverrides, excludeId = null) {
+    let total = 0;
+    
+    for (const alloc of allocations) {
+        // Skip excluded allocation
+        if (excludeId !== null && alloc.id === excludeId) {
+            continue;
+        }
+        
+        // Only count allocations for this person
+        if (alloc.personId !== personId) {
+            continue;
+        }
+        
+        // Only count if allocation is active for this month
+        if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
+            // Check for override for this specific allocation and month
+            const override = allocationOverrides.find(o => 
+                o.allocationId === alloc.id && o.month === month
+            );
+            
+            const pm = override ? override.pm : alloc.pm;
+            total += pm;
+        }
+    }
+    
+    return total;
+}
+
+/**
+ * Calculate total PM allocated to a project across all people for a specific month
+ * @param {string} projectId - The project's ID
+ * @param {string} month - Month in YYYY-MM format
+ * @param {Array} allocations - Array of allocation objects
+ * @param {Array} allocationOverrides - Array of allocation override objects
+ * @param {number} [excludeId] - Optional allocation ID to exclude from calculation
+ * @returns {number} Total PM allocated
+ */
+export function calculateProjectTotalAllocation(projectId, month, allocations, allocationOverrides, excludeId = null) {
+    let total = 0;
+    
+    for (const alloc of allocations) {
+        // Skip excluded allocation
+        if (excludeId !== null && alloc.id === excludeId) {
+            continue;
+        }
+        
+        // Only count allocations for this project
+        if (alloc.projectId !== projectId) {
+            continue;
+        }
+        
+        // Only count if allocation is active for this month
+        if (alloc.startMonth <= month && (!alloc.endMonth || alloc.endMonth >= month)) {
+            // Check for override for this specific allocation and month
+            const override = allocationOverrides.find(o => 
+                o.allocationId === alloc.id && o.month === month
+            );
+            
+            const pm = override ? override.pm : alloc.pm;
+            total += pm;
+        }
+    }
+    
+    return total;
+}
+
+/**
+ * Get all months covered by an allocation
+ * @param {string} startMonth - Start month in YYYY-MM format
+ * @param {string|null} endMonth - End month in YYYY-MM format or null for open-ended
+ * @returns {Array<string>} Array of month strings
+ */
+function getMonthsInRange(startMonth, endMonth) {
+    const months = [];
+    const start = new Date(startMonth + '-01');
+    const end = endMonth ? new Date(endMonth + '-01') : null;
+    
+    // Limit to reasonable range (e.g., 60 months / 5 years for open-ended)
+    const maxMonths = 60;
+    let current = new Date(start);
+    let count = 0;
+    
+    while (count < maxMonths) {
+        const monthStr = current.toISOString().slice(0, 7);
+        months.push(monthStr);
+        
+        // Stop if we've reached the end month
+        if (end && current >= end) {
+            break;
+        }
+        
+        // Move to next month
+        current.setMonth(current.getMonth() + 1);
+        count++;
+    }
+    
+    return months;
+}
+
+/**
+ * Validate that a person allocation doesn't cause overallocation
+ * Checks if adding/updating an allocation would cause the person's total to exceed their FTE
+ * @param {string} personId - The person's ID
+ * @param {number} pm - PM value for this allocation
+ * @param {string} startMonth - Start month in YYYY-MM format
+ * @param {string|null} endMonth - End month in YYYY-MM format or null for open-ended
+ * @param {Array} allocations - Array of all allocation objects
+ * @param {Array} allocationOverrides - Array of allocation override objects
+ * @param {Array} fteValues - Array of FTE value objects
+ * @param {number} [excludeId] - Optional allocation ID to exclude (when updating)
+ * @returns {Promise<{valid: boolean, message: string, conflicts: Array}>} Validation result
+ */
+export async function validatePersonAllocation(personId, pm, startMonth, endMonth, allocations, allocationOverrides, fteValues, excludeId = null) {
+    // Get all months covered by this allocation
+    const months = getMonthsInRange(startMonth, endMonth);
+    const conflicts = [];
+    
+    for (const month of months) {
+        // Get person's FTE for this month
+        const fte = getEffectiveFte(personId, month, fteValues);
+        
+        // Calculate existing allocations for this person in this month (excluding current allocation if updating)
+        const existingTotal = calculatePersonTotalAllocation(personId, month, allocations, allocationOverrides, excludeId);
+        
+        // Calculate new total
+        const newTotal = existingTotal + pm;
+        
+        // Check if new total exceeds FTE
+        if (newTotal > fte) {
+            conflicts.push({
+                month,
+                fte,
+                existingTotal,
+                newAllocation: pm,
+                newTotal,
+                overallocation: newTotal - fte
+            });
+        }
+    }
+    
+    if (conflicts.length > 0) {
+        const firstConflict = conflicts[0];
+        const monthList = conflicts.length > 3 
+            ? `${conflicts.slice(0, 3).map(c => c.month).join(', ')}, and ${conflicts.length - 3} more`
+            : conflicts.map(c => c.month).join(', ');
+        
+        return {
+            valid: false,
+            message: `Person would be overallocated in ${conflicts.length} month(s): ${monthList}. ` +
+                     `For example, in ${firstConflict.month}: FTE=${firstConflict.fte.toFixed(2)}, ` +
+                     `existing=${firstConflict.existingTotal.toFixed(2)} PM, ` +
+                     `new allocation=${firstConflict.newAllocation.toFixed(2)} PM, ` +
+                     `would exceed FTE by ${firstConflict.overallocation.toFixed(2)} PM.`,
+            conflicts
+        };
+    }
+    
+    return { valid: true, message: '', conflicts: [] };
+}
+
+/**
+ * Validate that a project allocation doesn't cause overallocation
+ * Checks if adding/updating an allocation would cause the project's total to exceed its planned PM
+ * @param {string} projectId - The project's ID
+ * @param {number} pm - PM value for this allocation
+ * @param {string} startMonth - Start month in YYYY-MM format
+ * @param {string|null} endMonth - End month in YYYY-MM format or null for open-ended
+ * @param {Array} allocations - Array of all allocation objects
+ * @param {Array} allocationOverrides - Array of allocation override objects
+ * @param {Array} budgetValues - Array of budget value objects
+ * @param {number} [excludeId] - Optional allocation ID to exclude (when updating)
+ * @returns {Promise<{valid: boolean, message: string, conflicts: Array}>} Validation result
+ */
+export async function validateProjectAllocation(projectId, pm, startMonth, endMonth, allocations, allocationOverrides, budgetValues, excludeId = null) {
+    // Get all months covered by this allocation
+    // Get all months covered by this allocation
+    const months = getMonthsInRange(startMonth, endMonth);
+    const conflicts = [];
+    
+    for (const month of months) {
+        // Get project's planned PM for this month
+        const plannedPM = getEffectivePlannedPM(projectId, month, budgetValues);
+        
+        // Skip validation if project has no budget (plannedPM = 0)
+        // This allows flexibility for projects without defined budgets
+        if (plannedPM === 0) {
+            continue;
+        }
+        
+        // Calculate existing allocations for this project in this month (excluding current allocation if updating)
+        const existingTotal = calculateProjectTotalAllocation(projectId, month, allocations, allocationOverrides, excludeId);
+        
+        // Calculate new total
+        const newTotal = existingTotal + pm;
+        
+        // Check if new total exceeds planned PM
+        if (newTotal > plannedPM) {
+            conflicts.push({
+                month,
+                plannedPM,
+                existingTotal,
+                newAllocation: pm,
+                newTotal,
+                overallocation: newTotal - plannedPM
+            });
+        }
+    }
+    
+    if (conflicts.length > 0) {
+        const firstConflict = conflicts[0];
+        const monthList = conflicts.length > 3 
+            ? `${conflicts.slice(0, 3).map(c => c.month).join(', ')}, and ${conflicts.length - 3} more`
+            : conflicts.map(c => c.month).join(', ');
+        
+        return {
+            valid: false,
+            message: `Project would be overallocated in ${conflicts.length} month(s): ${monthList}. ` +
+                     `For example, in ${firstConflict.month}: Planned=${firstConflict.plannedPM.toFixed(2)} PM, ` +
+                     `existing=${firstConflict.existingTotal.toFixed(2)} PM, ` +
+                     `new allocation=${firstConflict.newAllocation.toFixed(2)} PM, ` +
+                     `would exceed budget by ${firstConflict.overallocation.toFixed(2)} PM.`,
+            conflicts
+        };
+    }
+    
+    return { valid: true, message: '', conflicts: [] };
 }

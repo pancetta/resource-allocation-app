@@ -187,6 +187,20 @@ describe('Allocations View', () => {
     });
 
     it('should update allocation percentage on blur', async () => {
+      // Set up test data with FTE values and budget values for validation
+      await db.addFteValue({
+        personId: 'p001',
+        fte: 100.0, // Large FTE to allow PM of 75
+        startMonth: '2024-01',
+        endMonth: null
+      });
+      await db.addBudgetValue({
+        projectId: 'proj001',
+        plannedPM: 100, // Large budget to allow PM of 75
+        startMonth: '2024-01',
+        endMonth: null
+      });
+      
       await db.addAllocation({
         id: 1,
         personId: 'p001',

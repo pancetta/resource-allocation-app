@@ -8,7 +8,9 @@ import {
     validateBudgetValueDeletion,
     validateFteValue,
     validatePlannedPM,
-    validateAllocationPercentage
+    validateAllocationPercentage,
+    validatePersonAllocation,
+    validateProjectAllocation
 } from '../../js/helpers/validationHelper.js';
 import * as db from '../../js/data/database.js';
 
@@ -245,6 +247,281 @@ describe('validationHelper', () => {
         it('should accept decimal percentages', () => {
             expect(validateAllocationPercentage(33.33).valid).toBe(true);
             expect(validateAllocationPercentage(99.9).valid).toBe(true);
+        });
+    });
+
+    describe('validatePersonAllocation', () => {
+        beforeEach(async () => {
+            // Set up test data
+            await db.addPerson({ id: 'p001', name: 'Alice', active: true });
+            await db.addPerson({ id: 'p002', name: 'Bob', active: true });
+            await db.addProject({ id: 'proj001', name: 'Project A' });
+            await db.addProject({ id: 'proj002', name: 'Project B' });
+            await db.addFteValue({ personId: 'p001', fte: 1.0, startMonth: '2025-01', endMonth: null });
+            await db.addFteValue({ personId: 'p002', fte: 0.5, startMonth: '2025-01', endMonth: null });
+        });
+
+        it('should allow allocation within FTE limit', async () => {
+            const allocations = [];
+            const allocationOverrides = [];
+            const fteValues = await db.getFteValues();
+            
+            const result = await validatePersonAllocation(
+                'p001', 0.5, '2025-01', '2025-06',
+                allocations, allocationOverrides, fteValues
+            );
+            
+            expect(result.valid).toBe(true);
+            expect(result.conflicts).toHaveLength(0);
+        });
+
+        it('should detect overallocation exceeding FTE', async () => {
+            const allocations = [];
+            const allocationOverrides = [];
+            const fteValues = await db.getFteValues();
+            
+            const result = await validatePersonAllocation(
+                'p001', 1.5, '2025-01', '2025-06',
+                allocations, allocationOverrides, fteValues
+            );
+            
+            expect(result.valid).toBe(false);
+            expect(result.conflicts.length).toBeGreaterThan(0);
+            expect(result.message).toContain('overallocated');
+            expect(result.message).toContain('FTE=1.00');
+        });
+
+        it('should account for existing allocations', async () => {
+            // Add existing allocation of 0.6 PM
+            await db.addAllocation({
+                personId: 'p001',
+                projectId: 'proj001',
+                pm: 0.6,
+                startMonth: '2025-01',
+                endMonth: '2025-12'
+            });
+            
+            const allocations = await db.getAllocations();
+            const allocationOverrides = [];
+            const fteValues = await db.getFteValues();
+            
+            // Try to add another 0.5 PM (would total 1.1 PM, exceeding FTE of 1.0)
+            const result = await validatePersonAllocation(
+                'p001', 0.5, '2025-01', '2025-06',
+                allocations, allocationOverrides, fteValues
+            );
+            
+            expect(result.valid).toBe(false);
+            expect(result.conflicts.length).toBeGreaterThan(0);
+        });
+
+        it('should exclude current allocation when updating', async () => {
+            // Add allocation
+            await db.addAllocation({
+                personId: 'p001',
+                projectId: 'proj001',
+                pm: 0.8,
+                startMonth: '2025-01',
+                endMonth: '2025-12'
+            });
+            
+            const allocations = await db.getAllocations();
+            const allocationId = allocations[0].id;
+            const allocationOverrides = [];
+            const fteValues = await db.getFteValues();
+            
+            // Update same allocation to 0.9 PM (should be valid since we exclude current allocation)
+            const result = await validatePersonAllocation(
+                'p001', 0.9, '2025-01', '2025-12',
+                allocations, allocationOverrides, fteValues, allocationId
+            );
+            
+            expect(result.valid).toBe(true);
+        });
+
+        it('should handle allocation overrides', async () => {
+            // Add allocation
+            await db.addAllocation({
+                personId: 'p001',
+                projectId: 'proj001',
+                pm: 0.5,
+                startMonth: '2025-01',
+                endMonth: '2025-12'
+            });
+            
+            const allocations = await db.getAllocations();
+            const allocationId = allocations[0].id;
+            
+            // Add override that increases allocation in specific month
+            await db.addAllocationOverride({
+                allocationId: allocationId,
+                month: '2025-03',
+                pm: 0.8
+            });
+            
+            const allocationOverrides = await db.getAllocationOverrides();
+            const fteValues = await db.getFteValues();
+            
+            // Try to add another allocation that would cause overallocation with override
+            const result = await validatePersonAllocation(
+                'p001', 0.3, '2025-03', '2025-03',
+                allocations, allocationOverrides, fteValues
+            );
+            
+            // 0.8 (override) + 0.3 (new) = 1.1 > 1.0 FTE
+            expect(result.valid).toBe(false);
+        });
+
+        it('should respect FTE changes over time', async () => {
+            // Add FTE change in March
+            await db.addFteValue({
+                personId: 'p001',
+                fte: 0.5,
+                startMonth: '2025-03',
+                endMonth: null
+            });
+            
+            const allocations = [];
+            const allocationOverrides = [];
+            const fteValues = await db.getFteValues();
+            
+            // Try to allocate 0.8 PM across Jan-Jun
+            const result = await validatePersonAllocation(
+                'p001', 0.8, '2025-01', '2025-06',
+                allocations, allocationOverrides, fteValues
+            );
+            
+            // Should fail for March onwards (FTE = 0.5, allocation = 0.8)
+            expect(result.valid).toBe(false);
+            expect(result.conflicts.some(c => c.month >= '2025-03')).toBe(true);
+        });
+    });
+
+    describe('validateProjectAllocation', () => {
+        beforeEach(async () => {
+            // Set up test data
+            await db.addPerson({ id: 'p001', name: 'Alice', active: true });
+            await db.addProject({ id: 'proj001', name: 'Project A' });
+            await db.addBudgetValue({ projectId: 'proj001', plannedPM: 10, startMonth: '2025-01', endMonth: null });
+        });
+
+        it('should allow allocation within budget', async () => {
+            const allocations = [];
+            const allocationOverrides = [];
+            const budgetValues = await db.getBudgetValues();
+            
+            const result = await validateProjectAllocation(
+                'proj001', 5, '2025-01', '2025-06',
+                allocations, allocationOverrides, budgetValues
+            );
+            
+            expect(result.valid).toBe(true);
+            expect(result.conflicts).toHaveLength(0);
+        });
+
+        it('should detect overallocation exceeding budget', async () => {
+            const allocations = [];
+            const allocationOverrides = [];
+            const budgetValues = await db.getBudgetValues();
+            
+            const result = await validateProjectAllocation(
+                'proj001', 15, '2025-01', '2025-06',
+                allocations, allocationOverrides, budgetValues
+            );
+            
+            expect(result.valid).toBe(false);
+            expect(result.conflicts.length).toBeGreaterThan(0);
+            expect(result.message).toContain('overallocated');
+            expect(result.message).toContain('Planned=10.00');
+        });
+
+        it('should account for existing allocations', async () => {
+            // Add existing allocation of 7 PM
+            await db.addAllocation({
+                personId: 'p001',
+                projectId: 'proj001',
+                pm: 7,
+                startMonth: '2025-01',
+                endMonth: '2025-12'
+            });
+            
+            const allocations = await db.getAllocations();
+            const allocationOverrides = [];
+            const budgetValues = await db.getBudgetValues();
+            
+            // Try to add another 5 PM (would total 12 PM, exceeding budget of 10)
+            const result = await validateProjectAllocation(
+                'proj001', 5, '2025-01', '2025-06',
+                allocations, allocationOverrides, budgetValues
+            );
+            
+            expect(result.valid).toBe(false);
+            expect(result.conflicts.length).toBeGreaterThan(0);
+        });
+
+        it('should allow overallocation for projects without budget', async () => {
+            // Add project without budget
+            await db.addProject({ id: 'proj002', name: 'Project B' });
+            
+            const allocations = [];
+            const allocationOverrides = [];
+            const budgetValues = await db.getBudgetValues();
+            
+            // Should allow any allocation for project without budget
+            const result = await validateProjectAllocation(
+                'proj002', 100, '2025-01', '2025-06',
+                allocations, allocationOverrides, budgetValues
+            );
+            
+            expect(result.valid).toBe(true);
+        });
+
+        it('should exclude current allocation when updating', async () => {
+            // Add allocation
+            await db.addAllocation({
+                personId: 'p001',
+                projectId: 'proj001',
+                pm: 8,
+                startMonth: '2025-01',
+                endMonth: '2025-12'
+            });
+            
+            const allocations = await db.getAllocations();
+            const allocationId = allocations[0].id;
+            const allocationOverrides = [];
+            const budgetValues = await db.getBudgetValues();
+            
+            // Update same allocation to 9 PM (should be valid since we exclude current allocation)
+            const result = await validateProjectAllocation(
+                'proj001', 9, '2025-01', '2025-12',
+                allocations, allocationOverrides, budgetValues, allocationId
+            );
+            
+            expect(result.valid).toBe(true);
+        });
+
+        it('should respect budget changes over time', async () => {
+            // Add budget change in March (reduce budget)
+            await db.addBudgetValue({
+                projectId: 'proj001',
+                plannedPM: 5,
+                startMonth: '2025-03',
+                endMonth: null
+            });
+            
+            const allocations = [];
+            const allocationOverrides = [];
+            const budgetValues = await db.getBudgetValues();
+            
+            // Try to allocate 8 PM across Jan-Jun
+            const result = await validateProjectAllocation(
+                'proj001', 8, '2025-01', '2025-06',
+                allocations, allocationOverrides, budgetValues
+            );
+            
+            // Should fail for March onwards (budget = 5, allocation = 8)
+            expect(result.valid).toBe(false);
+            expect(result.conflicts.some(c => c.month >= '2025-03')).toBe(true);
         });
     });
 });

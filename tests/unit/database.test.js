@@ -124,6 +124,32 @@ describe('Database Module', () => {
       expect(projects).toHaveLength(1);
       expect(projects[0].id).toBe('proj002');
     });
+
+    it('should store and retrieve projectNumber', async () => {
+      const project = { id: 'proj001', name: 'Project X', projectNumber: 'ABC123', plannedPM: 2 };
+      await addProject(project);
+      
+      const projects = await getProjects();
+      expect(projects).toHaveLength(1);
+      expect(projects[0].projectNumber).toBe('ABC123');
+    });
+
+    it('should update projectNumber', async () => {
+      await addProject({ id: 'proj001', name: 'Project Y', projectNumber: 'DEF456', plannedPM: 2 });
+      
+      await updateProject({ id: 'proj001', name: 'Project Y', projectNumber: 'GHI789' });
+      
+      const projects = await getProjects();
+      expect(projects[0].projectNumber).toBe('GHI789');
+    });
+
+    it('should handle empty projectNumber', async () => {
+      const project = { id: 'proj001', name: 'Project Z', projectNumber: '', plannedPM: 2 };
+      await addProject(project);
+      
+      const projects = await getProjects();
+      expect(projects[0].projectNumber).toBe('');
+    });
   });
 
   describe('Allocations CRUD', () => {

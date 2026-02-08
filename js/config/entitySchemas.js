@@ -91,13 +91,22 @@ export const projectsSchema = {
             order: 1
         },
         {
+            key: 'projectNumber',
+            label: 'Project Number',
+            type: 'text',
+            required: false,
+            editable: true,
+            showInTable: true,
+            order: 2
+        },
+        {
             key: 'isBaseFunding',
             label: 'Base Funding',
             type: 'checkbox',
             required: false,
             editable: false, // Not editable in table - set at creation
             showInTable: false, // Hidden from table - determined by system
-            order: 2,
+            order: 3,
             defaultValue: false,
             description: 'Mark this project as a base funding project'
         },
@@ -108,7 +117,7 @@ export const projectsSchema = {
             required: false,
             editable: false, // Not editable in table
             showInTable: false, // Hidden from table - shown in project name
-            order: 3,
+            order: 4,
             description: 'Type of base funding (210, 220, etc.) - only for base funding projects'
         },
         {
@@ -118,7 +127,7 @@ export const projectsSchema = {
             required: false,
             editable: false, // Not editable after creation (only during creation)
             showInTable: true,
-            order: 4,
+            order: 5,
             defaultValue: false,
             description: 'Whether allocations to this project deduct from base funding'
         },
@@ -129,13 +138,14 @@ export const projectsSchema = {
             required: false,
             editable: false, // Not editable after creation
             showInTable: false,
-            order: 5,
+            order: 6,
             description: 'Which base funding type to deduct from (210, 220, etc.) - derived from person allocations'
         }
     ],
     // Default values for new project
     getDefaults: () => ({
         name: '',
+        projectNumber: '',
         isBaseFunding: false,
         baseFundingType: null,
         deductsFromBaseFunding: false,

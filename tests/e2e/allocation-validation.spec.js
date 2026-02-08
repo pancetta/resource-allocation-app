@@ -9,44 +9,47 @@ test.describe('Allocation Validation', () => {
     await page.goto('/');
     
     // Wait for app to load
-    await page.waitForSelector('#people-tab');
+    await page.waitForSelector('[data-tab="people"]');
     
-    // Add a person with FTE value
-    await page.click('#people-tab');
+    // People tab should be visible by default
     await page.waitForSelector('#people');
     
-    await page.fill('#person-name-input', 'Alice Smith');
-    await page.click('#add-person-btn');
-    await page.waitForTimeout(100);
+    // Add a person using quick-add row
+    await page.click('#addPersonBtn');
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Alice Smith');
+    await page.press('.quick-add-row input', 'Enter');
+    await page.waitForSelector('#peopleTable tbody tr:not(.quick-add-row)', { timeout: 10000 });
+    await page.waitForTimeout(500);
     
-    // Add FTE value for the person
-    await page.click('#fteValuesTab');
-    await page.waitForSelector('#fteValuesTable');
-    await page.selectOption('select.fte-person-select', { index: 0 });
-    await page.fill('#fte-fte-input', '1.0');
-    await page.fill('#fte-start-month-input', '2025-01');
-    await page.click('#add-fte-btn');
-    await page.waitForTimeout(100);
+    // Add FTE value for the person (already on people tab)
+    await page.selectOption('#ftePersonSelect', { label: 'Alice Smith' });
+    await page.fill('#fteValueInput', '1.0');
+    await page.fill('#fteStartMonthInput', '2025-01');
+    await page.click('#addFteValueBtn');
+    await page.waitForTimeout(500);
     
     // Add a project with budget
-    await page.click('#projects-tab');
+    await page.click('[data-tab="projects"]');
     await page.waitForSelector('#projects');
     
-    await page.fill('#project-name-input', 'Project Alpha');
-    await page.click('#add-project-btn');
-    await page.waitForTimeout(100);
+    // Add project using quick-add row
+    await page.click('#addProjectBtn');
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Project Alpha');
+    await page.press('.quick-add-row input', 'Enter');
+    await page.waitForSelector('#projectsTable tbody tr:not(.quick-add-row)', { timeout: 10000 });
+    await page.waitForTimeout(500);
     
-    // Add budget value for the project
-    await page.click('#budgetValuesTab');
-    await page.waitForSelector('#budgetValuesTable');
-    await page.selectOption('select.budget-project-select', { index: 0 });
-    await page.fill('#budget-planned-pm-input', '5.0');
-    await page.fill('#budget-start-month-input', '2025-01');
-    await page.click('#add-budget-btn');
-    await page.waitForTimeout(100);
+    // Add budget value for the project (already on projects tab)
+    await page.selectOption('#budgetProjectSelect', { label: 'Project Alpha' });
+    await page.fill('#budgetValueInput', '5.0');
+    await page.fill('#budgetStartMonthInput', '2025-01');
+    await page.click('#addBudgetValueBtn');
+    await page.waitForTimeout(500);
     
     // Go to allocations tab
-    await page.click('#allocations-tab');
+    await page.click('[data-tab="allocations"]');
     await page.waitForSelector('#allocations');
   });
 
@@ -59,8 +62,8 @@ test.describe('Allocation Validation', () => {
     });
     
     // Try to allocate 1.5 PM (exceeds FTE of 1.0)
-    await page.selectOption('#personSelect', { index: 0 });
-    await page.selectOption('#projectSelect', { index: 0 });
+    await page.selectOption('#personSelect', { label: 'Alice Smith' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
     await page.fill('#pmInput', '1.5');
     await page.fill('#startMonthInput', '2025-01');
     await page.fill('#endMonthInput', '2025-12');
@@ -98,10 +101,10 @@ test.describe('Allocation Validation', () => {
       }
     });
     
-    // Add a valid allocation first (within budget)
-    await page.selectOption('#personSelect', { index: 0 });
-    await page.selectOption('#projectSelect', { index: 0 });
-    await page.fill('#pmInput', '3.0');
+    // Add a valid allocation first (within budget and within person capacity)
+    await page.selectOption('#personSelect', { label: 'Alice Smith' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
+    await page.fill('#pmInput', '0.3');
     await page.fill('#startMonthInput', '2025-01');
     await page.fill('#endMonthInput', '2025-06');
     await page.click('#addAllocationBtn');
@@ -111,8 +114,39 @@ test.describe('Allocation Validation', () => {
     dialogMessage = '';
     dialogCount = 0;
     
-    // Try to add another allocation that would exceed budget (3 + 4 = 7 > 5)
-    await page.fill('#pmInput', '4.0');
+    // Try to add another allocation that would exceed budget (0.3 + 0.8 = 1.1 > person's 1.0 FTE)
+    // Wait, we need to test PROJECT overallocation, not person
+    // We need a second person to allocate more to the project
+    // Let's go back to people tab and add another person
+    await page.click('[data-tab="people"]');
+    await page.waitForSelector('#people');
+    
+    // Add second person
+    await page.click('#addPersonBtn');
+    await page.waitForSelector('.quick-add-row', { timeout: 5000 });
+    await page.fill('.quick-add-row input', 'Bob Jones');
+    await page.press('.quick-add-row input', 'Enter');
+    await page.waitForSelector('#peopleTable tbody tr:not(.quick-add-row)', { timeout: 10000 });
+    await page.waitForTimeout(500);
+    
+    // Add FTE for second person
+    await page.selectOption('#ftePersonSelect', { label: 'Bob Jones' });
+    await page.fill('#fteValueInput', '1.0');
+    await page.fill('#fteStartMonthInput', '2025-01');
+    await page.click('#addFteValueBtn');
+    await page.waitForTimeout(500);
+    
+    // Go back to allocations
+    await page.click('[data-tab="allocations"]');
+    await page.waitForSelector('#allocations');
+    
+    // Now add allocation from Bob that exceeds project budget
+    // Alice has 0.3 PM, if Bob adds 0.8 PM, total = 1.1 PM, but person capacity is OK
+    // But we want to exceed PROJECT budget which is 5.0 PM
+    // Alice has 0.3, if Bob adds 4.8, total = 5.1 > 5.0 budget
+    await page.selectOption('#personSelect', { label: 'Bob Jones' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
+    await page.fill('#pmInput', '4.8');
     await page.fill('#startMonthInput', '2025-02');
     await page.fill('#endMonthInput', '2025-12');
     await page.click('#addAllocationBtn');
@@ -132,8 +166,8 @@ test.describe('Allocation Validation', () => {
     });
     
     // Try to allocate 1.5 PM (exceeds FTE of 1.0)
-    await page.selectOption('#personSelect', { index: 0 });
-    await page.selectOption('#projectSelect', { index: 0 });
+    await page.selectOption('#personSelect', { label: 'Alice Smith' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
     await page.fill('#pmInput', '1.5');
     await page.fill('#startMonthInput', '2025-01');
     await page.fill('#endMonthInput', '2025-12');
@@ -157,8 +191,8 @@ test.describe('Allocation Validation', () => {
       await dialog.accept(); // Accept any dialogs
     });
     
-    await page.selectOption('#personSelect', { index: 0 });
-    await page.selectOption('#projectSelect', { index: 0 });
+    await page.selectOption('#personSelect', { label: 'Alice Smith' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
     await page.fill('#pmInput', '0.5');
     await page.fill('#startMonthInput', '2025-01');
     await page.fill('#endMonthInput', '2025-12');
@@ -198,8 +232,8 @@ test.describe('Allocation Validation', () => {
     });
     
     // Try to allocate 1.2 PM for a person with 1.0 FTE
-    await page.selectOption('#personSelect', { index: 0 });
-    await page.selectOption('#projectSelect', { index: 0 });
+    await page.selectOption('#personSelect', { label: 'Alice Smith' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
     await page.fill('#pmInput', '1.2');
     await page.fill('#startMonthInput', '2025-01');
     await page.fill('#endMonthInput', '2025-03');
@@ -222,15 +256,15 @@ test.describe('Allocation Validation', () => {
 
   test('should handle multiple months with varying FTE values', async ({ page }) => {
     // Add another FTE value that reduces FTE in March
-    await page.click('#people-tab');
-    await page.click('#fteValuesTab');
-    await page.selectOption('select.fte-person-select', { index: 0 });
-    await page.fill('#fte-fte-input', '0.5');
-    await page.fill('#fte-start-month-input', '2025-03');
-    await page.click('#add-fte-btn');
-    await page.waitForTimeout(100);
+    await page.click('[data-tab="people"]');
+    await page.waitForSelector('#people');
+    await page.selectOption('#ftePersonSelect', { label: 'Alice Smith' });
+    await page.fill('#fteValueInput', '0.5');
+    await page.fill('#fteStartMonthInput', '2025-03');
+    await page.click('#addFteValueBtn');
+    await page.waitForTimeout(500);
     
-    await page.click('#allocations-tab');
+    await page.click('[data-tab="allocations"]');
     await page.waitForSelector('#allocations');
     
     let dialogMessage = '';
@@ -241,8 +275,8 @@ test.describe('Allocation Validation', () => {
     
     // Try to allocate 0.8 PM from Jan to Jun
     // This should be OK for Jan-Feb (FTE=1.0) but fail for Mar-Jun (FTE=0.5)
-    await page.selectOption('#personSelect', { index: 0 });
-    await page.selectOption('#projectSelect', { index: 0 });
+    await page.selectOption('#personSelect', { label: 'Alice Smith' });
+    await page.selectOption('#projectSelect', { label: 'Project Alpha' });
     await page.fill('#pmInput', '0.8');
     await page.fill('#startMonthInput', '2025-01');
     await page.fill('#endMonthInput', '2025-06');
